@@ -1,0 +1,14 @@
+{{ define "title" }}<title>Arkivi | upload</title>{{ end }}
+{{ define "content" }}
+  <h1>Upload Images</h1>
+  <div id="dropzone">
+    <input id="dropzone-input" type="file" accept=".gif, .jpg, .jpeg, .png, image/gif, image/jpg, image/jpeg, image/png" multiple>
+    <span id="dropzone-icon" class="glyphicon glyphicon-record"></span>
+  </div>
+  <ul id="previews">
+  </ul>
+{{ end }}
+{{ define "scripts" }}
+  <script src="static/js/rsvp.min.js"></script>
+  <script src="static/js/upload.js"></script>
+{{ end }}
