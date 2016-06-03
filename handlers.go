@@ -39,7 +39,7 @@ var GetTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	// ext := strings.Split(r.Header.Get("Content-Type"), "/")[1]
 	ext := "jpg"
-	file, err := os.Create("assets/imgs/" + RandomString(9) + "." + ext)
+	file, err := os.Create("assets/arkivi/" + RandomString(9) + "." + ext)
 	if err != nil {
 		fmt.Println(err)
 	}
