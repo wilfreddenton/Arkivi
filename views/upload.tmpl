@@ -4,11 +4,16 @@
     <input id="dropzone-input" type="file" accept=".gif, .jpg, .jpeg, .png, image/gif, image/jpg, image/jpeg, image/png" multiple>
     <span id="dropzone-icon" class="glyphicon glyphicon-record"></span>
   </div>
-  <div id="placeholder"><span>Drop images above to upload.</div>
+  <div id="placeholder">
+    <span id="placeholder-text">Drop images above to upload.</span>
+    <div id="placeholder-fill"></div>
+  </div>
   <ul id="previews">
   </ul>
+  <form id="img-form" style="display: none" enctype="multipart/form-data"></form>
 {{ end }}
 {{ define "scripts" }}
+  <script src="static/js/exif.min.js"></script>
   <script src="static/js/rsvp.min.js"></script>
   <script src="static/js/upload.js"></script>
 {{ end }}

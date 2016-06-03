@@ -87,6 +87,15 @@ body, input {
   z-index: -1;
   transition: margin-top 300ms;
 }
+#placeholder-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 100%;
+  background-color: #eee;
+  transition: width 300ms;
+}
 #placeholder.slide-away {
   margin-top: -101px;
 }
@@ -147,8 +156,11 @@ body, input {
 .preview .preview-progress-bar .preview-progress-bar-fluid {
   height: 100%;
   width: 0%;
-  border-bottom: 2px solid #2C6EFC;
-  background-color: rgba(44, 110, 252, 0.3);
+  transition: width 200ms;
+  margin-top: 1px;
+  border-bottom: 1px solid #1A8FFF;
+  background-color: transparent;
+  transition: width 200ms;
 }
 .preview .preview-description {
   padding-left: 110px;

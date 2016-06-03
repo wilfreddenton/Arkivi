@@ -21,13 +21,18 @@
     return docFrag;
   }
   var state = {
-    token: window.localStorage.getItem('arkivi-jwt')
+    files: [],
+    filesProcessedCount: 0,
+    token: window.localStorage.getItem('arkivi-jwt'),
+    busy: false
   }
   var refs = {
     previews: document.getElementById('previews'),
     dropzone: document.getElementById('dropzone'),
     icon: document.getElementById('dropzone-icon'),
-    placeholder: document.getElementById('placeholder')
+    placeholder: document.getElementById('placeholder'),
+    placeholderText: document.getElementById('placeholder-text'),
+    placeholderFill: document.getElementById('placeholder-fill')
   }
   if (state.token === null) {
     window.location.href = '/login';
@@ -63,10 +68,12 @@
       ]]
     )
   }
-  var uploadFile = function (files, ele) {
-    var formData = new FormData();
+  var uploadFile = function (file) {
+    var form = document.getElementById('img-form');
+    var formData = new FormData(form);
     var progress = 0;
-    formData.append('file', file);
+    var progressBar = file.eles[0].childNodes[1].childNodes[0];
+    formData.append('img', file);
     var xhr =  new XMLHttpRequest();
     xhr.open('POST', '/upload-image');
     xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
@@ -77,13 +84,11 @@
     xhr.upload.onprogress = function (e) {
       if (e.lengthComputable) {
         progress = parseInt(event.loaded / event.total * 100);
-        console.log(progress);
+        progressBar.style.width = progress.toString() + '%';
       }
     }
     xhr.send(formData);
   }
-  var imageWorker = new Worker('/static/js/image-processor.js');
-  
   function resizeBase64Img(base64, ele) {
     var canvas = document.createElement("canvas");
     var width = ele.width;
@@ -101,18 +106,8 @@
     context.drawImage(ele, 0, 0);
     return canvas.toDataURL();
   }
-  var readFile = function (file) {
-    
-    imageWorker.postMessage({type: 'readfile', file: file});
-  }
   var readFilePromise = function (file) {
     return new RSVP.Promise(function (resolve, reject) {
-      // imageWorker.onmessage = function (e) {
-      //   if (e.data.type === 'readfile') {
-      //     resolve(e.data.src);
-      //   }
-      // }
-      // imageWorker.postMessage({type: 'readfile', file: file});
       var reader = new FileReader();
       reader.onload = function (e) {
         resolve(e.target.result);
@@ -136,51 +131,45 @@
       img.src = src;
     });
   }
-  // var compressImg = function (src) 
-  // imageWorker.addEventListener('message', function (e) {
-  //   if (e.data.type === 'readfile') {
-  //     (e.data.src);
-  //   }
-  // }
   var processFilePromise = function (file) {
     return new RSVP.Promise(function (resolve, reject) {
       var src = '';
       var img = {};
-      var name = file.name.substring(0, file.name.lastIndexOf("."));
-      var ext = file.name.substring(file.name.lastIndexOf("."));
-      var size = file.size;
       readFilePromise(file).then(function (src) {
         return compressImgPromise(src);
       }).then(function (data) {
         src = data.src;
         img = data.img;
-        var ele = renderTemplate(previewTemplate(src, name, ext, size, img.width, img.height));
+        var ele = renderTemplate(previewTemplate(src, file.shortName, file.ext, file.size, img.width, img.height));
+        file.eles = Array.prototype.slice.call(ele.childNodes);
         refs.previews.appendChild(ele);
+        state.filesProcessedCount += 1;
+        // EXIF.getData(img, function() {
+        //   console.log(EXIF.pretty(this));
+        // });
         resolve();
       }).catch(function (err) {
         reject(err);
       });
     })
   }
- 
-  var busy = false
   var processFiles = function (files) {
-    var numFiles = files.length;
-    var filesCount = 0;
+    files = Array.prototype.filter.call(files, function (file) {
+      var name = file.name.substring(0, file.name.lastIndexOf("."));
+      var ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+      file.shortName = name;
+      file.ext = ext;
+      return /^.(gif|jpg|jpeg|png)$/.test(ext);
+    });
+    state.files = files;
     var start = new Date();
-    busy = true;
-    var formData = new FormData();
+    state.busy = true;
     var promises = [];
     refs.icon.classList.remove('glyphicon-record');
     refs.icon.classList.add('glyphicon-refresh');
     refs.icon.classList.add('glyphicon-spin');
-    refs.placeholder.firstChild.innerHTML = 'processing images...'
-    // Array.prototype.forEach.call(files, function (file) {
-    //   processFile(file);
-    // });
-    // refs.placeholder.addEventListener('fileprocessed', function (e) {
-    // });
-    Array.prototype.forEach.call(files, function (file) {
+    refs.placeholderText.innerHTML = 'processing images...'
+    Array.prototype.forEach.call(state.files, function (file) {
       promises.push(processFilePromise(file));
     });
     RSVP.all(promises).then(function () {
@@ -190,13 +179,14 @@
       refs.icon.classList.add('glyphicon-record');
       refs.previews.classList.add('show');
       refs.placeholder.classList.add('slide-away');
-      busy = false;
+      state.busy = false;
       var end = new Date();
       console.log((end - start) / 1000);
+      Array.prototype.forEach.call(state.files, uploadFile);
     }).catch(function (err) {
       console.log(err);
-      refs.placeholder.firstChild.innerHTML = 'Drop images above to upload.';
-      busy = false;
+      refs.placeholderText.innerHTML = 'Drop images above to upload.';
+      state.busy = false;
     });
   }
   refs.dropzone.addEventListener('dragover', function (e) {
@@ -216,16 +206,28 @@
     if (refs.icon.classList.contains('dragover'))
       refs.icon.classList.remove('dragover');
     refs.dropzone.classList.add('dropped');
-    if (!busy)
+    if (!state.busy)
       processFiles(e.dataTransfer.files);
   });
   var filePicker = document.getElementById('dropzone-input');
   filePicker.addEventListener('click', function (e) {
-    if (busy) e.preventDefault();
+    if (state.busy) e.preventDefault();
   });
   filePicker.addEventListener('change', function (e) {
-    if (!busy) processFiles(this.files);
+    if (!state.busy) processFiles(this.files);
   });
+  var getEditorView = function () {
+    xhr = new XMLHttpRequest();
+    xhr.open('GET', '/editor-view');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
+    xhr.onreadystatechange = function (e) {
+      if (xhr.readyState == 4 && xhr.status == 200) {
+        console.log(xhr.responseText);
+      }
+    }
+    xhr.send();
+  }
+  getEditorView();
   // websocket
   conn = new WebSocket('ws://' + window.location.host + '/ws?token=' + state.token);
   conn.onclose = function(e) {

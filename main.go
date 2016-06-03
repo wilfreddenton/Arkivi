@@ -9,8 +9,11 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/oxtoacart/bpool"
 	"html/template"
+	"io"
+	"math/rand"
 	"net/http"
 	"os"
+	// "strings"
 	"time"
 )
 
@@ -30,16 +33,22 @@ func initTemplates() {
 	templates["index"] = template.Must(template.ParseFiles(viewsDir+"index.tmpl", layoutsDir+"base.tmpl"))
 	templates["login"] = template.Must(template.ParseFiles(viewsDir+"login.tmpl", layoutsDir+"base.tmpl"))
 	templates["upload"] = template.Must(template.ParseFiles(viewsDir+"upload.tmpl", layoutsDir+"base.tmpl"))
+	templates["editor"] = template.Must(template.ParseFiles(viewsDir + "editor.tmpl"))
 }
 
-func renderTemplate(w http.ResponseWriter, name string, data map[string]interface{}) error {
+func renderTemplate(w http.ResponseWriter, name string, data map[string]interface{}, isPartial bool) error {
 	tmpl, ok := templates[name]
 	if !ok {
 		return fmt.Errorf("The template %s does not exist", name)
 	}
 	buf := bufpool.Get()
 	defer bufpool.Put(buf)
-	err := tmpl.ExecuteTemplate(buf, "base", data)
+	var err error
+	if isPartial {
+		err = tmpl.ExecuteTemplate(buf, name, data)
+	} else {
+		err = tmpl.ExecuteTemplate(buf, "base", data)
+	}
 	if err != nil {
 		return err
 	}
@@ -78,19 +87,49 @@ func verifyToken(t string) bool {
 }
 
 var IndexHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "index", nil)
+	renderTemplate(w, "index", nil, false)
 })
 
 var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "login", nil)
+	renderTemplate(w, "login", nil, false)
 })
 
 var UploadHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "upload", nil)
+	renderTemplate(w, "upload", nil, false)
 })
 
+func RandomString(strlen int) string {
+	rand.Seed(time.Now().UTC().UnixNano())
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP0123456789"
+	result := make([]byte, strlen)
+	for i := 0; i < strlen; i++ {
+		result[i] = chars[rand.Intn(len(chars))]
+	}
+	return string(result)
+}
+
 var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("hey"))
+	// ext := strings.Split(r.Header.Get("Content-Type"), "/")[1]
+	ext := "jpg"
+	file, err := os.Create("assets/imgs/" + RandomString(9) + "." + ext)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer file.Close()
+	src, _, err := r.FormFile("img")
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer src.Close()
+	_, err = io.Copy(file, src)
+	if err != nil {
+		fmt.Println(err)
+	}
+	w.Write([]byte("done"))
+})
+
+var EditorViewHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	renderTemplate(w, "editor", nil, true)
 })
 
 type hub struct {
@@ -197,8 +236,9 @@ func main() {
 	r.Handle("/get-token", GetTokenHandler).Methods("GET")
 	r.Handle("/login", LoginHandler).Methods("GET")
 	r.Handle("/upload", UploadHandler).Methods("GET")
-	r.Handle("/upload-image", jwtMiddleware.Handler(UploadImageHandler)).Methods("GET")
+	r.Handle("/upload-image", jwtMiddleware.Handler(UploadImageHandler)).Methods("POST")
 	r.Handle("/ws", wsHandler{h: h})
+	r.Handle("/editor-view", jwtMiddleware.Handler(EditorViewHandler)).Methods("GET")
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("assets/"))))
 	http.ListenAndServe(":6969", handlers.LoggingHandler(os.Stdout, r))
 }
