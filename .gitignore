@@ -1,4 +1,4 @@
 .DS_Store
+/arkivi
 assets/arkivi/*
 !assets/arkivi/.gitkeep
-arkivi
