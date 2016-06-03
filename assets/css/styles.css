@@ -40,6 +40,7 @@ body, input {
   }
 }
 #dropzone {
+  margin-top: 60px;
   background-color: #eee;
   min-height: 100px;
   width: 100%;
@@ -50,6 +51,8 @@ body, input {
 #dropzone.dropped {
 }
 #dropzone .glyphicon {
+  color: #ccc;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
   display: inline-block;
   padding: 27px;
   font-size: 33px;
@@ -65,7 +68,6 @@ body, input {
   cursor: pointer;
   outline: none;
   position: absolute;
-  top: 0;
   left: 0;
   width: 100%;
   background: transparent;
@@ -75,15 +77,30 @@ body, input {
   z-index: 100;
   opacity: 0;
 }
-#loading {
-  font-size: 30px;
+#placeholder {
+  text-align: center;
+  margin-top: 0px;
+  position: relative;
+  border-bottom: 1px solid #eee;
+  border-right: 1px solid #eee;
+  border-left: 1px solid #eee;
+  z-index: -1;
+  transition: margin-top 300ms;
+}
+#placeholder.slide-away {
+  margin-top: -101px;
+}
+#placeholder span {
+  font-size: 18px;
+  padding: 38px;
+  display: inline-block;
 }
 #previews {
   list-style-type: none;
   max-width: 800px;
   position: relative;
   display: block;
-  margin: 0 0 20px;
+  margin: 0 0 60px;
   padding: 0;
   opacity: 0;
   transition: opacity 300ms;

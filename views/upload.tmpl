@@ -1,10 +1,10 @@
 {{ define "title" }}<title>Arkivi | upload</title>{{ end }}
 {{ define "content" }}
-  <h1>Upload Images</h1>
   <div id="dropzone">
     <input id="dropzone-input" type="file" accept=".gif, .jpg, .jpeg, .png, image/gif, image/jpg, image/jpeg, image/png" multiple>
     <span id="dropzone-icon" class="glyphicon glyphicon-record"></span>
   </div>
+  <div id="placeholder"><span>Drop images above to upload.</div>
   <ul id="previews">
   </ul>
 {{ end }}
