@@ -182,7 +182,9 @@
       state.busy = false;
       var end = new Date();
       console.log((end - start) / 1000);
-      Array.prototype.forEach.call(state.files, uploadFile);
+      setTimeout(function () {
+        Array.prototype.forEach.call(state.files, uploadFile);
+      }, 500)
     }).catch(function (err) {
       console.log(err);
       refs.placeholderText.innerHTML = 'Drop images above to upload.';
