@@ -21,7 +21,7 @@ func verifyToken(t string) bool {
 	}
 }
 
-func RandomString(strlen int) string {
+func randomString(strlen int) string {
 	rand.Seed(time.Now().UTC().UnixNano())
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP0123456789"
 	result := make([]byte, strlen)
@@ -29,4 +29,18 @@ func RandomString(strlen int) string {
 		result[i] = chars[rand.Intn(len(chars))]
 	}
 	return string(result)
+}
+
+var allowedContentTypes = []string{
+	"image/png",
+	"image/jpeg",
+	"image/gif"}
+
+func isAllowedContentType(ext string) bool {
+	for _, ct := range allowedContentTypes {
+		if ct == ext {
+			return true
+		}
+	}
+	return false
 }

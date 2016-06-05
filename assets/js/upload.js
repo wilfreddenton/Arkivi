@@ -22,9 +22,11 @@
   }
   var state = {
     files: [],
-    filesProcessedCount: 0,
+    filesUploadedCount: 0,
     token: window.localStorage.getItem('arkivi-jwt'),
-    busy: false
+    busy: false,
+    start: 0,
+    end: 0
   }
   var refs = {
     previews: document.getElementById('previews'),
@@ -37,8 +39,9 @@
   if (state.token === null) {
     window.location.href = '/login';
   }
-  var previewTemplate = function (src, name, ext, size, width, height) {
+  var previewTemplate = function (name, ext, size) {
     var unit = '';
+    var src = ''
     if (size >= Math.pow(10, 6)) {
       size = (size / Math.pow(10, 6)).toFixed(2);
       unit = 'Mbs';
@@ -46,111 +49,80 @@
       size = (size / Math.pow(10, 3)).toFixed(2);
       unit = 'Kbs';
     }
+    size = size.slice(0, 4);
+    if (size[size.length - 1] === '.') {
+      size = size.slice(0, 3);
+    }
     return (
       ['li', { className: 'preview' }, [
-        ['div', { className: 'preview-img', style: {
-          backgroundImage: 'url(' + src + ')'
-        }}, ''],
-        ['div', { className: 'preview-progress-bar' }, [
-          ['div', { className: 'preview-progress-bar-fluid' }, '']
+        ['div', { className: 'preview-img' }, [
+          ['span', { className: 'spin dot-spinner' }, '...']
         ]],
-        ['div', { className: 'preview-description row' }, [
-          ['div', { className: 'preview-name col-xs-10' }, [
-            ['span', {}, name],
-            ['span', { className: 'preview-ext' }, ext],
-            ['br', {}, ''],
-            ['span', { className: 'preview-size' }, size],
-            ['span', { className: 'preview-size-unit' }, unit],
-            ['span', { className: 'preview-dim'}, width.toString() + 'x' + height.toString()]
+        // ['div', { className: 'preview-progress-bar' }, [
+        //   ['div', { className: 'preview-progress-bar-fluid' }, '']
+        // ]],
+        ['div', { className: 'preview-description' }, [
+          ['div', { className: 'preview-name row' }, [
+            ['span', {}, name]
           ]],
-          ['div', { className: 'preview-upload-progress col-xs-2'}, '0%']
+          ['div', { className: 'preview-description-details row'}, [
+            ['div', { className: 'col-xs-4'}, [
+              ['span', { className: 'preview-size' }, size],
+              ['span', { className: 'preview-size-unit' }, unit]
+            ]],
+            ['div', { className: 'col-xs-3'}, [
+              ['span', { className: 'preview-ext' }, ext]
+            ]],
+            ['div', { className: 'col-xs-3'}, [
+              ['span', { className: 'preview-dim'}, ''] // to be set later
+            ]],
+            ['div', { className: 'col-xs-2'}, [
+              ['span', { className: 'preview-upload-progress' }, '0%']
+            ]]
+          ]]
         ]]
       ]]
     )
   }
-  var uploadFile = function (file) {
+  var uploadFile = function (file, i) {
     var form = document.getElementById('img-form');
     var formData = new FormData(form);
     var progress = 0;
-    var progressBar = file.eles[0].childNodes[1].childNodes[0];
+    var img = file.eles[0].querySelector('.preview-img');
+    var spinner = file.eles[0].querySelector('.preview-img .dot-spinner');
+    var progressNum = file.eles[0].querySelector('.preview-upload-progress');
     formData.append('img', file);
+    formData.append('index', i);
     var xhr =  new XMLHttpRequest();
     xhr.open('POST', '/upload-image');
     xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
     xhr.onload = function () {
-      progress = 100;
-      console.log(progress);
+      img.innerHTML = '';
+      img.style.backgroundImage = 'url(' + xhr.responseText + ')';
+      progressNum.innerHTML = '100%';
+      state.filesUploadedCount += 1;
+      if (state.filesUploadedCount === state.files.length) {
+        state.end = new Date();
+        console.log((state.end - state.start) / 1000);
+      }
     }
     xhr.upload.onprogress = function (e) {
       if (e.lengthComputable) {
         progress = parseInt(event.loaded / event.total * 100);
-        progressBar.style.width = progress.toString() + '%';
+        if (progress < 100) {
+          var perc = progress.toString() + '%';
+          progressNum.innerHTML = perc;
+        }
       }
     }
     xhr.send(formData);
   }
-  function resizeBase64Img(base64, ele) {
-    var canvas = document.createElement("canvas");
-    var width = ele.width;
-    var height = ele.height;
-    var factor = 0;
-    if (width < height) {
-      factor = (200 / width);
-    } else {
-      factor = (200 / height);
-    }
-    canvas.width = width * factor;
-    canvas.height = height * factor;
-    var context = canvas.getContext("2d");
-    context.scale(factor,  factor);
-    context.drawImage(ele, 0, 0);
-    return canvas.toDataURL();
-  }
-  var readFilePromise = function (file) {
-    return new RSVP.Promise(function (resolve, reject) {
-      var reader = new FileReader();
-      reader.onload = function (e) {
-        resolve(e.target.result);
-      }
-      reader.onerror = function () {
-        reject('there was an error reading ' + file.name);
-      }
-      reader.readAsDataURL(file);
-    })
-  }
-  var compressImgPromise = function (src) {
-    return new RSVP.Promise(function (resolve, reject) {
-      var img = new Image();
-      img.onload = function () {
-        src = resizeBase64Img(src, img);
-        resolve({src: src, img: img});
-      }
-      img.onerror = function () {
-        reject('there was an error loading an image');
-      }
-      img.src = src;
-    });
-  }
   var processFilePromise = function (file) {
     return new RSVP.Promise(function (resolve, reject) {
-      var src = '';
-      var img = {};
-      readFilePromise(file).then(function (src) {
-        return compressImgPromise(src);
-      }).then(function (data) {
-        src = data.src;
-        img = data.img;
-        var ele = renderTemplate(previewTemplate(src, file.shortName, file.ext, file.size, img.width, img.height));
-        file.eles = Array.prototype.slice.call(ele.childNodes);
-        refs.previews.appendChild(ele);
-        state.filesProcessedCount += 1;
-        // EXIF.getData(img, function() {
-        //   console.log(EXIF.pretty(this));
-        // });
-        resolve();
-      }).catch(function (err) {
-        reject(err);
-      });
+      var ele = renderTemplate(previewTemplate(file.shortName, file.ext, file.size));
+      file.eles = Array.prototype.slice.call(ele.childNodes);
+      refs.previews.appendChild(ele);
+      resolve();
     })
   }
   var processFiles = function (files) {
@@ -158,30 +130,22 @@
       var name = file.name.substring(0, file.name.lastIndexOf("."));
       var ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
       file.shortName = name;
-      file.ext = ext;
+      file.ext = ext.slice(1);
       return /^.(gif|jpg|jpeg|png)$/.test(ext);
     });
     state.files = files;
-    var start = new Date();
+    state.start = new Date();
     state.busy = true;
     var promises = [];
-    refs.icon.classList.remove('glyphicon-record');
-    refs.icon.classList.add('glyphicon-refresh');
-    refs.icon.classList.add('glyphicon-spin');
     refs.placeholderText.innerHTML = 'processing images...'
     Array.prototype.forEach.call(state.files, function (file) {
       promises.push(processFilePromise(file));
     });
     RSVP.all(promises).then(function () {
       console.log('finished processing');
-      refs.icon.classList.remove('glyphicon-spin');
-      refs.icon.classList.remove('glyphicon-refresh');
-      refs.icon.classList.add('glyphicon-record');
       refs.previews.classList.add('show');
       refs.placeholder.classList.add('slide-away');
       state.busy = false;
-      var end = new Date();
-      console.log((end - start) / 1000);
       setTimeout(function () {
         Array.prototype.forEach.call(state.files, uploadFile);
       }, 500)
@@ -193,20 +157,20 @@
   }
   refs.dropzone.addEventListener('dragover', function (e) {
     e.preventDefault();
-    if (!refs.icon.classList.contains('dragover'))
-      refs.icon.classList.add('dragover');
+    if (!refs.dropzone.classList.contains('dragover'))
+      refs.dropzone.classList.add('dragover');
     return false;
   });
   refs.dropzone.addEventListener('dragleave', function (e) {
     e.preventDefault();
-    if (refs.icon.classList.contains('dragover'))
-      refs.icon.classList.remove('dragover');
+    if (refs.dropzone.classList.contains('dragover'))
+      refs.dropzone.classList.remove('dragover');
     return false;
   });
   refs.dropzone.addEventListener('drop', function (e) {
     e.preventDefault();
-    if (refs.icon.classList.contains('dragover'))
-      refs.icon.classList.remove('dragover');
+    if (refs.dropzone.classList.contains('dragover'))
+      refs.dropzone.classList.remove('dragover');
     refs.dropzone.classList.add('dropped');
     if (!state.busy)
       processFiles(e.dataTransfer.files);
@@ -233,7 +197,11 @@
   // websocket
   conn = new WebSocket('ws://' + window.location.host + '/ws?token=' + state.token);
   conn.onclose = function(e) {
-    console.log('websocket connection closed');
+    if (e.code === 3333) {
+      console.log('websocket connection closed');
+    } else {
+      window.location.href = '/login';
+    }
   }
   conn.onmessage = function(e) {
     console.log(e.data);

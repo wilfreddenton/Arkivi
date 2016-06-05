@@ -6,6 +6,9 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"log"
 	"net/http"
 	"os"
 	// "strings"
@@ -22,10 +25,21 @@ var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 
 func main() {
 	fmt.Println("Arkivi 💾")
+	// make log print line number of error
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	// initialize templates
 	initTemplates()
+	// database
+	db, err := gorm.Open("sqlite3", "arkivi.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	db.AutoMigrate(&Image{})
+	// initialize websocket
 	r := mux.NewRouter()
 	h := newHub()
 	go h.run()
+	// handlers
 	r.Handle("/", IndexHandler).Methods("GET")
 	r.Handle("/get-token", GetTokenHandler).Methods("GET")
 	r.Handle("/login", LoginHandler).Methods("GET")
