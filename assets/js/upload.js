@@ -31,7 +31,7 @@
   var refs = {
     previews: document.getElementById('previews'),
     dropzone: document.getElementById('dropzone'),
-    icon: document.getElementById('dropzone-icon'),
+    fileCount: document.querySelector('#dropzone-icon span'),
     placeholder: document.getElementById('placeholder'),
     placeholderText: document.getElementById('placeholder-text'),
     placeholderFill: document.getElementById('placeholder-fill')
@@ -101,6 +101,7 @@
       img.style.backgroundImage = 'url(' + xhr.responseText + ')';
       progressNum.innerHTML = '100%';
       state.filesUploadedCount += 1;
+      file.processed = true;
       if (state.filesUploadedCount === state.files.length) {
         state.end = new Date();
         console.log((state.end - state.start) / 1000);
@@ -121,24 +122,29 @@
     return new RSVP.Promise(function (resolve, reject) {
       var ele = renderTemplate(previewTemplate(file.shortName, file.ext, file.size));
       file.eles = Array.prototype.slice.call(ele.childNodes);
-      refs.previews.appendChild(ele);
+      refs.previews.insertBefore(ele, refs.previews.firstChild);
       resolve();
     })
   }
   var processFiles = function (files) {
     files = Array.prototype.filter.call(files, function (file) {
+      file.processed = false;
       var name = file.name.substring(0, file.name.lastIndexOf("."));
       var ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
       file.shortName = name;
       file.ext = ext.slice(1);
       return /^.(gif|jpg|jpeg|png)$/.test(ext);
     });
-    state.files = files;
+    state.files = files.concat(state.files);
     state.start = new Date();
     state.busy = true;
     var promises = [];
+    refs.fileCount.innerHTML = state.files.length;
     refs.placeholderText.innerHTML = 'processing images...'
-    Array.prototype.forEach.call(state.files, function (file) {
+    var filesToProcess = state.files.filter(function (file) {
+      return !file.processed;
+    });
+    Array.prototype.forEach.call(filesToProcess, function (file) {
       promises.push(processFilePromise(file));
     });
     RSVP.all(promises).then(function () {
@@ -147,7 +153,7 @@
       refs.placeholder.classList.add('slide-away');
       state.busy = false;
       setTimeout(function () {
-        Array.prototype.forEach.call(state.files, uploadFile);
+        Array.prototype.forEach.call(filesToProcess, uploadFile);
       }, 500)
     }).catch(function (err) {
       console.log(err);

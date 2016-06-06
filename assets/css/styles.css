@@ -184,6 +184,7 @@ body, input {
   text-overflow: ellipsis;
   max-width: 100%;
   padding-right: 20px;
+  font-weight: bold;
   display: inline-block;
   white-space: nowrap;
   overflow: hidden;
@@ -198,7 +199,6 @@ body, input {
 }
 .preview .preview-size {
   font-size: 25px;
-  font-weight: bold;
   display: inline-block;
   position: relative;
 }
