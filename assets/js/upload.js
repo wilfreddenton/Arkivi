@@ -26,22 +26,20 @@
     token: window.localStorage.getItem('arkivi-jwt'),
     busy: false,
     start: 0,
-    end: 0
+    end: 0,
+    totalSize: 0
   }
   var refs = {
     previews: document.getElementById('previews'),
     dropzone: document.getElementById('dropzone'),
-    fileCount: document.querySelector('#dropzone-icon span'),
-    placeholder: document.getElementById('placeholder'),
-    placeholderText: document.getElementById('placeholder-text'),
-    placeholderFill: document.getElementById('placeholder-fill')
+    totalSize: document.querySelector('#total-size span'),
+    totalProgress: document.querySelector('#total-progress span')
   }
   if (state.token === null) {
     window.location.href = '/login';
   }
-  var previewTemplate = function (name, ext, size) {
+  var getSizeAndUnit = function (size) {
     var unit = '';
-    var src = ''
     if (size >= Math.pow(10, 6)) {
       size = (size / Math.pow(10, 6)).toFixed(2);
       unit = 'Mbs';
@@ -49,7 +47,12 @@
       size = (size / Math.pow(10, 3)).toFixed(2);
       unit = 'Kbs';
     }
-    size = size.slice(0, 4);
+    return { size: size, unit: unit };
+  }
+  var previewTemplate = function (name, ext, size) {
+    var src = ''
+    var data = getSizeAndUnit(size);
+    size = data.size.slice(0, 4);
     if (size[size.length - 1] === '.') {
       size = size.slice(0, 3);
     }
@@ -65,10 +68,10 @@
           ['div', { className: 'preview-name row' }, [
             ['span', {}, name]
           ]],
-          ['div', { className: 'preview-description-details row'}, [
+          ['div', { className: 'preview-details row'}, [
             ['div', { className: 'col-xs-4'}, [
               ['span', { className: 'preview-size' }, size],
-              ['span', { className: 'preview-size-unit' }, unit]
+              ['span', { className: 'preview-size-unit' }, data.unit]
             ]],
             ['div', { className: 'col-xs-3'}, [
               ['span', { className: 'preview-ext' }, ext]
@@ -83,6 +86,13 @@
         ]]
       ]]
     )
+  }
+  var setTotalSize = function () {
+    var data = getSizeAndUnit(state.totalSize);
+    refs.totalSize.innerHTML = data.size + ' ' + data.unit;
+  }
+  var setTotalProgress = function () {
+    refs.totalProgress.innerHTML = parseInt(state.filesUploadedCount / state.files.length * 100) + '%';
   }
   var uploadFile = function (file, i) {
     var form = document.getElementById('img-form');
@@ -101,6 +111,7 @@
       img.style.backgroundImage = 'url(' + xhr.responseText + ')';
       progressNum.innerHTML = '100%';
       state.filesUploadedCount += 1;
+      setTotalProgress();
       file.processed = true;
       if (state.filesUploadedCount === state.files.length) {
         state.end = new Date();
@@ -118,13 +129,11 @@
     }
     xhr.send(formData);
   }
-  var processFilePromise = function (file) {
-    return new RSVP.Promise(function (resolve, reject) {
-      var ele = renderTemplate(previewTemplate(file.shortName, file.ext, file.size));
-      file.eles = Array.prototype.slice.call(ele.childNodes);
-      refs.previews.insertBefore(ele, refs.previews.firstChild);
-      resolve();
-    })
+  var processFile = function (file) {
+    var ele = renderTemplate(previewTemplate(file.shortName, file.ext, file.size));
+    state.totalSize += file.size;
+    file.eles = Array.prototype.slice.call(ele.childNodes);
+    refs.previews.insertBefore(ele, refs.previews.firstChild);
   }
   var processFiles = function (files) {
     files = Array.prototype.filter.call(files, function (file) {
@@ -139,49 +148,35 @@
     state.start = new Date();
     state.busy = true;
     var promises = [];
-    refs.fileCount.innerHTML = state.files.length;
-    refs.placeholderText.innerHTML = 'processing images...'
     var filesToProcess = state.files.filter(function (file) {
       return !file.processed;
     });
     Array.prototype.forEach.call(filesToProcess, function (file) {
-      promises.push(processFilePromise(file));
+      processFile(file);
     });
-    RSVP.all(promises).then(function () {
-      console.log('finished processing');
-      refs.previews.classList.add('show');
-      refs.placeholder.classList.add('slide-away');
-      state.busy = false;
-      setTimeout(function () {
-        Array.prototype.forEach.call(filesToProcess, uploadFile);
-      }, 500)
-    }).catch(function (err) {
-      console.log(err);
-      refs.placeholderText.innerHTML = 'Drop images above to upload.';
-      state.busy = false;
-    });
+    setTotalSize();
+    console.log('finished processing');
+    refs.previews.classList.add('show');
+    state.busy = false;
+    setTimeout(function () {
+      Array.prototype.forEach.call(filesToProcess, uploadFile);
+    }, 500)
+    state.busy = false;
   }
-  refs.dropzone.addEventListener('dragover', function (e) {
+  document.body.addEventListener('dragover', function (e) {
     e.preventDefault();
-    if (!refs.dropzone.classList.contains('dragover'))
-      refs.dropzone.classList.add('dragover');
     return false;
   });
-  refs.dropzone.addEventListener('dragleave', function (e) {
+  document.body.addEventListener('dragleave', function (e) {
     e.preventDefault();
-    if (refs.dropzone.classList.contains('dragover'))
-      refs.dropzone.classList.remove('dragover');
     return false;
   });
-  refs.dropzone.addEventListener('drop', function (e) {
+  document.body.addEventListener('drop', function (e) {
     e.preventDefault();
-    if (refs.dropzone.classList.contains('dragover'))
-      refs.dropzone.classList.remove('dragover');
-    refs.dropzone.classList.add('dropped');
     if (!state.busy)
       processFiles(e.dataTransfer.files);
   });
-  var filePicker = document.getElementById('dropzone-input');
+  var filePicker = document.getElementById('file-input');
   filePicker.addEventListener('click', function (e) {
     if (state.busy) e.preventDefault();
   });

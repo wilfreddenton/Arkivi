@@ -10,6 +10,8 @@ type Image struct {
 	Description string `gorm:"size:1500"`
 	Name        string
 	Ext         string
+	Width       int
+	Height      int
 	ThumbUrl    string
 	SmallUrl    string
 	MediumUrl   string

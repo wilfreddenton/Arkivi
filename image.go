@@ -10,3 +10,6 @@ import (
 // medium 768
 // small 480
 // thumb 200
+
+type ImageResource struct {
+}
