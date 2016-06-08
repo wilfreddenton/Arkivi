@@ -23,6 +23,10 @@ var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 	SigningMethod: jwt.SigningMethodHS256,
 })
 
+var DB *gorm.DB
+
+var StaticDir = "/static/"
+
 func main() {
 	fmt.Println("Arkivi 💾")
 	// make log print line number of error
@@ -30,11 +34,12 @@ func main() {
 	// initialize templates
 	initTemplates()
 	// database
-	db, err := gorm.Open("sqlite3", "arkivi.db")
+	var err error
+	DB, err = gorm.Open("sqlite3", "arkivi.db")
 	if err != nil {
 		log.Fatal(err)
 	}
-	db.AutoMigrate(&Image{})
+	DB.AutoMigrate(&Image{})
 	// initialize websocket
 	r := mux.NewRouter()
 	h := newHub()

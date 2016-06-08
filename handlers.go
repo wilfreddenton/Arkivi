@@ -3,15 +3,15 @@ package main
 import (
 	// "fmt"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/nfnt/resize"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"image"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
-	"io"
+	// "io"
 	"log"
 	"net/http"
-	"os"
+	// "os"
 	"strings"
 	"time"
 )
@@ -60,57 +60,32 @@ var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 		ext = "jpg"
 	}
 	name := randomString(9)
-	file, err := os.Create("assets/arkivi/" + name + "." + ext)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-	_, err = io.Copy(file, src)
-	if err != nil {
-		log.Fatal(err)
-	}
-	file.Seek(0, 0)
 	var img image.Image
+	var gifImg *gif.GIF
 	switch ext {
 	case "jpg":
-		img, err = jpeg.Decode(file)
+		img, err = jpeg.Decode(src)
 	case "png":
-		img, err = png.Decode(file)
+		img, err = png.Decode(src)
 	case "gif":
-		img, err = gif.Decode(file)
+		gifImg, err = gif.DecodeAll(src)
 	}
 	if err != nil {
 		log.Fatal(err)
 	}
-	file.Seek(0, 0)
-	config, _, err := image.DecodeConfig(file)
-	if err != nil {
-		log.Fatal(err)
-	}
-	width := uint(0)
-	height := uint(0)
-	if config.Width > config.Height {
-		height = uint(200)
+	var b image.Rectangle
+	if ext == "gif" {
+		b = gifImg.Image[0].Bounds()
 	} else {
-		width = uint(200)
+		b = img.Bounds()
 	}
-	imgThumb := resize.Resize(width, height, img, resize.Bilinear)
-	url := "arkivi/" + name + "_thumbnail." + ext
-	fileThumb, err := os.Create("assets/" + url)
-	if err != nil {
-		log.Fatal(err)
+	imgModel := &Image{Name: name, Ext: ext, Width: b.Dx(), Height: b.Dy()}
+	p := &ImageProcessor{imgModel, img, gifImg}
+	p.CreateResizes()
+	p.SaveModel()
+	if p.ImageModel.ThumbUrl == "" {
+		w.Write([]byte(p.ImageModel.Url))
+	} else {
+		w.Write([]byte(p.ImageModel.ThumbUrl))
 	}
-	defer fileThumb.Close()
-	switch ext {
-	case "jpg":
-		err = jpeg.Encode(fileThumb, imgThumb, nil)
-	case "png":
-		err = png.Encode(fileThumb, imgThumb)
-	case "gif":
-		err = gif.Encode(fileThumb, imgThumb, nil)
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
-	w.Write([]byte("/static/" + url))
 })

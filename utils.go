@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"image"
+	"image/color/palette"
+	"image/draw"
 	"math/rand"
 	"time"
 )
@@ -43,4 +46,11 @@ func isAllowedContentType(ext string) bool {
 		}
 	}
 	return false
+}
+
+func ImageToPaletted(img image.Image) *image.Paletted {
+	b := img.Bounds()
+	pm := image.NewPaletted(b, palette.WebSafe)
+	draw.FloydSteinberg.Draw(pm, b, img, image.ZP)
+	return pm
 }

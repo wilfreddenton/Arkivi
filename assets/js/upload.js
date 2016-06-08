@@ -108,6 +108,7 @@
     xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
     xhr.onload = function () {
       img.innerHTML = '';
+      console.log(xhr.responseText)
       img.style.backgroundImage = 'url(' + xhr.responseText + ')';
       progressNum.innerHTML = '100%';
       state.filesUploadedCount += 1;
