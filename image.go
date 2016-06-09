@@ -126,7 +126,13 @@ func (p *ImageProcessor) CreateResizes() {
 	switch p.ImageModel.Ext {
 	case "jpg", "png":
 		for i, s := range sizes {
-			if p.ImageModel.Height > s || p.ImageModel.Width > s {
+			var cond bool
+			if i == 3 {
+				cond = p.ImageModel.Height > s && p.ImageModel.Width > s
+			} else {
+				cond = p.ImageModel.Height > s || p.ImageModel.Width > s
+			}
+			if cond {
 				wg.Add(1)
 				go p.Resize(s, sizeNames[i], &wg)
 			}
