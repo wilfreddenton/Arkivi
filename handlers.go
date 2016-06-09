@@ -3,7 +3,6 @@ package main
 import (
 	// "fmt"
 	"github.com/dgrijalva/jwt-go"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"image"
 	"image/gif"
 	"image/jpeg"
@@ -60,6 +59,9 @@ var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 		ext = "jpg"
 	}
 	name := randomString(9)
+	for !IsNameUnique(name) {
+		name = randomString(9)
+	}
 	var img image.Image
 	var gifImg *gif.GIF
 	switch ext {
@@ -82,7 +84,7 @@ var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 	imgModel := &Image{Name: name, Ext: ext, Width: b.Dx(), Height: b.Dy()}
 	p := &ImageProcessor{imgModel, img, gifImg}
 	p.CreateResizes()
-	p.SaveModel()
+	p.ImageModel.Save()
 	if p.ImageModel.ThumbUrl == "" {
 		w.Write([]byte(p.ImageModel.Url))
 	} else {

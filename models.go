@@ -18,3 +18,7 @@ type Image struct {
 	LargeUrl    string
 	Url         string
 }
+
+func (i *Image) Save() {
+	DB.Create(i)
+}

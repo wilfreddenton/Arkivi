@@ -139,7 +139,3 @@ func (p *ImageProcessor) CreateResizes() {
 	}
 	wg.Wait()
 }
-
-func (p *ImageProcessor) SaveModel() {
-	DB.Create(p.ImageModel)
-}

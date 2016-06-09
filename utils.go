@@ -54,3 +54,12 @@ func ImageToPaletted(img image.Image) *image.Paletted {
 	draw.FloydSteinberg.Draw(pm, b, img, image.ZP)
 	return pm
 }
+
+func IsNameUnique(name string) bool {
+	img := Image{}
+	DB.Where("name = ?", name).First(&img)
+	if img == (Image{}) {
+		return true
+	}
+	return false
+}
