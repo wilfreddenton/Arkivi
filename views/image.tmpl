@@ -1,0 +1,6 @@
+{{ define "title" }}<title>Arkivi | {{ .image.Name }}</title>{{ end }}
+{{ define "content" }}
+  <div id="image-frame">
+    <img src="{{ .image.Url }}" />
+  </div>
+{{ end }}

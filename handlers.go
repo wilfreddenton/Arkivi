@@ -1,8 +1,10 @@
 package main
 
 import (
-	// "fmt"
+	"encoding/json"
+	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
 	"image"
 	"image/gif"
 	"image/jpeg"
@@ -90,4 +92,39 @@ var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 	} else {
 		w.Write([]byte(p.ImageModel.ThumbUrl))
 	}
+})
+
+var ImagesHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Images Handler")
+	var images []*Image
+	DB.Find(&images)
+	q := r.URL.Query()
+	if len(q["json"]) > 0 && q["json"][0] == "true" {
+		w.Header().Set("Content-Type", "application/javascript")
+		json.NewEncoder(w).Encode(images)
+		return
+	}
+	m := make(map[string]interface{})
+	m["images"] = images
+	renderTemplate(w, "images", m, false)
+})
+
+var ImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Image Handler")
+	vars := mux.Vars(r)
+	name := vars["name"]
+	if name == "" {
+		http.NotFound(w, r)
+	}
+	var image Image
+	DB.Where("name = ?", name).First(&image)
+	q := r.URL.Query()
+	if len(q["json"]) > 0 && q["json"][0] == "true" {
+		w.Header().Set("Content-Type", "application/javascript")
+		json.NewEncoder(w).Encode(image)
+		return
+	}
+	m := make(map[string]interface{})
+	m["image"] = image
+	renderTemplate(w, "image", m, false)
 })

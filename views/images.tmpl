@@ -1,0 +1,10 @@
+{{ define "title" }}<title>Arkivi | images</title>{{ end }}
+{{ define "content" }}
+  <ul id="images">
+    {{ range .images }}
+      <li class="image-thumb thumbnail" style="background-image: url({{ .ThumbUrl }})">
+        <a href="/images/{{ .Name }}" title="{{ .Name }}"></a>
+      </li>
+    {{ end }}
+  </ul>
+{{ end }}

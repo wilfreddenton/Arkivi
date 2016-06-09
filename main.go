@@ -41,7 +41,7 @@ func main() {
 	}
 	DB.AutoMigrate(&Image{})
 	// initialize websocket
-	r := mux.NewRouter()
+	r := mux.NewRouter().StrictSlash(true)
 	h := newHub()
 	go h.run()
 	// handlers
@@ -50,6 +50,8 @@ func main() {
 	r.Handle("/login", LoginHandler).Methods("GET")
 	r.Handle("/upload", UploadHandler).Methods("GET")
 	r.Handle("/upload-image", jwtMiddleware.Handler(UploadImageHandler)).Methods("POST")
+	r.Handle("/images/", ImagesHandler).Methods("GET")
+	r.Handle("/images/{name}", ImageHandler).Methods("GET")
 	r.Handle("/ws", wsHandler{h: h})
 	r.Handle("/editor-view", jwtMiddleware.Handler(EditorViewHandler)).Methods("GET")
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("assets/"))))

@@ -24,17 +24,21 @@
     files: [],
     filesUploadedCount: 0,
     token: window.localStorage.getItem('arkivi-jwt'),
+    editorView: '',
     busy: false,
     start: 0,
     end: 0,
     totalSize: 0
   }
   var refs = {
+    form: document.getElementById('img-form'),
+    editor: document.createElement('div'),
     previews: document.getElementById('previews'),
     dropzone: document.getElementById('dropzone'),
     totalSize: document.querySelector('#total-size span'),
     totalProgress: document.querySelector('#total-progress span')
   }
+  refs.editor.classList.add('editor-container');
   if (state.token === null) {
     window.location.href = '/login';
   }
@@ -49,6 +53,20 @@
     }
     return { size: size, unit: unit };
   }
+  var editorTemplate = function (title, description) {
+    return (
+      ['div', { id: 'editor' }, [
+        ['form', { className: 'row' }, [
+          ['div', { className: 'col-xs-12 col-md-6' }, [
+            ['input', { id: 'editor-title', type: 'text', name: 'title', placeholder: 'Title', value: title }, ''],
+            ['textarea', { id: 'editor-description', name: 'description', placeholder: 'Description' }, description]
+          ]],
+          ['div', { className: 'col-xs-12 col-md-6' }, [
+          ]]
+        ]]
+      ]]
+    )
+  }
   var previewTemplate = function (name, ext, size) {
     var src = ''
     var data = getSizeAndUnit(size);
@@ -58,12 +76,9 @@
     }
     return (
       ['li', { className: 'preview' }, [
-        ['div', { className: 'preview-img' }, [
+        ['div', { className: 'preview-img thumbnail' }, [
           ['span', { className: 'spin dot-spinner' }, '...']
         ]],
-        // ['div', { className: 'preview-progress-bar' }, [
-        //   ['div', { className: 'preview-progress-bar-fluid' }, '']
-        // ]],
         ['div', { className: 'preview-description' }, [
           ['div', { className: 'preview-name row' }, [
             ['span', {}, name]
@@ -87,6 +102,19 @@
       ]]
     )
   }
+  var editorHandler = function (e) {
+    if (refs.editor.parentNode) {
+      if (refs.editor.previousSibling === this) {
+        refs.editor.remove();
+        refs.editor.innerHTML = '';
+        return
+      }
+      refs.editor.remove();
+      refs.editor.innerHTML = '';
+    }
+    refs.editor.appendChild(renderTemplate(editorTemplate('','')));
+    this.parentNode.insertBefore(refs.editor, this.nextSibling);
+  }
   var setTotalSize = function () {
     var data = getSizeAndUnit(state.totalSize);
     refs.totalSize.innerHTML = data.size + ' ' + data.unit;
@@ -95,8 +123,7 @@
     refs.totalProgress.innerHTML = parseInt(state.filesUploadedCount / state.files.length * 100) + '%';
   }
   var uploadFile = function (file, i) {
-    var form = document.getElementById('img-form');
-    var formData = new FormData(form);
+    var formData = new FormData(refs.form);
     var progress = 0;
     var img = file.eles[0].querySelector('.preview-img');
     var spinner = file.eles[0].querySelector('.preview-img .dot-spinner');
@@ -114,6 +141,8 @@
       state.filesUploadedCount += 1;
       setTotalProgress();
       file.processed = true;
+      file.eles[0].classList.add('editable');
+      file.eles[0].addEventListener('click', editorHandler);
       if (state.filesUploadedCount === state.files.length) {
         state.end = new Date();
         console.log((state.end - state.start) / 1000);
@@ -184,18 +213,19 @@
   filePicker.addEventListener('change', function (e) {
     if (!state.busy) processFiles(this.files);
   });
-  var getEditorView = function () {
-    xhr = new XMLHttpRequest();
-    xhr.open('GET', '/editor-view');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
-    xhr.onreadystatechange = function (e) {
-      if (xhr.readyState == 4 && xhr.status == 200) {
-        console.log(xhr.responseText);
-      }
-    }
-    xhr.send();
-  }
-  getEditorView();
+  // var getEditorView = function () {
+  //   xhr = new XMLHttpRequest();
+  //   xhr.open('GET', '/editor-view');
+  //   xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
+  //   xhr.onreadystatechange = function (e) {
+  //     if (xhr.readyState == 4 && xhr.status == 200) {
+  //       state.editorView = xhr.responseText;
+  //       refs.editor.innerHTML = state.editorView;
+  //     }
+  //   }
+  //   xhr.send();
+  // }
+  // getEditorView();
   // websocket
   conn = new WebSocket('ws://' + window.location.host + '/ws?token=' + state.token);
   conn.onclose = function(e) {
