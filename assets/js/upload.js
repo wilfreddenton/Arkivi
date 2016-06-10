@@ -1,4 +1,170 @@
 (function (window) {
+  // util functions
+  var getSizeAndUnit = function (size) {
+    var unit = '';
+    if (size >= Math.pow(10, 6)) {
+      size = (size / Math.pow(10, 6)).toFixed(2);
+      unit = 'Mbs';
+    } else {
+      size = (size / Math.pow(10, 3)).toFixed(2);
+      unit = 'Kbs';
+    }
+    return { size: size, unit: unit };
+  }
+  // components
+  var ActionBar = React.createClass({
+    componentDidMount: function () {
+      this.refs.input.addEventListener('change', function (e) {
+        var files = Array.prototype.map.call(this.refs.input.files, function (file) {
+          return { model: null, file: file, progress: 0, sent: false };
+        });
+        files.filter(function (file) {
+          var validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+          if (validTypes.indexOf(file.type) > 0) return true;
+          return false;
+        });
+        this.props.uploadHandler(files);
+      }.bind(this));
+    },
+    render: function () {
+      var data = getSizeAndUnit(this.props.imagesSize);
+      var progress = '0%'
+      if (this.props.imageCount != 0)
+        progress = parseInt((this.props.imageUploadCount / this.props.imageCount * 100).toString()) + '%';
+      return (
+        React.DOM.div({ id: 'action-bar', className: 'row' },
+                      React.DOM.div({ className: 'col-xs-4' },
+                                    React.DOM.input({ ref: 'input', id: 'file-input', type: 'file', accept: '.gif, .jpg, .jpeg, .png, image/gif, image/jpg, image/jpeg, image/png', multiple: true })),
+                      React.DOM.div({ className: 'col-xs-4'},
+                                    React.DOM.span({ id: 'total-size' }, 'total size: ',
+                                                   React.DOM.span(null, data.size + ' ' + data.unit))),
+                      React.DOM.div({ className: 'col-xs-4'},
+                                    React.DOM.span({ id: 'total-progress' }, 'total progress: ',
+                                                   React.DOM.span(null, progress))))
+      );
+    }
+  });
+  var Preview = React.createClass({
+    render: function () {
+      var file = this.props.image.file;
+      var model = this.props.image.model;
+      var name = model ? model.Name : file.name.substring(0, file.name.lastIndexOf("."));
+      var ext = model ? model.Ext : file.name.substring(file.name.lastIndexOf(".")).toLowerCase().slice(1);
+      var url = '';
+      var dim = '';
+      if (model) {
+        if (model.ThumbUrl != '') {
+          url = model.ThumbUrl;
+        } else {
+          url = model.Url;
+        }
+        dim = model.Width.toString() + 'x' + model.Height.toString();
+      }
+      console.log(this.props.image.progress)
+      var data = getSizeAndUnit(file.size);
+      var size = data.size.slice(0, 4);
+      if (size[size.length - 1] === '.') {
+        size = size.slice(0, 3);
+      }
+      var loader = url === '' ? React.DOM.span({ className: 'spin dot-spinner' }, '...') : null;
+      return (
+        React.DOM.li({ className: 'preview' },
+                     React.DOM.div({ className: 'preview-img thumbnail', style: { backgroundImage: 'url(' + url + ')' } },
+                                   loader),
+                     React.DOM.div({ className: 'preview-description' },
+                                   React.DOM.div({ className: 'preview-name row' },
+                                                 React.DOM.span(null, name)),
+                                   React.DOM.div({ className: 'preview-details row' },
+                                                 React.DOM.div({ className: 'col-xs-4' },
+                                                               React.DOM.span({ className: 'preview-size' }, size),
+                                                               React.DOM.span({ className: 'preview-size-unit' }, data.unit)),
+                                                 React.DOM.div({ className: 'col-xs-2' },
+                                                               React.DOM.span({ className: 'preview-ext' }, ext)),
+                                                 React.DOM.div({ className: 'col-xs-3' },
+                                                               React.DOM.span({ className: 'preview-dim'}, dim)),
+                                                 React.DOM.div({ className: 'col-xs-3' },
+                                                               React.DOM.span({ className: 'preview-upload-progress' }, this.props.image.progress.toString() + '%')))))
+      );
+    }
+  });
+  var Previews = React.createClass({
+    render: function () {
+      var previews = this.props.images.map(function (image, i) {
+        return React.createElement(Preview, { key: i, image: image });
+      });
+      return (
+        React.DOM.ul({ id: 'previews' }, previews)
+      );
+    }
+  });
+  var Uploader = React.createClass({
+    getInitialState: function () {
+      return {
+        imagesSize: 0,
+        imageUploadCount: 0,
+        images: []
+      };
+    },
+    upload: function (image) {
+      var images = this.state.images.slice();
+      var i = this.state.images.indexOf(image);
+      var formData = new FormData(this.refs.form);
+      formData.append('img', image.file);
+      formData.append('filename', image.file.name);
+      formData.append('index', i);
+      var xhr =  new XMLHttpRequest();
+      xhr.open('POST', '/upload-image');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
+      xhr.onload = function () {
+        images[i].model = JSON.parse(xhr.responseText);
+        this.setState({
+          images: images,
+          imageUploadCount: this.state.imageUploadCount + 1
+        });
+      }.bind(this);
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+          var progress = parseInt(event.loaded / event.total * 100);
+          images[i].progress = progress;
+          this.setState({ images: images });
+        }
+      }.bind(this);
+      images[i].sent = true;
+      this.setState({ images: images });
+      xhr.send(formData);
+    },
+    uploadHandler: function (images) {
+      var imagesSize = this.state.imagesSize;
+      images.forEach(function (image) {
+        imagesSize += image.file.size;
+      });
+      this.setState({ images: images, imagesSize });
+    },
+    componentDidUpdate: function (prevProps, prevState) {
+      var images = [];
+      this.state.images.forEach(function (image) {
+        if (!image.sent) images.push(image);
+      });
+      images.forEach(this.upload);
+    },
+    render: function () {
+      return (
+        React.DOM.div({ id: 'uploader' },
+                      React.createElement(ActionBar, {
+                        uploadHandler: this.uploadHandler,
+                        imagesSize: this.state.imagesSize,
+                        imageUploadCount: this.state.imageUploadCount,
+                        imageCount: this.state.images.length
+                      }),
+                      React.createElement(Previews, { images: this.state.images }),
+                      React.DOM.form({ ref: 'form', id: 'img-form', display: 'none', formEncType: 'multipart/form-data'}))
+      );
+    }
+  });
+  ReactDOM.render(
+    React.createElement(Uploader),
+    document.getElementById('content')
+  );
   var renderTemplate = function (template) {
     if (typeof template[0] === 'string') template = [template];
     var docFrag = document.createDocumentFragment();
@@ -42,17 +208,6 @@
   if (state.token === null) {
     window.location.href = '/login';
   }
-  var getSizeAndUnit = function (size) {
-    var unit = '';
-    if (size >= Math.pow(10, 6)) {
-      size = (size / Math.pow(10, 6)).toFixed(2);
-      unit = 'Mbs';
-    } else {
-      size = (size / Math.pow(10, 3)).toFixed(2);
-      unit = 'Kbs';
-    }
-    return { size: size, unit: unit };
-  }
   var editorTemplate = function (title, description) {
     return (
       ['div', { id: 'editor' }, [
@@ -67,44 +222,13 @@
       ]]
     )
   }
-  var previewTemplate = function (name, ext, size) {
-    var src = ''
-    var data = getSizeAndUnit(size);
-    size = data.size.slice(0, 4);
-    if (size[size.length - 1] === '.') {
-      size = size.slice(0, 3);
-    }
-    return (
-      ['li', { className: 'preview' }, [
-        ['div', { className: 'preview-img thumbnail' }, [
-          ['span', { className: 'spin dot-spinner' }, '...']
-        ]],
-        ['div', { className: 'preview-description' }, [
-          ['div', { className: 'preview-name row' }, [
-            ['span', {}, name]
-          ]],
-          ['div', { className: 'preview-details row'}, [
-            ['div', { className: 'col-xs-4'}, [
-              ['span', { className: 'preview-size' }, size],
-              ['span', { className: 'preview-size-unit' }, data.unit]
-            ]],
-            ['div', { className: 'col-xs-3'}, [
-              ['span', { className: 'preview-ext' }, ext]
-            ]],
-            ['div', { className: 'col-xs-3'}, [
-              ['span', { className: 'preview-dim'}, ''] // to be set later
-            ]],
-            ['div', { className: 'col-xs-2'}, [
-              ['span', { className: 'preview-upload-progress' }, '0%']
-            ]]
-          ]]
-        ]]
-      ]]
-    )
-  }
   var editorHandler = function (e) {
+    var preview = this.parentNode.parentNode.parentNode.parentNode.parentNode;
+    var i = Array.prototype.indexOf.call(preview.parentNode.childNodes, preview);
+    var file = state.files[i];
+    console.log(file.imageModel.Title)
     if (refs.editor.parentNode) {
-      if (refs.editor.previousSibling === this) {
+      if (refs.editor.previousSibling === preview) {
         refs.editor.remove();
         refs.editor.innerHTML = '';
         return
@@ -112,8 +236,8 @@
       refs.editor.remove();
       refs.editor.innerHTML = '';
     }
-    refs.editor.appendChild(renderTemplate(editorTemplate('','')));
-    this.parentNode.insertBefore(refs.editor, this.nextSibling);
+    refs.editor.appendChild(renderTemplate(editorTemplate(file.imageModel.Title, file.imageModel.Description)));
+    preview.parentNode.insertBefore(refs.editor, preview.nextSibling);
   }
   var setTotalSize = function () {
     var data = getSizeAndUnit(state.totalSize);
@@ -128,21 +252,39 @@
     var img = file.eles[0].querySelector('.preview-img');
     var spinner = file.eles[0].querySelector('.preview-img .dot-spinner');
     var progressNum = file.eles[0].querySelector('.preview-upload-progress');
+    var name = file.eles[0].querySelector('.preview-name');
+    var dim = file.eles[0].querySelector('.preview-dim');
     formData.append('img', file);
+    formData.append('filename', file.name);
     formData.append('index', i);
     var xhr =  new XMLHttpRequest();
     xhr.open('POST', '/upload-image');
     xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
     xhr.onload = function () {
       img.innerHTML = '';
-      console.log(xhr.responseText)
-      img.style.backgroundImage = 'url(' + xhr.responseText + ')';
-      progressNum.innerHTML = '100%';
+      file.imageModel = JSON.parse(xhr.responseText);
+      dim.innerHTML = file.imageModel.Width.toString() + 'x' + file.imageModel.Height.toString();
+      var url = file.imageModel.ThumbUrl != '' ? file.imageModel.ThumbUrl : file.imageModel.Url;
+      var a = document.createElement('a');
+      var link = "/images/" + file.imageModel.Name;
+      a.href = link;
+      a.target = '_blank';
+      img.appendChild(a);
+      img.style.backgroundImage = 'url(' + url + ')';
+      var edit = document.createElement('button');
+      edit.innerHTML = 'edit';
+      progressNum.innerHTML = '';
+      progressNum.appendChild(edit);
+      a = document.createElement('a');
+      a.href = link;
+      a.target = '_blank';
+      a.innerHTML = file.imageModel.Name;
+      name.innerHTML = '';
+      name.appendChild(a);
       state.filesUploadedCount += 1;
       setTotalProgress();
       file.processed = true;
-      file.eles[0].classList.add('editable');
-      file.eles[0].addEventListener('click', editorHandler);
+      progressNum.childNodes[0].addEventListener('click', editorHandler);
       if (state.filesUploadedCount === state.files.length) {
         state.end = new Date();
         console.log((state.end - state.start) / 1000);
@@ -210,9 +352,9 @@
   filePicker.addEventListener('click', function (e) {
     if (state.busy) e.preventDefault();
   });
-  filePicker.addEventListener('change', function (e) {
-    if (!state.busy) processFiles(this.files);
-  });
+  // filePicker.addEventListener('change', function (e) {
+  //   if (!state.busy) processFiles(this.files);
+  // });
   // var getEditorView = function () {
   //   xhr = new XMLHttpRequest();
   //   xhr.open('GET', '/editor-view');

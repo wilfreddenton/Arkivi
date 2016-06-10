@@ -6,7 +6,13 @@ body, input {
   color: #2B3046;
   margin: 0;
 }
-.content {
+a {
+  color: #007CFF;
+}
+a:hover {
+  color: #007CFF;
+}
+#content {
   margin: 0 auto;
 }
 .row {
@@ -33,22 +39,28 @@ body, input {
   padding: 0;
 }
 #editor input {
+  outline: none;
   width: 100%;
   margin-top: 15px;
   font-size: 18px;
+  font-weight: bold;
   border-left: 0;
+  max-width: 100%;
   border-right: 0;
   border-top: 0;
   padding: 5px;
-  border-bottom: 1px dashed #2B3046;
+  border-bottom: 1px solid #ccc;
 }
 #editor textarea {
+  outline: none;
   width: 100%;
-  border: 1px solid #2B3046;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  border-bottom: 1px solid #ccc;
   max-width: 100%;
-  padding: 5px;
+  padding: 7px 5px;
   font-size: 15px;
-  margin-top: 15px;
 }
 .editable {
   cursor: pointer;
@@ -180,15 +192,6 @@ body, input {
   display: block;
   margin: 0 auto 60px;
   padding: 0;
-  opacity: 0;
-  transition: opacity 300ms;
-  max-height: 100px;
-  overflow: hidden;
-}
-#previews.show {
-  opacity: 1;
-  max-height: none;
-  overflow: auto;
 }
 .preview {
   margin-top: 15px;
@@ -207,6 +210,14 @@ body, input {
   position: absolute;
   z-index: 100;
   text-align: center;
+}
+.preview .preview-img a {
+  display: block;
+  position: relative;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
 }
 .preview .preview-img .dot-spinner {
   display: inline-block;
@@ -239,7 +250,7 @@ body, input {
 .preview .preview-name {
   font-size: 18px;
 }
-.preview .preview-name span {
+.preview .preview-name * {
   text-overflow: ellipsis;
   max-width: 100%;
   padding-right: 20px;
@@ -248,12 +259,14 @@ body, input {
   white-space: nowrap;
   overflow: hidden;
 }
-.preview .preview-ext {
+.preview .preview-ext, .preview .preview-dim {
   display: inline-block;
   font-size: 18px;
   margin-top: 7px;
   width: 100%;
   text-align: left;
+}
+.preview .preview-ext {
   text-transform: uppercase;
 }
 .preview .preview-size {
@@ -275,11 +288,8 @@ body, input {
   text-align: right;
   display: inline-block;
 }
-.preview .preview-dim {
-  display: inline-block;
-  position: relative;
-  top: -3px;
-  margin-left: 50px;
+.preview .preview-upload-progress button {
+  font-size: 16px;
 }
 .preview .preview-details {
   margin-top: 20px;
@@ -365,6 +375,9 @@ body, input {
   .preview .preview-upload-progress {
     font-size: 18px;
   }
+  .preview .preview-upload-progress button {
+    font-size: 14px;
+  }
   #dropzone .glyphicon {
     padding: 14px;
   }
@@ -379,7 +392,7 @@ body, input {
     font-size: 25px;
     padding: 20px;
   }
-  .preview .preview-ext {
+  .preview .preview-ext, .preview .preview-dim {
     font-size: 14px;
     margin-top: 5px
   }
@@ -399,5 +412,8 @@ body, input {
 @media (max-width: 500px) {
   .preview .preview-ext {
     text-align: center;
+  }
+  .preview .preview-dim {
+    display: none;
   }
 }

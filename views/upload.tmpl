@@ -1,23 +1,8 @@
 {{ define "title" }}<title>Arkivi | upload</title>{{ end }}
 {{ define "content" }}
-  <div id="action-bar" class="row">
-    <div class="col-xs-4">
-      <input id="file-input" type="file" accept=".gif, .jpg, .jpeg, .png, image/gif, image/jpg, image/jpeg, image/png" multiple>
-    </div>
-    <div class="col-xs-4">
-      <span id="total-size">total size: <span>0 Mbs</span></span>
-    </div>
-    <div class="col-xs-4">
-      <span id="total-progress">total progress: <span>0%</span></span>
-    </div>
-  </div>
-  <div id="placeholder">
-    <span id="placeholder-text">Drop images or click anywhere to upload.</span>
-  </div>
-  <ul id="previews">
-  </ul>
-  <form id="img-form" style="display: none" enctype="multipart/form-data"></form>
 {{ end }}
 {{ define "scripts" }}
+  <script src="/static/js/react.js"></script>
+  <script src="/static/js/react-dom.js"></script>
   <script src="/static/js/upload.js"></script>
 {{ end }}

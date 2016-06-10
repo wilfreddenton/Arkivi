@@ -46,6 +46,7 @@ var GetTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 
 var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	// index := r.FormValue("index")
+	title := strings.Split(r.FormValue("filename"), ".")[0]
 	src, hdr, err := r.FormFile("img")
 	if err != nil {
 		log.Fatal(err)
@@ -83,15 +84,11 @@ var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 	} else {
 		b = img.Bounds()
 	}
-	imgModel := &Image{Name: name, Ext: ext, Width: b.Dx(), Height: b.Dy()}
+	imgModel := &Image{Title: title, Name: name, Ext: ext, Width: b.Dx(), Height: b.Dy()}
 	p := &ImageProcessor{imgModel, img, gifImg}
 	p.CreateResizes()
 	p.ImageModel.Save()
-	if p.ImageModel.ThumbUrl == "" {
-		w.Write([]byte(p.ImageModel.Url))
-	} else {
-		w.Write([]byte(p.ImageModel.ThumbUrl))
-	}
+	json.NewEncoder(w).Encode(p.ImageModel)
 })
 
 var ImagesHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
