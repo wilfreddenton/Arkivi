@@ -62,8 +62,13 @@
     }
   });
   var Preview = React.createClass({
+    getInitialState: function () {
+      return {
+        editing: false
+      };
+    },
     editHandler: function (e) {
-      this.props.editHandler(this.props.index);
+      this.setState({ editing: !this.state.editing });
     },
     componentDidMount: function () {
       this.refs.editButton.addEventListener('click', this.editHandler)
@@ -118,7 +123,12 @@
                                                                React.DOM.button({
                                                                  ref: 'editButton',
                                                                  className: 'preview-edit',
-                                                                 style: { display: editDisplay } }, 'edit')))))
+                                                                 style: { display: editDisplay } }, 'edit')))),
+                     React.createElement(Editor, {
+                       open: this.state.editing,
+                       title: model ? model.Title : '',
+                       description: model ? model.Description : ''
+                     }))
       );
     }
   });
@@ -127,15 +137,6 @@
       var previews = this.props.images.map(function (image, i) {
         return React.createElement(Preview, { key: i, index: i, image: image, editHandler: this.props.editHandler });
       }.bind(this));
-      if (this.props.images.length > 0 && this.props.images[this.props.images.length - 1].model) {
-        var index = this.props.images[this.props.editingIndex].model ? this.props.editingIndex : this.props.images.length - 1;
-        previews.splice(this.props.editingIndex + 1, 0, React.createElement(Editor, {
-          key: '9001',
-          open: this.props.editing,
-          title: this.props.images[index].model.Title,
-          description: this.props.images[index].model.Description
-        }));
-      }
       return (
         React.DOM.ul({ id: 'previews' }, previews)
       );
@@ -170,8 +171,6 @@
     getInitialState: function () {
       return {
         token: '',
-        editingIndex: 0,
-        editing: false,
         imagesSize: 0,
         imageUploadCount: 0,
         images: []
@@ -204,12 +203,6 @@
       images[i].sent = true;
       this.setState({ images: images });
       xhr.send(formData);
-    },
-    editHandler: function (previewIndex) {
-      var editing = !this.state.editing;
-      if (this.state.editing && this.state.editingIndex != previewIndex)
-        editing = this.state.editing;
-      this.setState({ editing: editing, editingIndex: previewIndex });
     },
     uploadHandler: function (images) {
       var imagesSize = this.state.imagesSize;

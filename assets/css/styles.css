@@ -37,7 +37,7 @@ a:hover {
   transition: background-color 300ms;
 }
 #dropzone.dragover {
-  background-color: #eee;
+  background-color: #ccc;
 }
 #editor {
   position: relative;
@@ -167,8 +167,6 @@ a:hover {
 .preview {
   margin-top: 15px;
   background-color: white;
-  overflow: hidden;
-  height: 100px;
   position: relative;
 }
 .preview:first-child {
@@ -198,6 +196,7 @@ a:hover {
 .preview .preview-description {
   padding-left: 130px;
   padding-top: 12px;
+  padding-bottom: 8px;
 }
 .preview .preview-name {
   font-size: 18px;
@@ -245,6 +244,11 @@ a:hover {
   float: right;
   margin-right: 20px;
   display: block;
+  background-color: #9482E8;
+  border: 0;
+  outline: none;
+  border-radius: 5px;
+  color: white;
 }
 .preview .preview-details {
   margin-top: 20px;
@@ -294,6 +298,9 @@ a:hover {
   }
 }
 @media (max-width: 675px) {
+  #dropzone {
+    margin-top: 0px;
+  }
   #editor {
     padding-left: 95px;
   }
