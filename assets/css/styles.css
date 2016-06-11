@@ -308,7 +308,6 @@ a:hover {
     margin-top: 0;
   }
   .preview {
-    height: 75px;
   }
   .preview .preview-details {
     margin-top: 12px;
@@ -319,6 +318,7 @@ a:hover {
   .preview .preview-description {
     padding-top: 6px;
     padding-left: 95px;
+    padding-bottom: 7px;
   }
   .preview .preview-size {
     font-size: 20px;

@@ -1,4 +1,11 @@
 (function (window) {
+  // util variables
+  var GLOBAL = {
+    maxUploads: 5,
+    uploadCount: 0,
+    uploadEvent: new Event('upload'),
+    previews: document.getElementsByClassName('waiting')
+  }
   // util functions
   var getSizeAndUnit = function (size) {
     var unit = '';
@@ -12,7 +19,7 @@
     return { size: size, unit: unit };
   }
   var imageFromFile = function (file) {
-    return { model: null, file: file, progress: 0, sent: false };
+    return { model: null, file: file };
   }
   var imagesFromFiles = function (files) {
     var images = Array.prototype.map.call(files, imageFromFile);
@@ -25,16 +32,22 @@
   }
   // components
   var ActionBar = React.createClass({
+    propTypes: {
+      fileHandler: React.PropTypes.func,
+      imagesSize: React.PropTypes.number,
+      totalUploadCount: React.PropTypes.number,
+      imageCount: React.PropTypes.number
+    },
     componentDidMount: function () {
       this.refs.input.addEventListener('change', function (e) {
-        this.props.uploadHandler(imagesFromFiles(this.refs.input.files));
+        this.props.fileHandler(this.refs.input.files);
       }.bind(this));
     },
     render: function () {
       var data = getSizeAndUnit(this.props.imagesSize);
       var progress = '0%'
       if (this.props.imageCount != 0)
-        progress = parseInt((this.props.imageUploadCount / this.props.imageCount * 100).toString()) + '%';
+        progress = parseInt((this.props.totalUploadCount / this.props.imageCount * 100).toString()) + '%';
       return (
         React.DOM.div({ id: 'action-bar', className: 'row' },
                       React.DOM.div({ className: 'col-xs-4' },
@@ -62,16 +75,60 @@
     }
   });
   var Preview = React.createClass({
+    propTypes: {
+      index: React.PropTypes.number,
+      image: React.PropTypes.object,
+      token: React.PropTypes.string,
+      onloadHandler: React.PropTypes.func
+    },
     getInitialState: function () {
       return {
-        editing: false
+        editing: false,
+        sent: false,
+        progress: 0
       };
+    },
+    upload: function () {
+      var image = this.props.image;
+      var formData = new FormData(this.refs.form);
+      formData.append('img', image.file);
+      formData.append('filename', image.file.name);
+      formData.append('index', this.props.index);
+      var xhr =  new XMLHttpRequest();
+      xhr.open('POST', '/upload-image');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + this.props.token);
+      xhr.onload = function () {
+        if (GLOBAL.previews.length > 0) {
+          GLOBAL.uploadCount -= 1;
+          GLOBAL.previews[0].dispatchEvent(GLOBAL.uploadEvent);
+        }
+        this.props.onloadHandler(image, xhr.responseText);
+      }.bind(this);
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+          var progress = parseInt(event.loaded / event.total * 100);
+          if (progress < 100)
+            this.setState({ progress: progress });
+        }
+      }.bind(this);
+      this.setState({ sent: true });
+      xhr.send(formData);
     },
     editHandler: function (e) {
       this.setState({ editing: !this.state.editing });
     },
     componentDidMount: function () {
-      this.refs.editButton.addEventListener('click', this.editHandler)
+      this.refs.editButton.addEventListener('click', this.editHandler);
+      var ele = ReactDOM.findDOMNode(this);
+      ele.addEventListener('upload', function () {
+        ele.classList.remove('waiting');
+        console.log(this.props.image.file.name);
+        GLOBAL.uploadCount += 1;
+        this.upload();
+      }.bind(this));
+      if (GLOBAL.uploadCount < GLOBAL.maxUploads) {
+        ele.dispatchEvent(GLOBAL.uploadEvent);
+      }
     },
     render: function () {
       var file = this.props.image.file;
@@ -100,8 +157,12 @@
         size = size.slice(0, 3);
       }
       return (
-        React.DOM.li({ className: 'preview' },
-                     React.DOM.div({ className: 'preview-img thumbnail', style: { backgroundImage: 'url(' + url + ')' } },
+        React.DOM.li({ className: 'preview waiting' },
+                     React.DOM.div({
+                       ref: 'thumbnail',
+                       className: 'preview-img thumbnail',
+                       style: { backgroundImage: 'url(' + url + ')' }
+                     },
                                    loader,
                                    thumbnailLink),
                      React.DOM.div({ className: 'preview-description' },
@@ -119,7 +180,7 @@
                                                                React.DOM.span({
                                                                  className: 'preview-upload-progress',
                                                                  style: { display: progressDisplay }
-                                                               }, this.props.image.progress.toString() + '%'),
+                                                               }, this.state.progress.toString() + '%'),
                                                                React.DOM.button({
                                                                  ref: 'editButton',
                                                                  className: 'preview-edit',
@@ -133,9 +194,21 @@
     }
   });
   var Previews = React.createClass({
+    propTypes: {
+      images: React.PropTypes.array,
+      token: React.PropTypes.string,
+      onloadHandler: React.PropTypes.func
+    },
     render: function () {
+      var len = this.props.images.length;
       var previews = this.props.images.map(function (image, i) {
-        return React.createElement(Preview, { key: i, index: i, image: image, editHandler: this.props.editHandler });
+        return React.createElement(Preview, {
+          key: image.file.name + i.toString(),
+          index: i,
+          token: this.props.token,
+          image: image,
+          onloadHandler: this.props.onloadHandler
+        });
       }.bind(this));
       return (
         React.DOM.ul({ id: 'previews' }, previews)
@@ -143,6 +216,9 @@
     }
   });
   var Dropzone = React.createClass({
+    propTypes: {
+      fileHandler: React.PropTypes.func
+    },
     componentDidMount: function () {
       var ele = ReactDOM.findDOMNode(this);
       ele.addEventListener('dragover', function (e) {
@@ -158,7 +234,7 @@
       ele.addEventListener('drop', function (e) {
         e.preventDefault();
         ele.classList.remove('dragover');
-        this.props.uploadHandler(imagesFromFiles(e.dataTransfer.files));
+        this.props.fileHandler(e.dataTransfer.files);
       }.bind(this))
     },
     render: function () {
@@ -172,51 +248,26 @@
       return {
         token: '',
         imagesSize: 0,
-        imageUploadCount: 0,
+        totalUploadCount: 0,
         images: []
       };
     },
-    upload: function (image) {
-      var images = this.state.images.slice();
+    onloadHandler: function (image, responseText) {
       var i = this.state.images.indexOf(image);
-      var formData = new FormData(this.refs.form);
-      formData.append('img', image.file);
-      formData.append('filename', image.file.name);
-      formData.append('index', i);
-      var xhr =  new XMLHttpRequest();
-      xhr.open('POST', '/upload-image');
-      xhr.setRequestHeader('Authorization', 'Bearer ' + this.state.token);
-      xhr.onload = function () {
-        images[i].model = JSON.parse(xhr.responseText);
-        this.setState({
-          images: images,
-          imageUploadCount: this.state.imageUploadCount + 1
-        });
-      }.bind(this);
-      xhr.upload.onprogress = function (e) {
-        if (e.lengthComputable) {
-          var progress = parseInt(event.loaded / event.total * 100);
-          images[i].progress = progress;
-          this.setState({ images: images });
-        }
-      }.bind(this);
-      images[i].sent = true;
-      this.setState({ images: images });
-      xhr.send(formData);
+      var images = this.state.images.slice();
+      images[i].model = JSON.parse(responseText);
+      this.setState({
+        images: images,
+        totalUploadCount: this.state.totalUploadCount + 1
+      });
     },
-    uploadHandler: function (images) {
+    fileHandler: function (files) {
+      var images = imagesFromFiles(files);
       var imagesSize = this.state.imagesSize;
       images.forEach(function (image) {
         imagesSize += image.file.size;
       });
-      this.setState({ editing: false, images: images.concat(this.state.images), imagesSize });
-    },
-    componentDidUpdate: function (prevProps, prevState) {
-      var images = [];
-      this.state.images.forEach(function (image) {
-        if (!image.sent) images.push(image);
-      });
-      images.forEach(this.upload);
+      this.setState({ images: images.concat(this.state.images), imagesSize });
     },
     componentDidMount: function () {
       var token = window.localStorage.getItem('arkivi-jwt');
@@ -229,21 +280,27 @@
       return (
         React.DOM.div({ id: 'uploader' },
                       React.createElement(Dropzone, {
-                        uploadHandler: this.uploadHandler
+                        fileHandler: this.fileHandler
                       }),
                       React.createElement(ActionBar, {
-                        uploadHandler: this.uploadHandler,
+                        fileHandler: this.fileHandler,
                         imagesSize: this.state.imagesSize,
-                        imageUploadCount: this.state.imageUploadCount,
+                        totalUploadCount: this.state.totalUploadCount,
                         imageCount: this.state.images.length
                       }),
                       React.createElement(Previews, {
                         images: this.state.images,
-                        editingIndex: this.state.editingIndex,
-                        editing: this.state.editing,
-                        editHandler: this.editHandler
+                        token: this.state.token,
+                        onloadHandler: this.onloadHandler
                       }),
-                      React.DOM.form({ ref: 'form', id: 'img-form', display: 'none', formEncType: 'multipart/form-data'}))
+                      React.DOM.form({
+                        ref: 'form',
+                        id: 'img-form',
+                        style: {
+                          display: 'none'
+                        },
+                        formEncType: 'multipart/form-data'
+                      }))
       );
     }
   });
