@@ -6,7 +6,7 @@ body, input {
   color: #2B3046;
   margin: 0;
 }
-body {
+body.drag {
   padding-top: 60px;
   background-color: white;
   transition: background-color 300ms;
@@ -286,6 +286,7 @@ a:hover {
   display: block;
 }
 #image-frame {
+  background-color: black;
   width: 100%;
   position: relative;
 }

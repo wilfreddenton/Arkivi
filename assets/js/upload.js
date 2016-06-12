@@ -227,6 +227,7 @@
     },
     componentDidMount: function () {
       var ele = document.body;
+      ele.classList.add('drag');
       ele.addEventListener('dragover', function (e) {
         e.preventDefault();
         ele.classList.add('dragover');
