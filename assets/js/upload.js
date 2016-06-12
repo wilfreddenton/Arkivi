@@ -18,17 +18,14 @@
     }
     return { size: size, unit: unit };
   }
-  var imageFromFile = function (file) {
-    return { model: null, file: file };
-  }
   var imagesFromFiles = function (files) {
-    var images = Array.prototype.map.call(files, imageFromFile);
-    images.filter(function (file) {
+    var images = [];
+    Array.prototype.forEach.call(files, function (file) {
       var validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-      if (validTypes.indexOf(file.type) > 0) return true;
-      return false;
+      if (validTypes.indexOf(file.type) > -1)
+        images.push(file);
     });
-    return images
+    return images;
   }
   // components
   var ActionBar = React.createClass({
@@ -84,15 +81,16 @@
     getInitialState: function () {
       return {
         editing: false,
-        sent: false,
-        progress: 0
+        // sent: false,
+        progress: 0,
+        model: null
       };
     },
     upload: function () {
       var image = this.props.image;
       var formData = new FormData(this.refs.form);
-      formData.append('img', image.file);
-      formData.append('filename', image.file.name);
+      formData.append('img', image);
+      formData.append('filename', image.name);
       formData.append('index', this.props.index);
       var xhr =  new XMLHttpRequest();
       xhr.open('POST', '/upload-image');
@@ -102,7 +100,8 @@
           GLOBAL.uploadCount -= 1;
           GLOBAL.previews[0].dispatchEvent(GLOBAL.uploadEvent);
         }
-        this.props.onloadHandler(image, xhr.responseText);
+        this.setState({ model: JSON.parse(xhr.responseText) });
+        this.props.onloadHandler();
       }.bind(this);
       xhr.upload.onprogress = function (e) {
         if (e.lengthComputable) {
@@ -111,7 +110,7 @@
             this.setState({ progress: progress });
         }
       }.bind(this);
-      this.setState({ sent: true });
+      // this.setState({ sent: true });
       xhr.send(formData);
     },
     editHandler: function (e) {
@@ -122,7 +121,6 @@
       var ele = ReactDOM.findDOMNode(this);
       ele.addEventListener('upload', function () {
         ele.classList.remove('waiting');
-        console.log(this.props.image.file.name);
         GLOBAL.uploadCount += 1;
         this.upload();
       }.bind(this));
@@ -131,27 +129,36 @@
       }
     },
     render: function () {
-      var file = this.props.image.file;
-      var model = this.props.image.model;
-      var name = model ? React.DOM.a({
-        href: '/images/' + model.Name,
-        target: '_blank'
-      }, model.Name) : file.name.substring(0, file.name.lastIndexOf("."));
-      var ext = model ? model.Ext : file.name.substring(file.name.lastIndexOf(".")).toLowerCase().slice(1);
-      var dim = model ? model.Width.toString() + 'x' + model.Height.toString() : '';
-      var loader = model ? null : React.DOM.span({ className: 'spin dot-spinner' }, '...');
-      var thumbnailLink = model ? React.DOM.a({ href: '/images/' + model.Name, target: '_blank' }, '') : null;
-      var progressDisplay = model ? 'none' : 'block';
-      var editDisplay = model ? 'block' : 'none';
-      var url = '';
+      var image = this.props.image;
+      var model = this.state.model;
+      var name, ext, dim, thumbnailStyle, thumbnailOptions, progressDisplay, editDisplay;
       if (model) {
+        name = React.DOM.a({
+          href: '/images/' + model.Name,
+          target: '_blank'
+        }, model.Name);
+        ext = model.Ext
+        dim = model.Width.toString() + 'x' + model.Height.toString();
+        thumbnailOptions = { href: '/images/' + model.Name, target: '_blank' };
+        progressDisplay = 'none';
+        editDisplay = 'block';
+        var url = '';
         if (model.ThumbUrl != '') {
           url = model.ThumbUrl;
         } else {
           url = model.Url;
         }
+        thumbnailStyle = { backgroundImage: 'url(' + url + ')' }
+      } else {
+        name = image.name.substring(0, image.name.lastIndexOf("."));
+        ext = image.name.substring(image.name.lastIndexOf(".")).toLowerCase().slice(1);
+        dim = '';
+        thumbnailOptions = { href: '#' };
+        progressDisplay = 'block';
+        editDisplay = 'none';
+        thumbnailStyle = { border: '1px solid #ccc '};
       }
-      var data = getSizeAndUnit(file.size);
+      var data = getSizeAndUnit(image.size);
       var size = data.size.slice(0, 4);
       if (size[size.length - 1] === '.') {
         size = size.slice(0, 3);
@@ -161,10 +168,9 @@
                      React.DOM.div({
                        ref: 'thumbnail',
                        className: 'preview-img thumbnail',
-                       style: { backgroundImage: 'url(' + url + ')' }
+                       style: thumbnailStyle
                      },
-                                   loader,
-                                   thumbnailLink),
+                                   React.DOM.a(thumbnailOptions, '')),
                      React.DOM.div({ className: 'preview-description' },
                                    React.DOM.div({ className: 'preview-name row' },
                                                  React.DOM.span(null, name)),
@@ -203,7 +209,7 @@
       var len = this.props.images.length;
       var previews = this.props.images.map(function (image, i) {
         return React.createElement(Preview, {
-          key: image.file.name + i.toString(),
+          key: image.name + i.toString(),
           index: i,
           token: this.props.token,
           image: image,
@@ -220,7 +226,7 @@
       fileHandler: React.PropTypes.func
     },
     componentDidMount: function () {
-      var ele = ReactDOM.findDOMNode(this);
+      var ele = document.body;
       ele.addEventListener('dragover', function (e) {
         e.preventDefault();
         ele.classList.add('dragover');
@@ -238,9 +244,7 @@
       }.bind(this))
     },
     render: function () {
-      return (
-        React.DOM.div({ id: 'dropzone' }, '')
-      );
+      return (React.DOM.div({ style: { display: 'none' }}));
     }
   });
   var Uploader = React.createClass({
@@ -253,19 +257,13 @@
       };
     },
     onloadHandler: function (image, responseText) {
-      var i = this.state.images.indexOf(image);
-      var images = this.state.images.slice();
-      images[i].model = JSON.parse(responseText);
-      this.setState({
-        images: images,
-        totalUploadCount: this.state.totalUploadCount + 1
-      });
+      this.setState({ totalUploadCount: this.state.totalUploadCount + 1 });
     },
     fileHandler: function (files) {
       var images = imagesFromFiles(files);
       var imagesSize = this.state.imagesSize;
       images.forEach(function (image) {
-        imagesSize += image.file.size;
+        imagesSize += image.size;
       });
       this.setState({ images: images.concat(this.state.images), imagesSize });
     },

@@ -6,6 +6,14 @@ body, input {
   color: #2B3046;
   margin: 0;
 }
+body {
+  padding-top: 60px;
+  background-color: white;
+  transition: background-color 300ms;
+}
+body.dragover {
+  background-color: #ccc;
+}
 a {
   color: #007CFF;
 }
@@ -28,17 +36,17 @@ a:hover {
   background-position: center;
   background-repeat: no-repeat; 
 }
-#dropzone {
-  height: 100%;
-  position: absolute;
-  width: 100%;
-  margin-top: -60px;
-  background-color: white;
-  transition: background-color 300ms;
-}
-#dropzone.dragover {
-  background-color: #ccc;
-}
+/* #dropzone { */
+/*   height: 100%; */
+/*   position: absolute; */
+/*   width: 100%; */
+/*   margin-top: -60px; */
+/*   background-color: white; */
+/*   transition: background-color 300ms; */
+/* } */
+/* #dropzone.dragover { */
+/*   background-color: #ccc; */
+/* } */
 #editor {
   position: relative;
   padding-left: 130px;
@@ -107,7 +115,7 @@ a:hover {
 #action-bar {
   max-width: 800px;
   position: relative;
-  margin: 60px auto 0;
+  margin: 0 auto;
   text-align: center;
   font-size: 16px;
   padding: 39px 20px;
@@ -298,14 +306,14 @@ a:hover {
   }
 }
 @media (max-width: 675px) {
+  body {
+    padding-top: 0px;
+  }
   #dropzone {
     margin-top: 0px;
   }
   #editor {
     padding-left: 95px;
-  }
-  #action-bar {
-    margin-top: 0;
   }
   .preview {
   }
