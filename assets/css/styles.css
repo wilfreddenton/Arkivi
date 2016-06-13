@@ -120,15 +120,16 @@ a:hover {
   font-size: 16px;
   padding: 39px 20px;
 }
-#action-bar div:first-child {
-  text-align: left;
-}
+/* #action-bar div:first-child { */
+/*   text-align: left; */
+/* } */
 #action-bar div {
   padding: 0;
+  text-align: center;
 }
-#action-bar div:last-child {
-  text-align: right;
-}
+/* #action-bar div:last-child { */
+/*   text-align: right; */
+/* } */
 #action-bar span span {
   font-weight: bold;
 }
@@ -307,7 +308,7 @@ a:hover {
   }
 }
 @media (max-width: 675px) {
-  body {
+  body.drag {
     padding-top: 0px;
   }
   #dropzone {

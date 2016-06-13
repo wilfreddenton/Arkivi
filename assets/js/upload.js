@@ -1,10 +1,59 @@
 (function (window) {
-  // util variables
-  var GLOBAL = {
+  // models
+  var newImage = function (file) {
+    return Immutable.Map({
+      model: null,
+      file: file,
+      progress: 0
+    });
+  }
+  var UploadQueue = {
+    items: [],
     maxUploads: 5,
-    uploadCount: 0,
-    uploadEvent: new Event('upload'),
-    previews: document.getElementsByClassName('waiting')
+    numUploads: 0,
+    pop: function () {
+      return this.items.shift();
+    },
+    pushItems: function (items) {
+      this.items = this.items.concat(items);
+    },
+    numUploadSlots: function () {
+      return this.maxUploads - this.numUploads;
+    },
+    uploadFinished: function () {
+      this.numUploads -= 1;
+    },
+    uploadStarted: function () {
+      this.numUploads += 1;
+    },
+    length: function () {
+      return this.items.length;
+    }
+  }
+  // stores
+  var ImageStore = {
+    images: Immutable.List(),
+    addImage: function (image) {
+      this.images = this.images.push(image);
+      this.onChange();
+    },
+    addImages: function (images) {
+      this.images = this.images.concat(images);
+      this.onChange();
+    },
+    updateModel: function (index, model) {
+      this.images = this.images.updateIn([index], function (image) {
+        return image.set('model', model);
+      });
+      this.onChange();
+    },
+    updateProgress: function (index, progress) {
+      this.images = this.images.updateIn([index], function (image) {
+        return image.set('progress', progress);
+      });
+      this.onChange();
+    },
+    onChange: function () {}
   }
   // util functions
   var getSizeAndUnit = function (size) {
@@ -19,11 +68,11 @@
     return { size: size, unit: unit };
   }
   var imagesFromFiles = function (files) {
-    var images = [];
+    var images = Immutable.List();
     Array.prototype.forEach.call(files, function (file) {
       var validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
       if (validTypes.indexOf(file.type) > -1)
-        images.push(file);
+        images = images.push(newImage(file));
     });
     return images;
   }
@@ -47,12 +96,23 @@
         progress = parseInt((this.props.totalUploadCount / this.props.imageCount * 100).toString()) + '%';
       return (
         React.DOM.div({ id: 'action-bar', className: 'row' },
-                      React.DOM.div({ className: 'col-xs-4' },
-                                    React.DOM.input({ ref: 'input', id: 'file-input', type: 'file', accept: '.gif, .jpg, .jpeg, .png, image/gif, image/jpg, image/jpeg, image/png', multiple: true })),
-                      React.DOM.div({ className: 'col-xs-4'},
+                      React.DOM.div({ className: 'col-xs-6' },
+                                    React.DOM.input({
+                                      ref: 'input',
+                                      id: 'file-input',
+                                      type: 'file',
+                                      accept: '.gif, .jpg, .jpeg, .png, image/gif, image/jpg, image/jpeg, image/png',
+                                      multiple: true
+                                    }),
+                                    React.DOM.br(null),
+                                    React.DOM.br(null),
+                                    React.DOM.span({ id: 'total-count' }, '# images: ',
+                                                   React.DOM.span(null, this.props.imageCount))),
+                      React.DOM.div({ className: 'col-xs-6'},
                                     React.DOM.span({ id: 'total-size' }, 'total size: ',
-                                                   React.DOM.span(null, data.size + ' ' + data.unit))),
-                      React.DOM.div({ className: 'col-xs-4'},
+                                                   React.DOM.span(null, data.size + ' ' + data.unit)),
+                                    React.DOM.br(null),
+                                    React.DOM.br(null),
                                     React.DOM.span({ id: 'total-progress' }, 'total progress: ',
                                                    React.DOM.span(null, progress))))
       );
@@ -72,65 +132,27 @@
     }
   });
   var Preview = React.createClass({
+    mixins: [React.addons.PureRenderMixin],
     propTypes: {
       index: React.PropTypes.number,
       image: React.PropTypes.object,
-      token: React.PropTypes.string,
-      onloadHandler: React.PropTypes.func
+      token: React.PropTypes.string
     },
     getInitialState: function () {
       return {
-        editing: false,
-        // sent: false,
-        progress: 0,
-        model: null
+        editing: false
       };
-    },
-    upload: function () {
-      var image = this.props.image;
-      var formData = new FormData(this.refs.form);
-      formData.append('img', image);
-      formData.append('filename', image.name);
-      formData.append('index', this.props.index);
-      var xhr =  new XMLHttpRequest();
-      xhr.open('POST', '/upload-image');
-      xhr.setRequestHeader('Authorization', 'Bearer ' + this.props.token);
-      xhr.onload = function () {
-        if (GLOBAL.previews.length > 0) {
-          GLOBAL.uploadCount -= 1;
-          GLOBAL.previews[0].dispatchEvent(GLOBAL.uploadEvent);
-        }
-        this.setState({ model: JSON.parse(xhr.responseText) });
-        this.props.onloadHandler();
-      }.bind(this);
-      xhr.upload.onprogress = function (e) {
-        if (e.lengthComputable) {
-          var progress = parseInt(event.loaded / event.total * 100);
-          if (progress < 100)
-            this.setState({ progress: progress });
-        }
-      }.bind(this);
-      // this.setState({ sent: true });
-      xhr.send(formData);
     },
     editHandler: function (e) {
       this.setState({ editing: !this.state.editing });
     },
     componentDidMount: function () {
       this.refs.editButton.addEventListener('click', this.editHandler);
-      var ele = ReactDOM.findDOMNode(this);
-      ele.addEventListener('upload', function () {
-        ele.classList.remove('waiting');
-        GLOBAL.uploadCount += 1;
-        this.upload();
-      }.bind(this));
-      if (GLOBAL.uploadCount < GLOBAL.maxUploads) {
-        ele.dispatchEvent(GLOBAL.uploadEvent);
-      }
     },
     render: function () {
-      var image = this.props.image;
-      var model = this.state.model;
+      var image = this.props.image.get('file');
+      var progress = this.props.image.get('progress');
+      var model = this.props.image.get('model');
       var name, ext, dim, thumbnailStyle, thumbnailOptions, progressDisplay, editDisplay;
       if (model) {
         name = React.DOM.a({
@@ -186,7 +208,7 @@
                                                                React.DOM.span({
                                                                  className: 'preview-upload-progress',
                                                                  style: { display: progressDisplay }
-                                                               }, this.state.progress.toString() + '%'),
+                                                               }, progress.toString() + '%'),
                                                                React.DOM.button({
                                                                  ref: 'editButton',
                                                                  className: 'preview-edit',
@@ -201,15 +223,13 @@
   });
   var Previews = React.createClass({
     propTypes: {
-      images: React.PropTypes.array,
       token: React.PropTypes.string,
       onloadHandler: React.PropTypes.func
     },
     render: function () {
-      var len = this.props.images.length;
       var previews = this.props.images.map(function (image, i) {
         return React.createElement(Preview, {
-          key: image.name + i.toString(),
+          key: image.get('file').name + i.toString(),
           index: i,
           token: this.props.token,
           image: image,
@@ -254,19 +274,66 @@
         token: '',
         imagesSize: 0,
         totalUploadCount: 0,
-        images: []
+        uploadQueue: Immutable.List(),
+        images: ImageStore.images
       };
     },
-    onloadHandler: function (image, responseText) {
-      this.setState({ totalUploadCount: this.state.totalUploadCount + 1 });
+    upload: function (image) {
+      var file = image.get('file');
+      var index = this.state.images.indexOf(image);
+      var formData = new FormData(this.refs.form);
+      formData.append('img', file);
+      formData.append('filename', file.name);
+      var xhr =  new XMLHttpRequest();
+      xhr.open('POST', '/upload-image');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + this.state.token);
+      xhr.onload = function () {
+        ImageStore.updateModel(index, JSON.parse(xhr.responseText));
+        UploadQueue.uploadFinished();
+        this.setState({ totalUploadCount: this.state.totalUploadCount + 1 });
+        this.uploadHandler();
+      }.bind(this);
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+          var progress = parseInt(event.loaded / event.total * 100);
+          if (progress <= 100)
+            progress = 99;
+          ImageStore.updateProgress(index, progress);
+        }
+      }.bind(this);
+      UploadQueue.uploadStarted();
+      xhr.send(formData);
+    },
+    uploadHandler: function () {
+      if (UploadQueue.length() > 0) {
+        this.upload(this.state.images.get(UploadQueue.pop()));
+      }
     },
     fileHandler: function (files) {
       var images = imagesFromFiles(files);
       var imagesSize = this.state.imagesSize;
       images.forEach(function (image) {
-        imagesSize += image.size;
+        imagesSize += image.get('file').size;
       });
-      this.setState({ images: images.concat(this.state.images), imagesSize });
+      var indices = [];
+      for (var i = 0; i < images.size; i += 1) {
+        indices.push(this.state.images.size + i);
+      }
+      UploadQueue.pushItems(indices);
+      ImageStore.addImages(images);
+      this.setState({ imagesSize: imagesSize });
+    },
+    componentWillMount: function () {
+      ImageStore.onChange = function () {
+        this.setState({ images: ImageStore.images });
+      }.bind(this);
+    },
+    componentDidUpdate: function (prevProps, prevState) {
+      if (prevState.images.size < this.state.images.size && UploadQueue.numUploads === 0) {
+        for (var i = 0; i < UploadQueue.maxUploads; i += 1) {
+          this.uploadHandler();
+        }
+      }
     },
     componentDidMount: function () {
       var token = window.localStorage.getItem('arkivi-jwt');
@@ -285,12 +352,11 @@
                         fileHandler: this.fileHandler,
                         imagesSize: this.state.imagesSize,
                         totalUploadCount: this.state.totalUploadCount,
-                        imageCount: this.state.images.length
+                        imageCount: this.state.images.size
                       }),
                       React.createElement(Previews, {
                         images: this.state.images,
-                        token: this.state.token,
-                        onloadHandler: this.onloadHandler
+                        token: this.state.token
                       }),
                       React.DOM.form({
                         ref: 'form',
