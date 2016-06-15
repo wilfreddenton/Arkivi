@@ -39,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	DB.AutoMigrate(&Image{})
+	DB.AutoMigrate(&Image{}, &Tag{})
 	// initialize websocket
 	r := mux.NewRouter().StrictSlash(true)
 	h := newHub()

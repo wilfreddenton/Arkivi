@@ -58,7 +58,7 @@ func ImageToPaletted(img image.Image) *image.Paletted {
 func IsNameUnique(name string) bool {
 	img := Image{}
 	DB.Where("name = ?", name).First(&img)
-	if img == (Image{}) {
+	if img.Name == "" {
 		return true
 	}
 	return false

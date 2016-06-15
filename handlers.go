@@ -84,7 +84,14 @@ var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 	} else {
 		b = img.Bounds()
 	}
-	imgModel := &Image{Title: title, Name: name, Ext: ext, Width: b.Dx(), Height: b.Dy()}
+	imgModel := &Image{
+		Title:     title,
+		Name:      name,
+		Ext:       ext,
+		Width:     b.Dx(),
+		Height:    b.Dy(),
+		Published: false,
+	}
 	p := &ImageProcessor{imgModel, img, gifImg}
 	p.CreateResizes()
 	p.ImageModel.Save()

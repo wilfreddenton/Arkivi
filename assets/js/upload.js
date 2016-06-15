@@ -2,34 +2,35 @@
   // models
   var newImage = function (file) {
     return Immutable.Map({
-      model: null,
+      model: Immutable.Map(),
       file: file,
       progress: 0
     });
   }
-  var UploadQueue = {
-    items: [],
-    maxUploads: 5,
-    numUploads: 0,
-    pop: function () {
-      return this.items.shift();
-    },
-    pushItems: function (items) {
-      this.items = this.items.concat(items);
-    },
-    numUploadSlots: function () {
-      return this.maxUploads - this.numUploads;
-    },
-    uploadFinished: function () {
-      this.numUploads -= 1;
-    },
-    uploadStarted: function () {
-      this.numUploads += 1;
-    },
-    length: function () {
-      return this.items.length;
-    }
+  function UploadQueue (maxUploads) {
+    this.items = [];
+    this.maxUploads = maxUploads;
+    this.numUploads = 0;
   }
+  UploadQueue.prototype.pop  = function () {
+    return this.items.shift();
+  };
+  UploadQueue.prototype.pushItems = function (items) {
+    this.items = this.items.concat(items);
+  };
+  UploadQueue.prototype.numUploadSlots = function () {
+    return this.maxUploads - this.numUploads;
+  };
+  UploadQueue.prototype.uploadFinished = function () {
+    this.numUploads -= 1;
+  };
+  UploadQueue.prototype.uploadStarted = function () {
+    this.numUploads += 1;
+  };
+  UploadQueue.prototype.size = function () {
+    return this.items.length;
+  };
+  var queue = new UploadQueue(5);
   // stores
   var ImageStore = {
     images: Immutable.List(),
@@ -97,37 +98,113 @@
       return (
         React.DOM.div({ id: 'action-bar', className: 'row' },
                       React.DOM.div({ className: 'col-xs-6' },
-                                    React.DOM.input({
-                                      ref: 'input',
-                                      id: 'file-input',
-                                      type: 'file',
-                                      accept: '.gif, .jpg, .jpeg, .png, image/gif, image/jpg, image/jpeg, image/png',
-                                      multiple: true
-                                    }),
+                                    React.DOM.div({ className: 'row' },
+                                                  React.DOM.input({
+                                                    ref: 'input',
+                                                    id: 'file-input',
+                                                    type: 'file',
+                                                    accept: '.gif, .jpg, .jpeg, .png, image/gif, image/jpg, image/jpeg, image/png',
+                                                    multiple: true
+                                                  })),
                                     React.DOM.br(null),
-                                    React.DOM.br(null),
-                                    React.DOM.span({ id: 'total-count' }, '# images: ',
-                                                   React.DOM.span(null, this.props.imageCount))),
+                                    React.DOM.div({ className: 'row '},
+                                                  React.DOM.div({ className: 'col-xs-6' },
+                                                                React.DOM.span({ className: 'info-header' }, '# images:')),
+                                                  React.DOM.div({ className: 'col-xs-6' },
+                                                                React.DOM.span({ className: 'info' }, this.props.imageCount))),
+                                    React.DOM.br(null)),
                       React.DOM.div({ className: 'col-xs-6'},
-                                    React.DOM.span({ id: 'total-size' }, 'total size: ',
-                                                   React.DOM.span(null, data.size + ' ' + data.unit)),
+                                    React.DOM.div({ className: 'row '},
+                                                  React.DOM.div({ className: 'col-xs-6' },
+                                                                React.DOM.span({ className: 'info-header' }, 'total size:')),
+                                                  React.DOM.div({ className: 'col-xs-6' },
+                                                                React.DOM.span({ className: 'info' }, data.size + ' ' + data.unit))),
                                     React.DOM.br(null),
-                                    React.DOM.br(null),
-                                    React.DOM.span({ id: 'total-progress' }, 'total progress: ',
-                                                   React.DOM.span(null, progress))))
+                                    React.DOM.div({ className: 'row '},
+                                                  React.DOM.div({ className: 'col-xs-6' },
+                                                                React.DOM.span({ className: 'info-header' }, 'total progress:')),
+                                                  React.DOM.div({ className: 'col-xs-6' },
+                                                                React.DOM.span({ className: 'info' }, progress)))))
       );
     }
   });
   var Editor = React.createClass({
+    propTypes: {
+      index: React.PropTypes.number,
+      model: React.PropTypes.object
+    },
+    editHandler: function (e) {
+      var name = e.target.name;
+      var value = e.target.value;
+      if (name === 'tags') {
+      } else {
+        var model = this.props.model.set(name, value);
+        ImageStore.updateModel(this.props.index, model)
+      }
+    },
     render: function () {
-      var display = this.props.open ? 'block' : 'none';
+      var model = this.props.model;
       return (
-        React.DOM.div({ id: 'editor', style: { display: display } },
+        React.DOM.div({ className: 'editor' },
                       React.DOM.form({ className: 'row' },
                                      React.DOM.div({ className: 'col-xs-6' },
-                                                   React.DOM.input({ id: 'editor-title', type: 'text', name: 'title', placeholder: 'Title', value: this.props.title}),
-                                                   React.DOM.textarea({ id: 'editor-description', name: 'description', placeholder: 'Description', value: this.props.description})),
-                                     React.DOM.div({ className: 'col-xs-6'}, '')))
+                                                   React.DOM.label(null, 'Title'),
+                                                   React.DOM.input({
+                                                     className: 'editor-title',
+                                                     type: 'text',
+                                                     name: 'Title',
+                                                     onChange: this.editHandler,
+                                                     value: model.get('Title')
+                                                   }),
+                                                   React.DOM.label(null, 'Date Taken'),
+                                                   React.DOM.input({
+                                                     className: 'editor-takenat',
+                                                     type: 'date',
+                                                     name: 'TakenAt',
+                                                     onChange: this.editHandler,
+                                                     value: model.get('TakenAt')
+                                                   }),
+                                                   React.DOM.label(null, 'Description'),
+                                                   React.DOM.textarea({
+                                                     className: 'editor-description',
+                                                     name: 'Description',
+                                                     onChange: this.editHandler,
+                                                     value: model.get('Description')
+                                                   })),
+                                     React.DOM.div({ className: 'col-xs-6'},
+                                                   React.DOM.label(null, 'Camera Model'),
+                                                   React.DOM.input({
+                                                     className: 'editor-camera',
+                                                     type: 'text',
+                                                     name: 'Camera',
+                                                     onChange: this.editHandler,
+                                                     value: model.get('Camera')
+                                                   }),
+                                                   React.DOM.label(null, 'Film Type'),
+                                                   React.DOM.input({
+                                                     className: 'editor-film',
+                                                     type: 'text',
+                                                     name: 'Film',
+                                                     onChange: this.editHandler,
+                                                     value: model.get('Film')
+                                                   }),
+                                                   React.DOM.label(null, 'Tags'),
+                                                   React.DOM.input({
+                                                     className: 'editor-tags',
+                                                     type: 'text',
+                                                     name: 'Tags',
+                                                     onChange: this.editHandler,
+                                                     value: model.get('Tags') ?
+                                                       model.get('Tags').toJS().join(', ') :
+                                                       ''
+                                                   }),
+                                                   React.DOM.br(null),
+                                                   React.DOM.br(null),
+                                                   React.DOM.input({
+                                                     className: 'editor-submit',
+                                                     type: 'submit',
+                                                     value: 'submit'
+                                                   }))))
       );
     }
   });
@@ -143,32 +220,35 @@
         editing: false
       };
     },
-    editHandler: function (e) {
+    toggleEditor: function (e) {
       this.setState({ editing: !this.state.editing });
-    },
-    componentDidMount: function () {
-      this.refs.editButton.addEventListener('click', this.editHandler);
     },
     render: function () {
       var image = this.props.image.get('file');
       var progress = this.props.image.get('progress');
       var model = this.props.image.get('model');
       var name, ext, dim, thumbnailStyle, thumbnailOptions, progressDisplay, editDisplay;
-      if (model) {
+      if (model.size !== 0) {
+        var modelName = model.get('Name'),
+            modelExt = model.get('Ext'),
+            modelWidth = model.get('Width'),
+            modelHeight = model.get('Height'),
+            modelThumbUrl = model.get('ThumbUrl'),
+            modelUrl = model.get('Url');
         name = React.DOM.a({
-          href: '/images/' + model.Name,
+          href: '/images/' + modelName,
           target: '_blank'
-        }, model.Name);
-        ext = model.Ext
-        dim = model.Width.toString() + 'x' + model.Height.toString();
-        thumbnailOptions = { href: '/images/' + model.Name, target: '_blank' };
+        }, modelName);
+        ext = modelExt
+        dim = modelWidth.toString() + 'x' + modelHeight.toString();
+        thumbnailOptions = { href: '/images/' + modelName, target: '_blank' };
         progressDisplay = 'none';
         editDisplay = 'block';
         var url = '';
-        if (model.ThumbUrl != '') {
-          url = model.ThumbUrl;
+        if (modelThumbUrl != '') {
+          url = modelThumbUrl;
         } else {
-          url = model.Url;
+          url = modelUrl;
         }
         thumbnailStyle = { backgroundImage: 'url(' + url + ')' }
       } else {
@@ -185,8 +265,13 @@
       if (size[size.length - 1] === '.') {
         size = size.slice(0, 3);
       }
+      var editToggle = this.state.editing ? 'close' : 'edit';
+      var editor = this.state.editing ? React.createElement(Editor, {
+        index: this.props.index,
+        model: model
+      }) : null;
       return (
-        React.DOM.li({ className: 'preview waiting' },
+        React.DOM.li({ className: 'preview' },
                      React.DOM.div({
                        ref: 'thumbnail',
                        className: 'preview-img thumbnail',
@@ -212,32 +297,66 @@
                                                                React.DOM.button({
                                                                  ref: 'editButton',
                                                                  className: 'preview-edit',
-                                                                 style: { display: editDisplay } }, 'edit')))),
-                     React.createElement(Editor, {
-                       open: this.state.editing,
-                       title: model ? model.Title : '',
-                       description: model ? model.Description : ''
-                     }))
+                                                                 onClick: this.toggleEditor,
+                                                                 style: { display: editDisplay } }, editToggle)))),
+                     editor)
       );
     }
   });
   var Previews = React.createClass({
     propTypes: {
       token: React.PropTypes.string,
+      showLimit: React.PropTypes.number,
       onloadHandler: React.PropTypes.func
     },
+    getInitialState: function () {
+      return { showLimitMult: 1 }
+    },
+    moreHandler: function (e) {
+      switch (e.target) {
+      case this.refs.more:
+        this.setState({ showLimitMult: this.state.showLimitMult + 1 })
+        break
+      case this.refs.rest:
+        this.setState({ showLimitMult: Math.ceil(this.props.images.size / this.props.showLimit) });
+        break
+      }
+    },
     render: function () {
-      var previews = this.props.images.map(function (image, i) {
-        return React.createElement(Preview, {
+      var previews = [];
+      var numImages = this.props.images.size;
+      var limit = Math.min(numImages, this.props.showLimit * this.state.showLimitMult);
+      for (var i = 0; i < limit; i += 1) {
+        var image = this.props.images.get(i);
+        previews.push(React.createElement(Preview, {
           key: image.get('file').name + i.toString(),
           index: i,
           token: this.props.token,
           image: image,
           onloadHandler: this.props.onloadHandler
-        });
-      }.bind(this));
+        }));
+      }
+      var moreButtonsDisplay = 'none';
+      var rest = numImages - limit;
+      var more = Math.min(rest, this.props.showLimit);
+      if (rest > 0)
+        moreButtonsDisplay = 'block';
       return (
-        React.DOM.ul({ id: 'previews' }, previews)
+        React.DOM.ul({ id: 'previews' },
+                     previews,
+                     React.DOM.div({ className: 'row more-buttons', style: { display: moreButtonsDisplay } },
+                                   React.DOM.div({ className: 'col-xs-6' },
+                                                 React.DOM.span({
+                                                   ref: 'more',
+                                                   onClick: this.moreHandler,
+                                                   className: 'more-button'
+                                                 }, 'show ' + more + ' more')),
+                                   React.DOM.div({ className: 'col-xs-6' },
+                                                 React.DOM.span({
+                                                   ref: 'rest',
+                                                   onClick: this.moreHandler,
+                                                   className: 'more-button'
+                                                 }, 'show rest (' + rest + ')'))))
       );
     }
   });
@@ -274,13 +393,11 @@
         token: '',
         imagesSize: 0,
         totalUploadCount: 0,
-        uploadQueue: Immutable.List(),
         images: ImageStore.images
       };
     },
-    upload: function (image) {
+    upload: function (index, image) {
       var file = image.get('file');
-      var index = this.state.images.indexOf(image);
       var formData = new FormData(this.refs.form);
       formData.append('img', file);
       formData.append('filename', file.name);
@@ -288,25 +405,26 @@
       xhr.open('POST', '/upload-image');
       xhr.setRequestHeader('Authorization', 'Bearer ' + this.state.token);
       xhr.onload = function () {
-        ImageStore.updateModel(index, JSON.parse(xhr.responseText));
-        UploadQueue.uploadFinished();
+        ImageStore.updateModel(index, Immutable.fromJS(JSON.parse(xhr.responseText)));
+        queue.uploadFinished();
         this.setState({ totalUploadCount: this.state.totalUploadCount + 1 });
         this.uploadHandler();
       }.bind(this);
       xhr.upload.onprogress = function (e) {
         if (e.lengthComputable) {
           var progress = parseInt(event.loaded / event.total * 100);
-          if (progress <= 100)
+          if (progress >= 100)
             progress = 99;
           ImageStore.updateProgress(index, progress);
         }
       }.bind(this);
-      UploadQueue.uploadStarted();
+      queue.uploadStarted();
       xhr.send(formData);
     },
     uploadHandler: function () {
-      if (UploadQueue.length() > 0) {
-        this.upload(this.state.images.get(UploadQueue.pop()));
+      if (queue.size() > 0) {
+        var index = queue.pop();
+        this.upload(index, this.state.images.get(index));
       }
     },
     fileHandler: function (files) {
@@ -319,7 +437,7 @@
       for (var i = 0; i < images.size; i += 1) {
         indices.push(this.state.images.size + i);
       }
-      UploadQueue.pushItems(indices);
+      queue.pushItems(indices);
       ImageStore.addImages(images);
       this.setState({ imagesSize: imagesSize });
     },
@@ -329,8 +447,8 @@
       }.bind(this);
     },
     componentDidUpdate: function (prevProps, prevState) {
-      if (prevState.images.size < this.state.images.size && UploadQueue.numUploads === 0) {
-        for (var i = 0; i < UploadQueue.maxUploads; i += 1) {
+      if (prevState.images.size < this.state.images.size && queue.numUploads === 0) {
+        for (var i = 0; i < queue.maxUploads; i += 1) {
           this.uploadHandler();
         }
       }
@@ -355,6 +473,7 @@
                         imageCount: this.state.images.size
                       }),
                       React.createElement(Previews, {
+                        showLimit: 50,
                         images: this.state.images,
                         token: this.state.token
                       }),
