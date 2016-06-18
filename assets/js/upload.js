@@ -128,27 +128,64 @@
       );
     }
   });
+  var TagsInput = React.createClass({
+    propTypes: {
+      tags: React.PropTypes.array,
+      editHandler: React.PropTypes.func
+    },
+    changeHandler: function (e) {
+      var delim = ', ';
+      var value = e.target.value;
+      var prevValue = e.target.dataset.value;
+      if (value.slice(-1) === ',') {
+        if (prevValue.length < value.length) {
+          value = value.slice(0, -1) + delim;
+        } else {
+          value = value.slice(0, -1);
+        }
+      }
+      e.target.dataset.value = value;
+      this.props.editHandler({ name: 'Tags', value: value.split(delim) });
+    },
+    render: function () {
+      return (
+        React.DOM.span({ className: 'tags-input' },
+                       React.DOM.input({
+                         className: 'editor-tags',
+                         type: 'text',
+                         name: 'Tags',
+                         onChange: this.changeHandler,
+                         placeholder: 'tag1, tag2, tag3',
+                         value: this.props.tags.join(', ')
+                      }))
+      );
+    }
+  });
   var Editor = React.createClass({
     propTypes: {
       index: React.PropTypes.number,
       model: React.PropTypes.object
     },
-    editHandler: function (e) {
+    editHandler: function (data) {
+      var model = this.props.model.set(data.name, data.value);
+      ImageStore.updateModel(this.props.index, model);
+    },
+    changeHandler: function (e) {
       var name = e.target.name;
       var value = e.target.value;
-      if (name === 'tags') {
-      } else {
-        var model = this.props.model.set(name, value);
-        ImageStore.updateModel(this.props.index, model)
-      }
+      this.editHandler({ name: name, value: value });
     },
     submitHandler: function () {
-      
     },
     render: function () {
       var model = this.props.model;
       var takenAt = model.get('TakenAt') ? model.get('TakenAt') : new Date();
       takenAt = moment().format('YYYY-MM-DD');
+      var tags = model.get('Tags');
+      if (Immutable.List.isList(tags))
+        tags = tags.toJS();
+      if (tags === null)
+        tags = [];
       return (
         React.DOM.div({ className: 'editor' },
                       React.DOM.form({ className: 'row' },
@@ -158,7 +195,7 @@
                                                      className: 'editor-title',
                                                      type: 'text',
                                                      name: 'Title',
-                                                     onChange: this.editHandler,
+                                                     onChange: this.changeHandler,
                                                      value: model.get('Title')
                                                    }),
                                                    React.DOM.label(null, 'Date Taken'),
@@ -166,14 +203,14 @@
                                                      className: 'editor-takenat',
                                                      type: 'date',
                                                      name: 'TakenAt',
-                                                     onChange: this.editHandler,
+                                                     onChange: this.changeHandler,
                                                      value: takenAt
                                                    }),
                                                    React.DOM.label(null, 'Description'),
                                                    React.DOM.textarea({
                                                      className: 'editor-description',
                                                      name: 'Description',
-                                                     onChange: this.editHandler,
+                                                     onChange: this.changeHandler,
                                                      value: model.get('Description')
                                                    })),
                                      React.DOM.div({ className: 'col-xs-6'},
@@ -182,7 +219,7 @@
                                                      className: 'editor-camera',
                                                      type: 'text',
                                                      name: 'Camera',
-                                                     onChange: this.editHandler,
+                                                     onChange: this.changeHandler,
                                                      value: model.get('Camera')
                                                    }),
                                                    React.DOM.label(null, 'Film Type'),
@@ -190,26 +227,20 @@
                                                      className: 'editor-film',
                                                      type: 'text',
                                                      name: 'Film',
-                                                     onChange: this.editHandler,
+                                                     onChange: this.changeHandler,
                                                      value: model.get('Film')
                                                    }),
                                                    React.DOM.label(null, 'Tags'),
-                                                   React.DOM.input({
-                                                     className: 'editor-tags',
-                                                     type: 'text',
-                                                     name: 'Tags',
-                                                     onChange: this.editHandler,
-                                                     placeholder: 'tag1, tag2, tag3',
-                                                     value: model.get('Tags') ?
-                                                       model.get('Tags').toJS().join(', ') :
-                                                       ''
+                                                   React.createElement(TagsInput, {
+                                                     tags: tags,
+                                                     editHandler: this.editHandler
                                                    }),
                                                    React.DOM.label(null, 'Published'),
                                                    React.DOM.input({
                                                      className: 'editor-published',
                                                      type: 'checkbox',
                                                      name: 'Published',
-                                                     onChange: this.editHandler,
+                                                     onChange: this.changeHandler,
                                                      value: model.get('Published')
                                                    }),
                                                    React.DOM.input({
