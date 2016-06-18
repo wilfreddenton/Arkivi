@@ -90,6 +90,7 @@ var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 		Ext:       ext,
 		Width:     b.Dx(),
 		Height:    b.Dy(),
+		TakenAt:   nil,
 		Published: false,
 	}
 	p := &ImageProcessor{imgModel, img, gifImg}

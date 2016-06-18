@@ -142,8 +142,13 @@
         ImageStore.updateModel(this.props.index, model)
       }
     },
+    submitHandler: function () {
+      
+    },
     render: function () {
       var model = this.props.model;
+      var takenAt = model.get('TakenAt') ? model.get('TakenAt') : new Date();
+      takenAt = moment().format('YYYY-MM-DD');
       return (
         React.DOM.div({ className: 'editor' },
                       React.DOM.form({ className: 'row' },
@@ -162,7 +167,7 @@
                                                      type: 'date',
                                                      name: 'TakenAt',
                                                      onChange: this.editHandler,
-                                                     value: model.get('TakenAt')
+                                                     value: takenAt
                                                    }),
                                                    React.DOM.label(null, 'Description'),
                                                    React.DOM.textarea({
@@ -194,12 +199,19 @@
                                                      type: 'text',
                                                      name: 'Tags',
                                                      onChange: this.editHandler,
+                                                     placeholder: 'tag1, tag2, tag3',
                                                      value: model.get('Tags') ?
                                                        model.get('Tags').toJS().join(', ') :
                                                        ''
                                                    }),
-                                                   React.DOM.br(null),
-                                                   React.DOM.br(null),
+                                                   React.DOM.label(null, 'Published'),
+                                                   React.DOM.input({
+                                                     className: 'editor-published',
+                                                     type: 'checkbox',
+                                                     name: 'Published',
+                                                     onChange: this.editHandler,
+                                                     value: model.get('Published')
+                                                   }),
                                                    React.DOM.input({
                                                      className: 'editor-submit',
                                                      type: 'submit',

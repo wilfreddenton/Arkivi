@@ -10,10 +10,10 @@ type Image struct {
 	gorm.Model
 	Title       string
 	Description string `gorm:"size:1500"`
-	TakenAt     time.Time
+	TakenAt     *time.Time
 	Camera      string
 	Film        string
-	Tags        []Tag
+	Tags        []Tag `gorm:"many2many:image_tags;"`
 	Views       int
 	Name        string
 	Ext         string
@@ -33,7 +33,6 @@ func (i *Image) Save() {
 
 // Tag
 type Tag struct {
-	ID      int
-	ImageID int `gorm:"index"`
-	Tag     string
+	ID  int
+	Tag string
 }
