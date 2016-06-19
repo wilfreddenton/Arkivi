@@ -217,7 +217,7 @@
             });
           }
         }.bind(this);
-        xhr.open("GET", "/tags/?json=true&query=" + query);
+        xhr.open("GET", "/tags/?json=true&query=" + query + '&currentTags=' + this.props.tags.join(','));
         xhr.send();
       } else {
         this.setState({ suggestions: [] });
