@@ -78,7 +78,7 @@
     return images;
   }
   // components
-  var ActionBar = React.createClass({
+  var UploadBar = React.createClass({
     propTypes: {
       fileHandler: React.PropTypes.func,
       imagesSize: React.PropTypes.number,
@@ -96,7 +96,7 @@
       if (this.props.imageCount != 0)
         progress = parseInt((this.props.totalUploadCount / this.props.imageCount * 100).toString()) + '%';
       return (
-        React.DOM.div({ id: 'action-bar', className: 'row' },
+        React.DOM.div({ id: 'upload-bar', className: 'row' },
                       React.DOM.div({ className: 'col-xs-6' },
                                     React.DOM.div({ className: 'row' },
                                                   React.DOM.input({
@@ -128,10 +128,96 @@
       );
     }
   });
+  var TagSuggestion = React.createClass({
+    render: function () {
+      return (
+        React.DOM.li(null, this.props.suggestion.Name)
+      );
+    }
+  });
+  var TagsSuggestions = React.createClass({
+    propTypes: {
+      suggestions: React.PropTypes.array,
+      selectHandler: React.PropTypes.func
+    },
+    getInitialState: function () {
+      return {
+        selected: 0
+      }
+    },
+    selectHandler: function () {
+      this.props.selectHandler();
+    },
+    keydownHandler: function (e) {
+      switch (e.keyCode) {
+      case 9: // tab
+        e.preventDefault();
+        console.log('tab')
+        break
+      case 38: // up
+        e.preventDefault();
+        console.log('up')
+        break
+      case 40: // down
+        e.preventDefault();
+        console.log('down')
+        break
+      }
+    },
+    deactivateListeners: function () {
+      var ele = document.querySelector('.tags-input input');
+      ele.removeEventListener('keydown', this.keydownHandler)
+    },
+    activateListeners: function () {
+      var ele = document.querySelector('.tags-input input');
+      ele.addEventListener('keydown', this.keydownHandler)
+    },
+    componentDidUpdate: function (prevProps, prevState) {
+      if (this.props.suggestions.length === 0 && prevProps.suggestions.length > 0) {
+        this.deactivateListeners();
+      }
+      if (this.props.suggestions.length > 0 && prevProps.suggestions.length === 0) {
+        this.activateListeners();
+      }
+    },
+    componentWillUnmount: function () {
+      this.deactivateListeners();
+    },
+    render: function () {
+      var suggestions = this.props.suggestions.map(function (suggestion, i) {
+        return React.createElement(TagSuggestion, { key: i, suggestion: suggestion });
+      });
+      return (
+        React.DOM.div({ className: 'tags-suggestions' },
+                      React.DOM.ul(null, suggestions))
+      );
+    }
+  });
   var TagsInput = React.createClass({
     propTypes: {
       tags: React.PropTypes.array,
       editHandler: React.PropTypes.func
+    },
+    getInitialState: function () {
+      return {
+        suggestions: []
+      }
+    },
+    getSuggestions: function (query) {
+      if (query !== '') {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState == 4 && xhr.status == 200) {
+            this.setState({
+              suggestions: JSON.parse(xhr.responseText)
+            });
+          }
+        }.bind(this);
+        xhr.open("GET", "/tags/?json=true&query=" + query);
+        xhr.send();
+      } else {
+        this.setState({ suggestions: [] });
+      }
     },
     changeHandler: function (e) {
       var delim = ', ';
@@ -145,17 +231,24 @@
         }
       }
       e.target.dataset.value = value;
-      this.props.editHandler({ name: 'Tags', value: value.split(delim) });
+      var tags = value.split(delim);
+      this.getSuggestions(tags[tags.length - 1]);
+      this.props.editHandler({ name: 'Tags', value: tags });
     },
     render: function () {
+      var suggestions = this.state.suggestions.map(function (suggestion, i) {
+        return React.DOM.li({ key: i }, suggestion.Name);
+      });
       return (
         React.DOM.span({ className: 'tags-input' },
+                       React.createElement(TagsSuggestions, { suggestions: this.state.suggestions }),
                        React.DOM.input({
                          className: 'editor-tags',
                          type: 'text',
                          name: 'Tags',
                          onChange: this.changeHandler,
                          placeholder: 'tag1, tag2, tag3',
+                         autoComplete: 'off',
                          value: this.props.tags.join(', ')
                       }))
       );
@@ -509,7 +602,7 @@
                       React.createElement(Dropzone, {
                         fileHandler: this.fileHandler
                       }),
-                      React.createElement(ActionBar, {
+                      React.createElement(UploadBar, {
                         fileHandler: this.fileHandler,
                         imagesSize: this.state.imagesSize,
                         totalUploadCount: this.state.totalUploadCount,

@@ -133,3 +133,16 @@ var ImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request)
 	m["image"] = image
 	renderTemplate(w, "image", m, false)
 })
+
+var TagsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Tags Handler")
+	q := r.URL.Query()
+	var query = q["query"][0]
+	var tags []*Tag
+	DB.Where("name LIKE ?", "%"+query+"%").Find(&tags)
+	if len(q["json"]) > 0 && q["json"][0] == "true" {
+		w.Header().Set("Content-Type", "application/javascript")
+		json.NewEncoder(w).Encode(tags)
+		return
+	}
+})

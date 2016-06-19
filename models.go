@@ -33,6 +33,6 @@ func (i *Image) Save() {
 
 // Tag
 type Tag struct {
-	ID  int
-	Tag string
+	gorm.Model
+	Name string
 }

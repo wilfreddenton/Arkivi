@@ -40,6 +40,19 @@ func main() {
 		log.Fatal(err)
 	}
 	DB.AutoMigrate(&Image{}, &Tag{})
+	var tags []*Tag
+	DB.Find(&tags)
+	for _, tag := range tags {
+		DB.Unscoped().Delete(tag)
+	}
+	tag1 := &Tag{Name: "angelababy"}
+	tag2 := &Tag{Name: "zheng rui xi"}
+	tag3 := &Tag{Name: "test"}
+	tag4 := &Tag{Name: "testing"}
+	DB.Create(tag1)
+	DB.Create(tag2)
+	DB.Create(tag3)
+	DB.Create(tag4)
 	// initialize websocket
 	r := mux.NewRouter().StrictSlash(true)
 	h := newHub()
@@ -52,6 +65,7 @@ func main() {
 	r.Handle("/upload-image", jwtMiddleware.Handler(UploadImageHandler)).Methods("POST")
 	r.Handle("/images/", ImagesHandler).Methods("GET")
 	r.Handle("/images/{name}", ImageHandler).Methods("GET")
+	r.Handle("/tags/", TagsHandler).Methods("GET")
 	r.Handle("/ws", wsHandler{h: h})
 	r.Handle("/editor-view", jwtMiddleware.Handler(EditorViewHandler)).Methods("GET")
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("assets/"))))
