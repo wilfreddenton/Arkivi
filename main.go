@@ -49,10 +49,12 @@ func main() {
 	tag2 := &Tag{Name: "zheng rui xi"}
 	tag3 := &Tag{Name: "test"}
 	tag4 := &Tag{Name: "testing"}
+	tag5 := &Tag{Name: "tester"}
 	DB.Create(tag1)
 	DB.Create(tag2)
 	DB.Create(tag3)
 	DB.Create(tag4)
+	DB.Create(tag5)
 	// initialize websocket
 	r := mux.NewRouter().StrictSlash(true)
 	h := newHub()

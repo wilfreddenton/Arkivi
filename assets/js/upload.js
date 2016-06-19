@@ -57,6 +57,20 @@
     onChange: function () {}
   }
   // util functions
+  var debounce = function (func, wait, immediate) {
+	  var timeout;
+	  return function() {
+		  var context = this, args = arguments;
+		  var later = function() {
+			  timeout = null;
+			  if (!immediate) func.apply(context, args);
+		  };
+		  var callNow = immediate && !timeout;
+		  clearTimeout(timeout);
+		  timeout = setTimeout(later, wait);
+		  if (callNow) func.apply(context, args);
+	  };
+  };
   var getSizeAndUnit = function (size) {
     var unit = '';
     if (size >= Math.pow(10, 6)) {
@@ -129,64 +143,40 @@
     }
   });
   var TagSuggestion = React.createClass({
+    propTypes: {
+      index: React.PropTypes.number,
+      suggestion: React.PropTypes.object,
+      highlighted: React.PropTypes.bool
+    },
     render: function () {
+      var className = 'tag-suggestion';
+      if (this.props.highlighted)
+        className += ' highlighted-tag';
       return (
-        React.DOM.li(null, this.props.suggestion.Name)
+        React.DOM.li({
+          className: className,
+          'data-index': this.props.index
+        }, this.props.suggestion.Name)
       );
     }
   });
   var TagsSuggestions = React.createClass({
     propTypes: {
       suggestions: React.PropTypes.array,
-      selectHandler: React.PropTypes.func
-    },
-    getInitialState: function () {
-      return {
-        selected: 0
-      }
-    },
-    selectHandler: function () {
-      this.props.selectHandler();
-    },
-    keydownHandler: function (e) {
-      switch (e.keyCode) {
-      case 9: // tab
-        e.preventDefault();
-        console.log('tab')
-        break
-      case 38: // up
-        e.preventDefault();
-        console.log('up')
-        break
-      case 40: // down
-        e.preventDefault();
-        console.log('down')
-        break
-      }
-    },
-    deactivateListeners: function () {
-      var ele = document.querySelector('.tags-input input');
-      ele.removeEventListener('keydown', this.keydownHandler)
-    },
-    activateListeners: function () {
-      var ele = document.querySelector('.tags-input input');
-      ele.addEventListener('keydown', this.keydownHandler)
-    },
-    componentDidUpdate: function (prevProps, prevState) {
-      if (this.props.suggestions.length === 0 && prevProps.suggestions.length > 0) {
-        this.deactivateListeners();
-      }
-      if (this.props.suggestions.length > 0 && prevProps.suggestions.length === 0) {
-        this.activateListeners();
-      }
-    },
-    componentWillUnmount: function () {
-      this.deactivateListeners();
+      highlighted: React.PropTypes.number
     },
     render: function () {
       var suggestions = this.props.suggestions.map(function (suggestion, i) {
-        return React.createElement(TagSuggestion, { key: i, suggestion: suggestion });
-      });
+        var highlighted = false;
+        if (i === this.props.highlighted)
+          highlighted = true;
+        return React.createElement(TagSuggestion, {
+          key: i,
+          index: i,
+          suggestion: suggestion,
+          highlighted: highlighted
+        });
+      }.bind(this));
       return (
         React.DOM.div({ className: 'tags-suggestions' },
                       React.DOM.ul(null, suggestions))
@@ -200,11 +190,25 @@
     },
     getInitialState: function () {
       return {
-        suggestions: []
+        delim: ', ',
+        suggestions: [],
+        highlighted: 0
+      }
+    },
+    selectSuggestion: function (e) {
+      e.preventDefault();
+      if (this.state.suggestions.length > 0) {
+        var i = parseInt(e.target.dataset.index ? e.target.dataset.index : this.state.highlighted);
+        var tags = this.refs.input.value.split(this.state.delim);
+        tags[tags.length - 1] = this.state.suggestions[i].Name;
+        tags.push('');
+        this.refs.input.dataset.value = tags.join(', ');
+        this.props.editHandler({ name: 'Tags', value: tags });
+        this.getSuggestions('');
       }
     },
     getSuggestions: function (query) {
-      if (query !== '') {
+      if (query !== '' && !/\s+/.test(query)) {
         var xhr = new XMLHttpRequest();
         xhr.onreadystatechange = function() {
           if (xhr.readyState == 4 && xhr.status == 200) {
@@ -220,29 +224,89 @@
       }
     },
     changeHandler: function (e) {
-      var delim = ', ';
       var value = e.target.value;
       var prevValue = e.target.dataset.value;
       if (value.slice(-1) === ',') {
         if (prevValue.length < value.length) {
-          value = value.slice(0, -1) + delim;
+          value = value.slice(0, -1) + this.state.delim;
         } else {
           value = value.slice(0, -1);
         }
+      } else if (value.slice(-1) === ' ') {
+        if (!/[A-zÀ-ÿ0-9]/.test(value.slice(-2, -1)))
+          value = value.slice(0, -1);
       }
       e.target.dataset.value = value;
-      var tags = value.split(delim);
-      this.getSuggestions(tags[tags.length - 1]);
+      var tags = value.split(this.state.delim);
+      this.getSuggestionsDebounced(tags[tags.length - 1]);
       this.props.editHandler({ name: 'Tags', value: tags });
+    },
+    clickHandler: function (e) {
+      if (e.target.nodeName === 'LI')
+        this.selectSuggestion(e);
+    },
+    hoverHandler: function (e) {
+      if (e.target.nodeName === 'LI') {
+        var i = parseInt(e.target.dataset.index);
+        this.setState({ highlighted: i });
+      }
+    },
+    keydownHandler: function (e) {
+      var highlighted = 0;
+      switch (e.keyCode) {
+      case 9: // tab
+        this.selectSuggestion(e);
+        break
+      case 13: // enter
+        this.selectSuggestion(e);
+        break
+      case 38: // up
+        e.preventDefault();
+        highlighted = (this.state.highlighted - 1) % this.state.suggestions.length;
+        if (highlighted < 0) highlighted = this.state.suggestions.length - 1;
+        this.setState({ highlighted: highlighted });
+        break
+      case 40: // down
+        e.preventDefault();
+        highlighted = (this.state.highlighted + 1) % this.state.suggestions.length;
+        this.setState({ highlighted: highlighted });
+        break
+      }
+    },
+    deactivateListeners: function () {
+      this.refs.input.removeEventListener('keydown', this.keydownHandler)
+    },
+    activateListeners: function () {
+      this.refs.input.addEventListener('keydown', this.keydownHandler)
+    },
+    componentDidUpdate: function (prevProps, prevState) {
+      if (this.state.suggestions.length !== prevState.suggestions.length) {
+        this.setState({ highlighted: this.state.suggestions.length - 1 });
+      }
+    },
+    componentWillUnmount: function () {
+      this.deactivateListeners();
+    },
+    componentDidMount: function () {
+      this.getSuggestionsDebounced = debounce(this.getSuggestions, 100);
+      this.activateListeners();
     },
     render: function () {
       var suggestions = this.state.suggestions.map(function (suggestion, i) {
         return React.DOM.li({ key: i }, suggestion.Name);
       });
       return (
-        React.DOM.span({ className: 'tags-input' },
-                       React.createElement(TagsSuggestions, { suggestions: this.state.suggestions }),
+        React.DOM.span({
+          className: 'tags-input',
+          onClick: this.clickHandler,
+          onMouseOver: this.hoverHandler
+        },
+                       React.createElement(TagsSuggestions, {
+                         suggestions: this.state.suggestions,
+                         highlighted: this.state.highlighted
+                       }),
                        React.DOM.input({
+                         ref: 'input',
                          className: 'editor-tags',
                          type: 'text',
                          name: 'Tags',

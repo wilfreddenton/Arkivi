@@ -114,14 +114,19 @@ a:hover {
   padding: 0;
   background-color: white;
   box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  cursor: pointer;
 }
 .tags-input .tags-suggestions ul li {
   font-size: 16px;
   padding: 5px 10px;
   border-bottom: 1px solid #ccc;
+  cursor: pointer;
 }
 .tags-input .tags-suggestions ul li:last-child {
   border-bottom: 0;
+}
+.tags-input .tags-suggestions ul li.highlighted-tag {
+  background-color: #eee;
 }
 .preview.editing {
   height: auto;
