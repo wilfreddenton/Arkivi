@@ -148,13 +148,23 @@ var imagePutHandler = func(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(updatedImg.Published)
+	var tags []Tag
+	for _, t := range updatedImg.Tags {
+		var tag Tag
+		DB.Where("name = ?", t.Name).First(&tag)
+		if t.Name != tag.Name {
+			tag = Tag{Name: t.Name}
+			DB.Create(&tag)
+		}
+		tags = append(tags, tag)
+	}
 	DB.Model(&img).Where("id = ?", updatedImg.ID).Updates(map[string]interface{}{
 		"Title":       updatedImg.Title,
 		"TakenAt":     takenAt,
 		"Description": updatedImg.Description,
 		"Camera":      updatedImg.Camera,
 		"Film":        updatedImg.Film,
+		"Tags":        tags,
 		"Published":   updatedImg.Published,
 	})
 	w.Write([]byte("success"))

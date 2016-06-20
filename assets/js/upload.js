@@ -239,8 +239,12 @@
           value = value.slice(0, -1);
         }
       } else if (value.slice(-1) === ' ') {
-        if (!/[A-zÀ-ÿ0-9]/.test(value.slice(-2, -1)))
+        if (!/[A-zÀ-ÿ0-9,]/.test(value.slice(-2, -1))) {
           value = value.slice(0, -1);
+        } else if (value.slice(-2, -1) === ',') {
+          console.log('hey')
+          value = value.slice(0, -2);
+        }
       }
       e.target.dataset.value = value;
       var tags = value.split(this.state.delim).map(function (name) {
