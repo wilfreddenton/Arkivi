@@ -346,7 +346,15 @@
     submitHandler: function (e) {
       e.preventDefault();
       var model = this.props.model.toJS();
-      console.log(model)
+      xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+          console.log(xhr.responseText)
+        }
+      }.bind(this);
+      xhr.open("PUT", '/images/' + model.Name);
+      xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+      xhr.send(JSON.stringify(model));
     },
     render: function () {
       var model = this.props.model;

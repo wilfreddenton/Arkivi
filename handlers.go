@@ -114,8 +114,8 @@ var ImagesHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 	renderTemplate(w, "images", m, false)
 })
 
-var ImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Image Handler")
+var imageGetHandler = func(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Image Handler: GET")
 	vars := mux.Vars(r)
 	name := vars["name"]
 	if name == "" {
@@ -132,6 +132,26 @@ var ImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request)
 	m := make(map[string]interface{})
 	m["image"] = image
 	renderTemplate(w, "image", m, false)
+}
+
+var imagePutHandler = func(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Image Handler: PUT")
+	d := json.NewDecoder(r.Body)
+	var img Image
+	err := d.Decode(&img)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(img)
+}
+
+var ImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		imageGetHandler(w, r)
+	case "PUT":
+		imagePutHandler(w, r)
+	}
 })
 
 var TagsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
