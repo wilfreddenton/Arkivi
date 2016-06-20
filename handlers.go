@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
+	// "github.com/jinzhu/now"
 	"image"
 	"image/gif"
 	"image/jpeg"
@@ -90,7 +91,7 @@ var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 		Ext:       ext,
 		Width:     b.Dx(),
 		Height:    b.Dy(),
-		TakenAt:   nil,
+		TakenAt:   time.Now(),
 		Published: false,
 	}
 	p := &ImageProcessor{imgModel, img, gifImg}
@@ -137,12 +138,26 @@ var imageGetHandler = func(w http.ResponseWriter, r *http.Request) {
 var imagePutHandler = func(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Image Handler: PUT")
 	d := json.NewDecoder(r.Body)
-	var img Image
-	err := d.Decode(&img)
+	var updatedImg ImageJson
+	err := d.Decode(&updatedImg)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(img)
+	var img Image
+	takenAt, err := time.Parse("2006-01-02", updatedImg.TakenAt)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(updatedImg.Published)
+	DB.Model(&img).Where("id = ?", updatedImg.ID).Updates(map[string]interface{}{
+		"Title":       updatedImg.Title,
+		"TakenAt":     takenAt,
+		"Description": updatedImg.Description,
+		"Camera":      updatedImg.Camera,
+		"Film":        updatedImg.Film,
+		"Published":   updatedImg.Published,
+	})
+	w.Write([]byte("success"))
 }
 
 var ImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -10,7 +10,7 @@ type Image struct {
 	gorm.Model
 	Title       string
 	Description string `gorm:"size:1500"`
-	TakenAt     *time.Time
+	TakenAt     time.Time
 	Camera      string
 	Film        string
 	Tags        []Tag `gorm:"many2many:image_tags;"`
@@ -31,8 +31,23 @@ func (i *Image) Save() {
 	DB.Create(i)
 }
 
+type ImageJson struct {
+	ID          int
+	Title       string
+	TakenAt     string
+	Description string
+	Camera      string
+	Film        string
+	Tags        []TagJson
+	Published   bool
+}
+
 // Tag
 type Tag struct {
 	gorm.Model
+	Name string
+}
+
+type TagJson struct {
 	Name string
 }

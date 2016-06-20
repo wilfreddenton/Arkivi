@@ -341,11 +341,14 @@
     changeHandler: function (e) {
       var name = e.target.name;
       var value = e.target.value;
+      if (name === 'Published')
+        value = e.target.checked;
       this.editHandler({ name: name, value: value });
     },
     submitHandler: function (e) {
       e.preventDefault();
       var model = this.props.model.toJS();
+      model.TakenAt = moment(model.TakenAt).format('YYYY-MM-DD');
       xhr = new XMLHttpRequest();
       xhr.onreadystatechange = function() {
         if (xhr.readyState == 4 && xhr.status == 200) {
@@ -359,7 +362,7 @@
     render: function () {
       var model = this.props.model;
       var takenAt = model.get('TakenAt') ? model.get('TakenAt') : new Date();
-      takenAt = moment().format('YYYY-MM-DD');
+      takenAt = moment(takenAt).format('YYYY-MM-DD');
       var tags = model.get('Tags');
       if (Immutable.List.isList(tags))
         tags = tags.toJS();
@@ -420,7 +423,7 @@
                                                      type: 'checkbox',
                                                      name: 'Published',
                                                      onChange: this.changeHandler,
-                                                     value: model.get('Published')
+                                                     checked: model.get('Published')
                                                    }),
                                                    React.DOM.input({
                                                      className: 'editor-submit',
