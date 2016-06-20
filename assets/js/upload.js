@@ -58,18 +58,18 @@
   }
   // util functions
   var debounce = function (func, wait, immediate) {
-	  var timeout;
-	  return function() {
-		  var context = this, args = arguments;
-		  var later = function() {
-			  timeout = null;
-			  if (!immediate) func.apply(context, args);
-		  };
-		  var callNow = immediate && !timeout;
-		  clearTimeout(timeout);
-		  timeout = setTimeout(later, wait);
-		  if (callNow) func.apply(context, args);
-	  };
+    var timeout;
+    return function() {
+      var context = this, args = arguments;
+      var later = function() {
+        timeout = null;
+        if (!immediate) func.apply(context, args);
+      };
+      var callNow = immediate && !timeout;
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+      if (callNow) func.apply(context, args);
+    };
   };
   var getSizeAndUnit = function (size) {
     var unit = '';
@@ -203,6 +203,9 @@
         tags[tags.length - 1] = this.state.suggestions[i].Name;
         tags.push('');
         this.refs.input.dataset.value = tags.join(', ');
+        tags = tags.map(function (name) {
+          return { Name: name };
+        });
         this.props.editHandler({ name: 'Tags', value: tags });
         this.getSuggestions('');
       }
@@ -217,7 +220,10 @@
             });
           }
         }.bind(this);
-        xhr.open("GET", "/tags/?json=true&query=" + query + '&currentTags=' + this.props.tags.join(','));
+        var currentTags = this.props.tags.map(function (tag) {
+          return tag.Name;
+        }).join(',');
+        xhr.open("GET", "/tags/?json=true&query=" + query + '&currentTags=' + currentTags);
         xhr.send();
       } else {
         this.setState({ suggestions: [] });
@@ -237,8 +243,10 @@
           value = value.slice(0, -1);
       }
       e.target.dataset.value = value;
-      var tags = value.split(this.state.delim);
-      this.getSuggestionsDebounced(tags[tags.length - 1]);
+      var tags = value.split(this.state.delim).map(function (name) {
+        return { Name: name };
+      });
+      this.getSuggestionsDebounced(tags[tags.length - 1].Name);
       this.props.editHandler({ name: 'Tags', value: tags });
     },
     clickHandler: function (e) {
@@ -295,6 +303,9 @@
       var suggestions = this.state.suggestions.map(function (suggestion, i) {
         return React.DOM.li({ key: i }, suggestion.Name);
       });
+      var tags = this.props.tags.map(function (tag) {
+        return tag.Name;
+      }).join(this.state.delim);
       return (
         React.DOM.span({
           className: 'tags-input',
@@ -313,7 +324,7 @@
                          onChange: this.changeHandler,
                          placeholder: 'tag1, tag2, tag3',
                          autoComplete: 'off',
-                         value: this.props.tags.join(', ')
+                         value: tags
                       }))
       );
     }
@@ -332,7 +343,10 @@
       var value = e.target.value;
       this.editHandler({ name: name, value: value });
     },
-    submitHandler: function () {
+    submitHandler: function (e) {
+      e.preventDefault();
+      var model = this.props.model.toJS();
+      console.log(model)
     },
     render: function () {
       var model = this.props.model;
@@ -345,7 +359,7 @@
         tags = [];
       return (
         React.DOM.div({ className: 'editor' },
-                      React.DOM.form({ className: 'row' },
+                      React.DOM.form({ className: 'row', onSubmit: this.submitHandler },
                                      React.DOM.div({ className: 'col-xs-6' },
                                                    React.DOM.label(null, 'Title'),
                                                    React.DOM.input({
