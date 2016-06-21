@@ -144,6 +144,7 @@ var imagePutHandler = func(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 	var img Image
+	DB.Where("id = ?", updatedImg.ID).First(&img)
 	takenAt, err := time.Parse("2006-01-02", updatedImg.TakenAt)
 	if err != nil {
 		log.Fatal(err)
@@ -158,15 +159,14 @@ var imagePutHandler = func(w http.ResponseWriter, r *http.Request) {
 		}
 		tags = append(tags, tag)
 	}
-	DB.Model(&img).Where("id = ?", updatedImg.ID).Updates(map[string]interface{}{
+	DB.Model(&img).Updates(map[string]interface{}{
 		"Title":       updatedImg.Title,
 		"TakenAt":     takenAt,
 		"Description": updatedImg.Description,
 		"Camera":      updatedImg.Camera,
 		"Film":        updatedImg.Film,
-		"Tags":        tags,
 		"Published":   updatedImg.Published,
-	})
+	}).Association("Tags").Replace(&tags)
 	w.Write([]byte("success"))
 }
 

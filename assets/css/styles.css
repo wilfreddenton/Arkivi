@@ -7,7 +7,6 @@ body, input {
   margin: 0;
 }
 body.drag {
-  padding-top: 40px;
   background-color: white;
   transition: background-color 300ms;
 }
@@ -23,6 +22,14 @@ a:visited {
 }
 a:hover {
   color: #007CFF;
+}
+input[type="submit"] {
+  outline: none;
+  border: 0;
+  background-color: transparent;
+  font-weight: normal;
+  text-align: right;
+  text-decoration: underline;
 }
 #content {
   margin: 0 auto;
@@ -86,13 +93,10 @@ a:hover {
   margin-bottom: 10px;
   margin-top: 20px;
 }
+
 .editor .editor-submit {
   border: 0;
-  background-color: transparent;
   padding: 15px 0 0;
-  font-weight: normal;
-  text-align: right;
-  text-decoration: underline;
   color: #91B459;
 }
 .editor .row > div:first-child {
@@ -158,7 +162,6 @@ a:hover {
 }
 #upload-bar {
   max-width: 800px;
-  position: relative;
   margin: 0 auto;
   text-align: center;
   font-size: 16px;
@@ -171,6 +174,9 @@ a:hover {
   padding: 0;
   text-align: center;
 }
+#upload-bar > div {
+  width: 100%;
+}
 /* #upload-bar div:last-child { */
 /*   text-align: right; */
 /* } */
@@ -181,6 +187,45 @@ a:hover {
 #upload-bar .info {
   font-weight: bold;
   float: left;
+}
+#action-bar {
+  max-width: 800px;
+  padding: 10px 0;
+  margin: 0 auto;
+  position: relative;
+}
+#action-bar div {
+  text-align: center;
+}
+#action-bar .row > div {
+  padding: 0;
+}
+#action-bar .row > div:last-child {
+  padding-right: 20px;
+  text-align: right;
+}
+#action-bar input[type="checkbox"] {
+  -webkit-appearance:none;
+  width:20;
+  height:20px;
+  background: white;
+  border-radius:3px;
+  border: 1px solid #2B3046;
+  outline:none;
+}
+#action-bar input[type="checkbox"]:checked {
+  background: #2B3046;
+}
+#action-bar select {
+  font-size: 15px;
+  -webkit-appearance: menulist-button;
+}
+#action-bar form {
+  margin: 0;
+}
+#action-bar .action-bar-submit {
+  font-size: 16px;
+  color: #007CFF;
 }
 #placeholder {
   display: none;

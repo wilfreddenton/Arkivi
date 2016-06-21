@@ -92,6 +92,62 @@
     return images;
   }
   // components
+  var ActionBar = React.createClass({
+    propTypes: {
+      hidden: React.PropTypes.bool,
+      uploading: React.PropTypes.bool,
+      selected: React.PropTypes.array,
+      selectAllHandler: React.PropTypes.func
+    },
+    getInitialState: function () {
+      return {
+        allSelected: false
+      }
+    },
+    submitHandler: function (e) {
+      e.preventDefault();
+      console.log(e);
+    },
+    selectAllHandler: function (e) {
+      if (this.props.uploading) return;
+      var value = !this.state.allSelected;
+      this.setState({ allSelected: value });
+      this.props.selectAllHandler(value)
+    },
+    changeHandler: function (e) {
+      console.log(e);
+    },
+    render: function () {
+      var numSelected = this.props.selected.filter(function (a) { return a; }).length;
+      var display = this.props.display ? 'block' : 'none';
+      return (
+        React.DOM.div({ id: 'action-bar', style: { display: display } },
+                      React.DOM.form({ onSubmit: this.submitHandler },
+                                     React.DOM.div({ className: 'row' },
+                                                   React.DOM.div({ className: 'col-xs-1' },
+                                                                 React.DOM.input({
+                                                                   className: 'action-bar-checkbox',
+                                                                   type: 'checkbox',
+                                                                   name: 'all',
+                                                                   onChange: this.selectAllHandler,
+                                                                   checked: this.state.allSelected
+                                                                 })),
+                                                   React.DOM.div({ className: 'col-xs-3' },
+                                                                 React.DOM.span({}, '# selected: ',
+                                                                                React.DOM.span({}), numSelected.toString())),
+                                                   React.DOM.div({ className: 'col-xs-3' },
+                                                                 React.DOM.select({
+                                                                 }, React.DOM.option({}, "publish"))),
+                                                   React.DOM.div({ className: 'col-xs-4' }),
+                                                   React.DOM.div({ className: 'col-xs-1' },
+                                                                 React.DOM.input({
+                                                                   className: 'action-bar-submit',
+                                                                   type: 'submit',
+                                                                   value: 'do'
+                                                                 })))))
+      );
+    }
+  });
   var UploadBar = React.createClass({
     propTypes: {
       fileHandler: React.PropTypes.func,
@@ -215,9 +271,17 @@
         var xhr = new XMLHttpRequest();
         xhr.onreadystatechange = function() {
           if (xhr.readyState == 4 && xhr.status == 200) {
-            this.setState({
-              suggestions: JSON.parse(xhr.responseText)
+            var suggestions = JSON.parse(xhr.responseText);
+            suggestions.sort(function (a, b) {
+              if (a.Name < b.Name) {
+                return 1;
+              } else if (a.Name < b.Name) {
+                return -1;
+              } else {
+                return 0;
+              }
             });
+            this.setState({ suggestions: suggestions });
           }
         }.bind(this);
         var currentTags = this.props.tags.map(function (tag) {
@@ -338,6 +402,11 @@
       index: React.PropTypes.number,
       model: React.PropTypes.object
     },
+    getInitialState: function () {
+      return {
+        submitStatus: 'submit'
+      }
+    },
     editHandler: function (data) {
       var model = this.props.model.set(data.name, data.value);
       ImageStore.updateModel(this.props.index, model);
@@ -351,12 +420,23 @@
     },
     submitHandler: function (e) {
       e.preventDefault();
+      if (this.state.submitStatus !== 'submit')
+        return;
+      this.setState({ submitStatus: 'sending...' });
       var model = this.props.model.toJS();
+      var tags = model.Tags;
+      if (tags !== null && tags.length > 0) {
+        if (tags[tags.length - 1].Name === '')
+          model.Tags = tags.slice(0, -1);
+      }
       model.TakenAt = moment(model.TakenAt).format('YYYY-MM-DD');
       xhr = new XMLHttpRequest();
       xhr.onreadystatechange = function() {
         if (xhr.readyState == 4 && xhr.status == 200) {
-          console.log(xhr.responseText)
+          this.setState({ submitStatus: 'success' });
+          setTimeout(function () {
+            this.setState({ submitStatus: 'submit' });
+          }.bind(this), 1000);
         }
       }.bind(this);
       xhr.open("PUT", '/images/' + model.Name);
@@ -432,7 +512,7 @@
                                                    React.DOM.input({
                                                      className: 'editor-submit',
                                                      type: 'submit',
-                                                     value: 'submit'
+                                                     value: this.state.submitStatus
                                                    }))))
       );
     }
@@ -622,6 +702,7 @@
         token: '',
         imagesSize: 0,
         totalUploadCount: 0,
+        selected: [],
         images: ImageStore.images
       };
     },
@@ -650,6 +731,10 @@
       queue.uploadStarted();
       xhr.send(formData);
     },
+    selectAllHandler: function (value) {
+      var selected = this.state.selected.map(function () { return value; });
+      this.setState({ selected: selected });
+    },
     uploadHandler: function () {
       if (queue.size() > 0) {
         var index = queue.pop();
@@ -672,7 +757,16 @@
     },
     componentWillMount: function () {
       ImageStore.onChange = function () {
-        this.setState({ images: ImageStore.images });
+        var len = this.state.selected.length;
+        var diff = ImageStore.images.size - len;
+        var selected = this.state.selected.slice();
+        for (var i = len; i < len + diff; i += 1) {
+          selected[i] = false;
+        }
+        this.setState({
+          images: ImageStore.images,
+          selected: selected
+        });
       }.bind(this);
     },
     componentDidUpdate: function (prevProps, prevState) {
@@ -700,6 +794,12 @@
                         imagesSize: this.state.imagesSize,
                         totalUploadCount: this.state.totalUploadCount,
                         imageCount: this.state.images.size
+                      }),
+                      React.createElement(ActionBar, {
+                        display: this.state.images.size > 0,
+                        uploading: this.state.totalUploadCount !== this.state.images.size,
+                        selected: this.state.selected,
+                        selectAllHandler: this.selectAllHandler
                       }),
                       React.createElement(Previews, {
                         showLimit: 50,
