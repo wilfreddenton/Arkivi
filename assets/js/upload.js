@@ -43,15 +43,38 @@
       this.onChange();
     },
     updateModel: function (index, model) {
-      this.images = this.images.updateIn([index], function (image) {
+      this.images = this.images.update(index, function (image) {
         return image.set('model', model);
       });
       this.onChange();
     },
     updateProgress: function (index, progress) {
-      this.images = this.images.updateIn([index], function (image) {
+      this.images = this.images.update(index, function (image) {
         return image.set('progress', progress);
       });
+      this.onChange();
+    },
+    updateAll: function (name, indices, value) {
+      console.log(name, indices, value);
+      indices.forEach(function (i) {
+        this.images = this.images.update(i, function (image) {
+          var model = image.get('model');
+          var newModel;
+          switch (name) {
+          case 'publish':
+            newModel = model.set('Published', true);
+            break
+          case 'unpublish':
+            newModel = model.set('Published', false);
+            break
+          case 'delete':
+            break
+          default:
+            newModel = model.set(name, value);
+          }
+          return image.set('model', newModel);
+        });
+      }.bind(this));
       this.onChange();
     },
     onChange: function () {}
@@ -92,62 +115,6 @@
     return images;
   }
   // components
-  var ActionBar = React.createClass({
-    propTypes: {
-      hidden: React.PropTypes.bool,
-      uploading: React.PropTypes.bool,
-      selected: React.PropTypes.array,
-      selectAllHandler: React.PropTypes.func
-    },
-    getInitialState: function () {
-      return {
-        allSelected: false
-      }
-    },
-    submitHandler: function (e) {
-      e.preventDefault();
-      console.log(e);
-    },
-    selectAllHandler: function (e) {
-      if (this.props.uploading) return;
-      var value = !this.state.allSelected;
-      this.setState({ allSelected: value });
-      this.props.selectAllHandler(value)
-    },
-    changeHandler: function (e) {
-      console.log(e);
-    },
-    render: function () {
-      var numSelected = this.props.selected.filter(function (a) { return a; }).length;
-      var display = this.props.display ? 'block' : 'none';
-      return (
-        React.DOM.div({ id: 'action-bar', style: { display: display } },
-                      React.DOM.form({ onSubmit: this.submitHandler },
-                                     React.DOM.div({ className: 'row' },
-                                                   React.DOM.div({ className: 'col-xs-1' },
-                                                                 React.DOM.input({
-                                                                   className: 'action-bar-checkbox',
-                                                                   type: 'checkbox',
-                                                                   name: 'all',
-                                                                   onChange: this.selectAllHandler,
-                                                                   checked: this.state.allSelected
-                                                                 })),
-                                                   React.DOM.div({ className: 'col-xs-3' },
-                                                                 React.DOM.span({}, '# selected: ',
-                                                                                React.DOM.span({}), numSelected.toString())),
-                                                   React.DOM.div({ className: 'col-xs-3' },
-                                                                 React.DOM.select({
-                                                                 }, React.DOM.option({}, "publish"))),
-                                                   React.DOM.div({ className: 'col-xs-4' }),
-                                                   React.DOM.div({ className: 'col-xs-1' },
-                                                                 React.DOM.input({
-                                                                   className: 'action-bar-submit',
-                                                                   type: 'submit',
-                                                                   value: 'do'
-                                                                 })))))
-      );
-    }
-  });
   var UploadBar = React.createClass({
     propTypes: {
       fileHandler: React.PropTypes.func,
@@ -294,6 +261,7 @@
       }
     },
     changeHandler: function (e) {
+      console.log('hey')
       var value = e.target.value;
       var prevValue = e.target.dataset.value;
       if (value.slice(-1) === ',') {
@@ -306,7 +274,6 @@
         if (!/[A-zÀ-ÿ0-9,]/.test(value.slice(-2, -1))) {
           value = value.slice(0, -1);
         } else if (value.slice(-2, -1) === ',') {
-          console.log('hey')
           value = value.slice(0, -2);
         }
       }
@@ -364,6 +331,8 @@
       this.deactivateListeners();
     },
     componentDidMount: function () {
+      // initialize prevalue
+      this.refs.input.dataset.value = this.refs.input.value;
       this.getSuggestionsDebounced = debounce(this.getSuggestions, 100);
       this.activateListeners();
     },
@@ -397,8 +366,180 @@
       );
     }
   });
+  var ActionBar = React.createClass({
+    propTypes: {
+      token: React.PropTypes.string,
+      hidden: React.PropTypes.bool,
+      actions: React.PropTypes.array,
+      busy: React.PropTypes.bool,
+      selected: React.PropTypes.array,
+      images: React.PropTypes.object,
+      selectAllHandler: React.PropTypes.func
+    },
+    getInitialState: function () {
+      return {
+        actionIndex: 0,
+        allSelected: false,
+        Tags: [],
+        TakenAt: '',
+        Camera: '',
+        Film: ''
+      }
+    },
+    getDefaultProps: function () {
+      return {
+        actions: [
+          { name: '- actions -', value: 'placeholder' },
+          { name: 'publish', value: 'publish' },
+          { name: 'unpublish', value: 'unpublish' },
+          { name: 'date taken', value: 'takenat', secondary: {
+            type: 'date',
+            name: 'TakenAt'
+          }},
+          { name: 'tags', value: 'tags', secondary: {
+            type: 'tags',
+            name: 'Tags'
+          }},
+          { name: 'camera model', value: 'camera', secondary: {
+            type: 'text',
+            name: 'Camera'
+          }},
+          { name: 'film type', value: 'film', secondary: {
+            type: 'text',
+            name: 'Film'
+          }},
+          { name: 'delete', value: 'delete' }
+        ]
+      }
+    },
+    submitHandler: function (e) {
+      e.preventDefault();
+      var action = this.props.actions[this.state.actionIndex]
+      var name = action.value;
+      var ids = []
+      var indices = [];
+      this.props.selected.forEach(function (bool, i) {
+        if (bool) {
+          ids.push(this.props.images.get(i).get('model').get('ID'))
+          indices.push(i);
+        }
+      }.bind(this));
+      var value = null;
+      if (action.secondary !== undefined) {
+        name = action.secondary.name;
+        value = this.state[name];
+      }
+      var xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+          ImageStore.updateAll(name, indices, value);
+        }
+      }.bind(this);
+      xhr.open("PUT", '/actions/' + action.value);
+      xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + this.props.token);
+      var actionObj = { ids: ids, value: value }
+      xhr.send(JSON.stringify(actionObj));
+    },
+    selectAllHandler: function (e) {
+      if (this.props.busy) return;
+      var value = !this.state.allSelected;
+      this.setState({ allSelected: value });
+      this.props.selectAllHandler(value)
+    },
+    editHandler: function (data) {
+      var newState = {};
+      newState[data.name] = data.value;
+      this.setState(newState);
+    },
+    changeHandler: function (e) {
+      var name = e.target.name;
+      var value = e.target.value;
+      this.editHandler({ name: name, value: value });
+    },
+    primarySelectHandler: function (e) {
+      this.setState({ actionIndex: e.target.selectedIndex });
+    },
+    componentDidUpdate: function (prevProps, prevState) {
+      if (this.props.selected !== prevProps.selected && prevState.allSelected)
+        this.setState({ allSelected: false });
+    },
+    renderSecondary: function (secondaryAction) {
+      var type = secondaryAction.type;
+      var name = secondaryAction.name;
+      switch (type) {
+      case 'text':
+      case 'date':
+        return React.DOM.input({
+          type: type,
+          name: name,
+          value: this.state[name],
+          onChange: this.changeHandler
+        })
+      case 'tags':
+        return React.createElement(TagsInput, {
+          tags: this.state.Tags,
+          editHandler: this.editHandler
+        });
+      default:
+        return null;
+      }
+    },
+    render: function () {
+      var numSelected = this.props.selected.filter(function (a) { return a; }).length;
+      var display = this.props.display ? 'block' : 'none';
+      var primaryOptions = []
+      var secondaryOptions = [];
+      var primary = React.DOM.select({
+        onChange: this.primarySelectHandler,
+        value: this.props.actions[this.state.actionIndex].value
+      }, this.props.actions.map(function (action, i) {
+        return React.DOM.option({
+          key: i,
+          value: action.value
+        }, action.name);
+      }));
+      var secondary = null;
+      var secondaryAction = this.props.actions[this.state.actionIndex].secondary;
+      if (secondaryAction)
+        secondary = this.renderSecondary(secondaryAction);
+      return (
+        React.DOM.div({ id: 'action-bar', style: { display: display } },
+                      React.DOM.form({ onSubmit: this.submitHandler },
+                                     React.DOM.div({ className: 'row' },
+                                                   React.DOM.div({ className: 'col-xs-4'},
+                                                                 React.DOM.div({ className: 'row' },
+                                                                               React.DOM.div({ className: 'col-xs-3 left action-bar-checkbox-container'},
+                                                                                            React.DOM.input({
+                                                                                              className: 'action-bar-checkbox',
+                                                                                              type: 'checkbox',
+                                                                                              name: 'all',
+                                                                                              onChange: this.selectAllHandler,
+                                                                                              checked: this.state.allSelected
+                                                                                            })),
+                                                                               React.DOM.div({ className: 'col-xs-9 right' },
+                                                                                             React.DOM.span({
+                                                                                               className: 'action-bar-selected'
+                                                                                             }, '# selected: ',
+                                                                                                            React.DOM.span({}, numSelected.toString()))))),
+                                                   React.DOM.div({ className: 'col-xs-7 '},
+                                                                 React.DOM.div({ className: 'row' },
+                                                                               React.DOM.div({ className: 'col-xs-5 left' },
+                                                                                             primary),
+                                                                               React.DOM.div({ className: 'col-xs-7 right action-bar-secondary' },
+                                                                                             secondary))),
+                                                   React.DOM.div({ className: 'col-xs-1 right' },
+                                                                 React.DOM.input({
+                                                                   className: 'action-bar-submit',
+                                                                   type: 'submit',
+                                                                   value: 'do'
+                                                                 })))))
+      );
+    }
+  });
   var Editor = React.createClass({
     propTypes: {
+      token: React.PropTypes.string,
       index: React.PropTypes.number,
       model: React.PropTypes.object
     },
@@ -429,7 +570,7 @@
         if (tags[tags.length - 1].Name === '')
           model.Tags = tags.slice(0, -1);
       }
-      model.TakenAt = moment(model.TakenAt).format('YYYY-MM-DD');
+      model.TakenAt = model.TakenAt !== '' ? moment(model.TakenAt).format('YYYY-MM-DD') : '';
       xhr = new XMLHttpRequest();
       xhr.onreadystatechange = function() {
         if (xhr.readyState == 4 && xhr.status == 200) {
@@ -440,13 +581,13 @@
         }
       }.bind(this);
       xhr.open("PUT", '/images/' + model.Name);
-      xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+      xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + this.props.token);
       xhr.send(JSON.stringify(model));
     },
     render: function () {
       var model = this.props.model;
-      var takenAt = model.get('TakenAt') ? model.get('TakenAt') : new Date();
-      takenAt = moment(takenAt).format('YYYY-MM-DD');
+      var takenAt = model.get('TakenAt') ? moment(model.get('TakenAt')).format('YYYY-MM-DD') : '';
       var tags = model.get('Tags');
       if (Immutable.List.isList(tags))
         tags = tags.toJS();
@@ -522,7 +663,10 @@
     propTypes: {
       index: React.PropTypes.number,
       image: React.PropTypes.object,
-      token: React.PropTypes.string
+      token: React.PropTypes.string,
+      isSelected: React.PropTypes.bool,
+      onloadHandler: React.PropTypes.func,
+      selectHandler: React.PropTypes.func
     },
     getInitialState: function () {
       return {
@@ -532,6 +676,9 @@
     toggleEditor: function (e) {
       this.setState({ editing: !this.state.editing });
     },
+    selectHandler: function () {
+      this.props.selectHandler(this.props.index, !this.props.isSelected)
+    },
     render: function () {
       var image = this.props.image.get('file');
       var progress = this.props.image.get('progress');
@@ -539,6 +686,7 @@
       var name, ext, dim, thumbnailStyle, thumbnailOptions, progressDisplay, editDisplay;
       if (model.size !== 0) {
         var modelName = model.get('Name'),
+            modelTitle = model.get('Title'),
             modelExt = model.get('Ext'),
             modelWidth = model.get('Width'),
             modelHeight = model.get('Height'),
@@ -547,10 +695,9 @@
         name = React.DOM.a({
           href: '/images/' + modelName,
           target: '_blank'
-        }, modelName);
+        }, modelTitle);
         ext = modelExt
         dim = modelWidth.toString() + 'x' + modelHeight.toString();
-        thumbnailOptions = { href: '/images/' + modelName, target: '_blank' };
         progressDisplay = 'none';
         editDisplay = 'block';
         var url = '';
@@ -564,7 +711,6 @@
         name = image.name.substring(0, image.name.lastIndexOf("."));
         ext = image.name.substring(image.name.lastIndexOf(".")).toLowerCase().slice(1);
         dim = '';
-        thumbnailOptions = { href: '#' };
         progressDisplay = 'block';
         editDisplay = 'none';
         thumbnailStyle = { border: '1px solid #ccc '};
@@ -576,17 +722,21 @@
       }
       var editToggle = this.state.editing ? 'close' : 'edit';
       var editor = this.state.editing ? React.createElement(Editor, {
+        token: this.props.token,
         index: this.props.index,
         model: model
       }) : null;
+      var thumbClassName = 'preview-img thumbnail';
+      if (this.props.isSelected)
+        thumbClassName += ' selected';
       return (
         React.DOM.li({ className: 'preview' },
                      React.DOM.div({
                        ref: 'thumbnail',
-                       className: 'preview-img thumbnail',
-                       style: thumbnailStyle
-                     },
-                                   React.DOM.a(thumbnailOptions, '')),
+                       className: thumbClassName,
+                       style: thumbnailStyle,
+                       onClick: this.selectHandler
+                     }),
                      React.DOM.div({ className: 'preview-description' },
                                    React.DOM.div({ className: 'preview-name row' },
                                                  React.DOM.span(null, name)),
@@ -616,7 +766,9 @@
     propTypes: {
       token: React.PropTypes.string,
       showLimit: React.PropTypes.number,
-      onloadHandler: React.PropTypes.func
+      selected: React.PropTypes.array,
+      onloadHandler: React.PropTypes.func,
+      selectHandler: React.PropTypes.func
     },
     getInitialState: function () {
       return { showLimitMult: 1 }
@@ -640,9 +792,11 @@
         previews.push(React.createElement(Preview, {
           key: image.get('file').name + i.toString(),
           index: i,
+          isSelected: this.props.selected[i],
           token: this.props.token,
           image: image,
-          onloadHandler: this.props.onloadHandler
+          onloadHandler: this.props.onloadHandler,
+          selectHandler: this.props.selectHandler
         }));
       }
       var moreButtonsDisplay = 'none';
@@ -735,6 +889,11 @@
       var selected = this.state.selected.map(function () { return value; });
       this.setState({ selected: selected });
     },
+    selectHandler: function (index, value) {
+      var selected = this.state.selected.slice();
+      selected[index] = value;
+      this.setState({ selected: selected });
+    },
     uploadHandler: function () {
       if (queue.size() > 0) {
         var index = queue.pop();
@@ -796,15 +955,19 @@
                         imageCount: this.state.images.size
                       }),
                       React.createElement(ActionBar, {
+                        token: this.state.token,
                         display: this.state.images.size > 0,
-                        uploading: this.state.totalUploadCount !== this.state.images.size,
+                        busy: this.state.totalUploadCount !== this.state.images.size,
                         selected: this.state.selected,
+                        images: this.state.images,
                         selectAllHandler: this.selectAllHandler
                       }),
                       React.createElement(Previews, {
                         showLimit: 50,
                         images: this.state.images,
-                        token: this.state.token
+                        token: this.state.token,
+                        selected: this.state.selected,
+                        selectHandler: this.selectHandler
                       }),
                       React.DOM.form({
                         ref: 'form',

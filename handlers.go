@@ -91,7 +91,7 @@ var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 		Ext:       ext,
 		Width:     b.Dx(),
 		Height:    b.Dy(),
-		TakenAt:   time.Now(),
+		TakenAt:   nil,
 		Published: false,
 	}
 	p := &ImageProcessor{imgModel, img, gifImg}
@@ -145,9 +145,11 @@ var imagePutHandler = func(w http.ResponseWriter, r *http.Request) {
 	}
 	var img Image
 	DB.Where("id = ?", updatedImg.ID).First(&img)
-	takenAt, err := time.Parse("2006-01-02", updatedImg.TakenAt)
+	var takenAt interface{}
+	takenAt, err = time.Parse("2006-01-02", updatedImg.TakenAt)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("invalid date")
+		takenAt = nil
 	}
 	var tags []Tag
 	for _, t := range updatedImg.Tags {
@@ -193,5 +195,28 @@ var TagsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		w.Header().Set("Content-Type", "application/javascript")
 		json.NewEncoder(w).Encode(tags)
 		return
+	}
+})
+
+var ActionHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Action Handler")
+	vars := mux.Vars(r)
+	name := vars["name"]
+	if name == "" {
+		http.NotFound(w, r)
+	}
+	fmt.Println(name)
+	d := json.NewDecoder(r.Body)
+	var action Action
+	err := d.Decode(&action)
+	if err != nil {
+		log.Fatal(err)
+	}
+	imgs := DB.Table("images").Where("id IN (?)", action.IDs)
+	switch name {
+	case "camera":
+		if s, ok := action.Value.(string); ok {
+			imgs.Update("Camera", s)
+		}
 	}
 })

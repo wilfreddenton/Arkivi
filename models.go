@@ -10,7 +10,7 @@ type Image struct {
 	gorm.Model
 	Title       string
 	Description string `gorm:"size:1500"`
-	TakenAt     time.Time
+	TakenAt     *time.Time
 	Camera      string
 	Film        string
 	Tags        []Tag `gorm:"many2many:image_tags;"`
@@ -50,4 +50,10 @@ type Tag struct {
 
 type TagJson struct {
 	Name string
+}
+
+// Action
+type Action struct {
+	IDs   []int
+	Value interface{}
 }
