@@ -463,6 +463,10 @@
     componentDidUpdate: function (prevProps, prevState) {
       if (this.props.selected !== prevProps.selected && prevState.allSelected)
         this.setState({ allSelected: false });
+      if (this.state.actionIndex !== prevState.actionIndex) {
+        var ele = ReactDOM.findDOMNode(this).querySelector('.action-bar-secondary input');
+        if (ele) ele.focus();
+      }
     },
     renderSecondary: function (secondaryAction) {
       var type = secondaryAction.type;
@@ -524,7 +528,7 @@
                                                                                                             React.DOM.span({}, numSelected.toString()))))),
                                                    React.DOM.div({ className: 'col-xs-7 '},
                                                                  React.DOM.div({ className: 'row' },
-                                                                               React.DOM.div({ className: 'col-xs-5 left' },
+                                                                               React.DOM.div({ className: 'col-xs-5 left action-bar-primary' },
                                                                                              primary),
                                                                                React.DOM.div({ className: 'col-xs-7 right action-bar-secondary' },
                                                                                              secondary))),
