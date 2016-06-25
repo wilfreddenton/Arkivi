@@ -214,9 +214,28 @@ var ActionHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 	}
 	imgs := DB.Table("images").Where("id IN (?)", action.IDs)
 	switch name {
+	case "publish":
+		imgs.Update("published", true)
+	case "unpublish":
+		imgs.Update("published", false)
 	case "camera":
 		if s, ok := action.Value.(string); ok {
-			imgs.Update("Camera", s)
+			imgs.Update("camera", s)
+		}
+	case "film":
+		if s, ok := action.Value.(string); ok {
+			imgs.Update("film", s)
+		}
+	case "takenat":
+		if s, ok := action.Value.(string); ok {
+			var t interface{}
+			var err error
+			t, err = time.Parse("2006-01-02", s)
+			if err != nil {
+				fmt.Println("invalid date")
+				t = nil
+			}
+			imgs.Update("taken_at", t)
 		}
 	}
 })

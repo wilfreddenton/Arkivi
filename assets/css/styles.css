@@ -543,6 +543,12 @@ input[type="submit"] {
   #action-bar {
     padding: 0 20px;
   }
+  #action-bar .action-bar-primary {
+    padding: 0 20px 0 0;
+  }
+  #action-bar .action-bar-secondary {
+    padding: 0;
+  }
   #action-bar form > .row > div {
     margin-top: 20px;
     width: 100%;

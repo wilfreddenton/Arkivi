@@ -389,33 +389,32 @@
     getDefaultProps: function () {
       return {
         actions: [
-          { name: '- actions -', value: 'placeholder' },
-          { name: 'publish', value: 'publish' },
-          { name: 'unpublish', value: 'unpublish' },
-          { name: 'date taken', value: 'takenat', secondary: {
+          { label: '- actions -', name: 'placeholder' },
+          { label: 'publish', name: 'publish' },
+          { label: 'unpublish', name: 'unpublish' },
+          { label: 'date taken', name: 'takenat', secondary: {
             type: 'date',
             name: 'TakenAt'
           }},
-          { name: 'tags', value: 'tags', secondary: {
+          { label: 'tags', name: 'tags', secondary: {
             type: 'tags',
             name: 'Tags'
           }},
-          { name: 'camera model', value: 'camera', secondary: {
+          { label: 'camera model', name: 'camera', secondary: {
             type: 'text',
             name: 'Camera'
           }},
-          { name: 'film type', value: 'film', secondary: {
+          { label: 'film type', name: 'film', secondary: {
             type: 'text',
             name: 'Film'
           }},
-          { name: 'delete', value: 'delete' }
+          { label: 'delete', name: 'delete' }
         ]
       }
     },
     submitHandler: function (e) {
       e.preventDefault();
       var action = this.props.actions[this.state.actionIndex]
-      var name = action.value;
       var ids = []
       var indices = [];
       this.props.selected.forEach(function (bool, i) {
@@ -425,6 +424,7 @@
         }
       }.bind(this));
       var value = null;
+      var name = action.name;
       if (action.secondary !== undefined) {
         name = action.secondary.name;
         value = this.state[name];
@@ -435,7 +435,7 @@
           ImageStore.updateAll(name, indices, value);
         }
       }.bind(this);
-      xhr.open("PUT", '/actions/' + action.value);
+      xhr.open("PUT", '/actions/' + action.name);
       xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
       xhr.setRequestHeader('Authorization', 'Bearer ' + this.props.token);
       var actionObj = { ids: ids, value: value }
@@ -500,8 +500,8 @@
       }, this.props.actions.map(function (action, i) {
         return React.DOM.option({
           key: i,
-          value: action.value
-        }, action.name);
+          value: action.name
+        }, action.label);
       }));
       var secondary = null;
       var secondaryAction = this.props.actions[this.state.actionIndex].secondary;
