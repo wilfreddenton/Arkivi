@@ -4,6 +4,7 @@
     return Immutable.Map({
       model: Immutable.Map(),
       file: file,
+      selected: false,
       progress: 0
     });
   }
@@ -42,6 +43,10 @@
       this.images = this.images.concat(images);
       this.onChange();
     },
+    removeImage: function (index) {
+      this.images = this.images.delete(index);
+      this.onChange();
+    },
     updateModel: function (index, model) {
       this.images = this.images.update(index, function (image) {
         return image.set('model', model);
@@ -55,26 +60,57 @@
       this.onChange();
     },
     updateAll: function (name, indices, value) {
-      console.log(name, indices, value);
-      indices.forEach(function (i) {
-        this.images = this.images.update(i, function (image) {
-          var model = image.get('model');
-          var newModel;
-          switch (name) {
-          case 'publish':
-            newModel = model.set('Published', true);
-            break
-          case 'unpublish':
-            newModel = model.set('Published', false);
-            break
-          case 'delete':
-            break
-          default:
-            newModel = model.set(name, value);
+      if (name === 'delete') {
+        this.images = this.images.filter(function (image, i) {
+          if (indices.indexOf(i) > -1) {
+            console.log(i)
+            return false;
           }
-          return image.set('model', newModel);
+          return true;
         });
-      }.bind(this));
+      } else {
+        indices.forEach(function (i) {
+          this.images = this.images.update(i, function (image) {
+            var model = image.get('model');
+            var newModel;
+            switch (name) {
+            case 'publish':
+              newModel = model.set('Published', true);
+              break
+            case 'unpublish':
+              newModel = model.set('Published', false);
+              break
+            default:
+              newModel = model.set(name, value);
+            }
+            return image.set('model', newModel);
+          });
+        }.bind(this));
+      }
+      this.onChange();
+    },
+    select: function (index) {
+      this.images = this.images.update(index, function (image) {
+        return image.set('selected', true);
+      });
+      this.onChange();
+    },
+    unselect: function (index) {
+      this.images = this.images.update(index, function (image) {
+        return image.set('selected', false);
+      });
+      this.onChange();
+    },
+    selectAll: function () {
+      this.images = this.images.map(function (image) {
+        return image.set('selected', true);
+      });
+      this.onChange();
+    },
+    unselectAll: function () {
+      this.images = this.images.map(function (image) {
+        return image.set('selected', false);
+      });
       this.onChange();
     },
     onChange: function () {}
@@ -117,10 +153,8 @@
   // components
   var UploadBar = React.createClass({
     propTypes: {
-      fileHandler: React.PropTypes.func,
-      imagesSize: React.PropTypes.number,
-      totalUploadCount: React.PropTypes.number,
-      imageCount: React.PropTypes.number
+      images: React.PropTypes.object,
+      fileHandler: React.PropTypes.func
     },
     componentDidMount: function () {
       this.refs.input.addEventListener('change', function (e) {
@@ -128,10 +162,18 @@
       }.bind(this));
     },
     render: function () {
-      var data = getSizeAndUnit(this.props.imagesSize);
+      var imagesSize = 0;
+      this.props.images.forEach(function (image) {
+        imagesSize += image.get('file').size;
+      });
+      var data = getSizeAndUnit(imagesSize);
       var progress = '0%'
-      if (this.props.imageCount != 0)
-        progress = parseInt((this.props.totalUploadCount / this.props.imageCount * 100).toString()) + '%';
+      if (this.props.images.size != 0) {
+        var uploaded = this.props.images.filter(function (image) {
+          return image.get('model').size > 0;
+        });
+        progress = parseInt((uploaded.size / this.props.images.size * 100).toString()) + '%';
+      }
       return (
         React.DOM.div({ id: 'upload-bar', className: 'row' },
                       React.DOM.div({ className: 'col-xs-6' },
@@ -148,7 +190,7 @@
                                                   React.DOM.div({ className: 'col-xs-6' },
                                                                 React.DOM.span({ className: 'info-header' }, '# images:')),
                                                   React.DOM.div({ className: 'col-xs-6' },
-                                                                React.DOM.span({ className: 'info' }, this.props.imageCount))),
+                                                                React.DOM.span({ className: 'info' }, this.props.images.size))),
                                     React.DOM.br(null)),
                       React.DOM.div({ className: 'col-xs-6'},
                                     React.DOM.div({ className: 'row '},
@@ -261,7 +303,6 @@
       }
     },
     changeHandler: function (e) {
-      console.log('hey')
       var value = e.target.value;
       var prevValue = e.target.dataset.value;
       if (value.slice(-1) === ',') {
@@ -372,9 +413,7 @@
       hidden: React.PropTypes.bool,
       actions: React.PropTypes.array,
       busy: React.PropTypes.bool,
-      selected: React.PropTypes.array,
-      images: React.PropTypes.object,
-      selectAllHandler: React.PropTypes.func
+      images: React.PropTypes.object
     },
     getInitialState: function () {
       return {
@@ -417,12 +456,12 @@
       var action = this.props.actions[this.state.actionIndex]
       var ids = []
       var indices = [];
-      this.props.selected.forEach(function (bool, i) {
-        if (bool) {
-          ids.push(this.props.images.get(i).get('model').get('ID'))
+      this.props.images.forEach(function (image, i) {
+        if (image.get('selected')) {
+          ids.push(image.get('model').get('ID'));
           indices.push(i);
         }
-      }.bind(this));
+      });
       var value = null;
       var name = action.name;
       if (action.secondary !== undefined) {
@@ -445,7 +484,11 @@
       if (this.props.busy) return;
       var value = !this.state.allSelected;
       this.setState({ allSelected: value });
-      this.props.selectAllHandler(value)
+      if (value) {
+        ImageStore.selectAll();
+      } else {
+        ImageStore.unselectAll();
+      }
     },
     editHandler: function (data) {
       var newState = {};
@@ -461,8 +504,14 @@
       this.setState({ actionIndex: e.target.selectedIndex });
     },
     componentDidUpdate: function (prevProps, prevState) {
-      if (this.props.selected !== prevProps.selected && prevState.allSelected)
-        this.setState({ allSelected: false });
+      if (prevState.allSelected) {
+        var selected = this.props.images.filter(function (image) {
+          return image.get('selected');
+        });
+        if (selected.size !== this.props.images.size) {
+          this.setState({ allSelected: false });
+        }
+      }
       if (this.state.actionIndex !== prevState.actionIndex) {
         var ele = ReactDOM.findDOMNode(this).querySelector('.action-bar-secondary input');
         if (ele) ele.focus();
@@ -490,7 +539,7 @@
       }
     },
     render: function () {
-      var numSelected = this.props.selected.filter(function (a) { return a; }).length;
+      var numSelected = this.props.images.filter(function (i) { return i.selected; }).size;
       var display = this.props.display ? 'block' : 'none';
       var primaryOptions = []
       var secondaryOptions = [];
@@ -668,9 +717,8 @@
       index: React.PropTypes.number,
       image: React.PropTypes.object,
       token: React.PropTypes.string,
-      isSelected: React.PropTypes.bool,
       onloadHandler: React.PropTypes.func,
-      selectHandler: React.PropTypes.func
+      deleteHandler: React.PropTypes.func
     },
     getInitialState: function () {
       return {
@@ -681,13 +729,20 @@
       this.setState({ editing: !this.state.editing });
     },
     selectHandler: function () {
-      this.props.selectHandler(this.props.index, !this.props.isSelected)
+      if (this.props.image.get('selected')) {
+        ImageStore.unselect(this.props.index);
+      } else {
+        ImageStore.select(this.props.index);
+      }
+    },
+    deleteHandler: function () {
+      this.props.deleteHandler(this.props.index);
     },
     render: function () {
       var image = this.props.image.get('file');
       var progress = this.props.image.get('progress');
       var model = this.props.image.get('model');
-      var name, ext, dim, thumbnailStyle, thumbnailOptions, progressDisplay, editDisplay;
+      var name, ext, dim, thumbnailStyle, thumbnailOptions, progressDisplay, editDisplay, deleteButton;
       if (model.size !== 0) {
         var modelName = model.get('Name'),
             modelTitle = model.get('Title'),
@@ -711,6 +766,7 @@
           url = modelUrl;
         }
         thumbnailStyle = { backgroundImage: 'url(' + url + ')' }
+        deleteButton = React.DOM.span({ onClick: this.deleteHandler }, 'X');
       } else {
         name = image.name.substring(0, image.name.lastIndexOf("."));
         ext = image.name.substring(image.name.lastIndexOf(".")).toLowerCase().slice(1);
@@ -718,6 +774,7 @@
         progressDisplay = 'block';
         editDisplay = 'none';
         thumbnailStyle = { border: '1px solid #ccc '};
+        deleteButton = null;
       }
       var data = getSizeAndUnit(image.size);
       var size = data.size.slice(0, 4);
@@ -731,7 +788,7 @@
         model: model
       }) : null;
       var thumbClassName = 'preview-img thumbnail';
-      if (this.props.isSelected)
+      if (this.props.image.get('selected'))
         thumbClassName += ' selected';
       return (
         React.DOM.li({ className: 'preview' },
@@ -742,8 +799,11 @@
                        onClick: this.selectHandler
                      }),
                      React.DOM.div({ className: 'preview-description' },
-                                   React.DOM.div({ className: 'preview-name row' },
-                                                 React.DOM.span(null, name)),
+                                   React.DOM.div({ className: 'row' },
+                                                 React.DOM.div({ className: 'preview-name col-xs-10'},
+                                                               name),
+                                                 React.DOM.div({ className: 'preview-delete col-xs-2'},
+                                                               deleteButton)),
                                    React.DOM.div({ className: 'preview-details row' },
                                                  React.DOM.div({ className: 'col-xs-4' },
                                                                React.DOM.span({ className: 'preview-size' }, size),
@@ -770,9 +830,8 @@
     propTypes: {
       token: React.PropTypes.string,
       showLimit: React.PropTypes.number,
-      selected: React.PropTypes.array,
       onloadHandler: React.PropTypes.func,
-      selectHandler: React.PropTypes.func
+      deleteHandler: React.PropTypes.func
     },
     getInitialState: function () {
       return { showLimitMult: 1 }
@@ -796,11 +855,10 @@
         previews.push(React.createElement(Preview, {
           key: image.get('file').name + i.toString(),
           index: i,
-          isSelected: this.props.selected[i],
           token: this.props.token,
           image: image,
           onloadHandler: this.props.onloadHandler,
-          selectHandler: this.props.selectHandler
+          deleteHandler: this.props.deleteHandler
         }));
       }
       var moreButtonsDisplay = 'none';
@@ -858,9 +916,6 @@
     getInitialState: function () {
       return {
         token: '',
-        imagesSize: 0,
-        totalUploadCount: 0,
-        selected: [],
         images: ImageStore.images
       };
     },
@@ -875,7 +930,6 @@
       xhr.onload = function () {
         ImageStore.updateModel(index, Immutable.fromJS(JSON.parse(xhr.responseText)));
         queue.uploadFinished();
-        this.setState({ totalUploadCount: this.state.totalUploadCount + 1 });
         this.uploadHandler();
       }.bind(this);
       xhr.upload.onprogress = function (e) {
@@ -889,15 +943,6 @@
       queue.uploadStarted();
       xhr.send(formData);
     },
-    selectAllHandler: function (value) {
-      var selected = this.state.selected.map(function () { return value; });
-      this.setState({ selected: selected });
-    },
-    selectHandler: function (index, value) {
-      var selected = this.state.selected.slice();
-      selected[index] = value;
-      this.setState({ selected: selected });
-    },
     uploadHandler: function () {
       if (queue.size() > 0) {
         var index = queue.pop();
@@ -906,30 +951,30 @@
     },
     fileHandler: function (files) {
       var images = imagesFromFiles(files);
-      var imagesSize = this.state.imagesSize;
-      images.forEach(function (image) {
-        imagesSize += image.get('file').size;
-      });
       var indices = [];
       for (var i = 0; i < images.size; i += 1) {
         indices.push(this.state.images.size + i);
       }
       queue.pushItems(indices);
       ImageStore.addImages(images);
-      this.setState({ imagesSize: imagesSize });
+    },
+    deleteHandler: function (index) {
+      var image = this.state.images.get(index);
+      var model = image.get('model');
+      var file = image.get('file');
+      var a = confirm('Are you sure you want to delete ' + model.get('Title') + '?');
+      if (!a) return;
+      var xhr = new XMLHttpRequest();
+      xhr.open('DELETE', '/images/' + model.get('Name'));
+      xhr.setRequestHeader('Authorization', 'Bearer ' + this.state.token);
+      xhr.onload = function () {
+        ImageStore.removeImage(index);
+      };
+      xhr.send();
     },
     componentWillMount: function () {
       ImageStore.onChange = function () {
-        var len = this.state.selected.length;
-        var diff = ImageStore.images.size - len;
-        var selected = this.state.selected.slice();
-        for (var i = len; i < len + diff; i += 1) {
-          selected[i] = false;
-        }
-        this.setState({
-          images: ImageStore.images,
-          selected: selected
-        });
+        this.setState({ images: ImageStore.images });
       }.bind(this);
     },
     componentDidUpdate: function (prevProps, prevState) {
@@ -953,25 +998,20 @@
                         fileHandler: this.fileHandler
                       }),
                       React.createElement(UploadBar, {
-                        fileHandler: this.fileHandler,
-                        imagesSize: this.state.imagesSize,
-                        totalUploadCount: this.state.totalUploadCount,
-                        imageCount: this.state.images.size
+                        images: this.state.images,
+                        fileHandler: this.fileHandler
                       }),
                       React.createElement(ActionBar, {
                         token: this.state.token,
                         display: this.state.images.size > 0,
                         busy: this.state.totalUploadCount !== this.state.images.size,
-                        selected: this.state.selected,
-                        images: this.state.images,
-                        selectAllHandler: this.selectAllHandler
+                        images: this.state.images
                       }),
                       React.createElement(Previews, {
                         showLimit: 50,
                         images: this.state.images,
                         token: this.state.token,
-                        selected: this.state.selected,
-                        selectHandler: this.selectHandler
+                        deleteHandler: this.deleteHandler
                       }),
                       React.DOM.form({
                         ref: 'form',

@@ -352,6 +352,7 @@ input[type="submit"] {
 }
 .preview .preview-name {
   font-size: 18px;
+  padding: 0px;
 }
 .preview .preview-name * {
   text-overflow: ellipsis;
@@ -361,6 +362,14 @@ input[type="submit"] {
   display: inline-block;
   white-space: nowrap;
   overflow: hidden;
+}
+.preview .preview-delete {
+  text-align: right;
+  padding: 0 25px 0 0;
+  font-size: 18px;
+  color: #D23B66;
+  cursor: pointer;
+  text-decoration: underline;
 }
 .preview .preview-ext, .preview .preview-dim {
   display: inline-block;

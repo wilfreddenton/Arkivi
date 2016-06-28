@@ -13,7 +13,7 @@ import (
 	// "io"
 	"log"
 	"net/http"
-	// "os"
+	"os"
 	"strings"
 	"time"
 )
@@ -172,12 +172,34 @@ var imagePutHandler = func(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("success"))
 }
 
+var imageDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Image Handler: DELETE")
+	vars := mux.Vars(r)
+	name := vars["name"]
+	if name == "" {
+		http.NotFound(w, r)
+	}
+	var image Image
+	DB.Where("name = ?", name).First(&image)
+	paths := image.GetPaths()
+	DB.Delete(&image)
+	for _, path := range paths {
+		err := os.Remove(path)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	w.Write([]byte("success"))
+})
+
 var ImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		imageGetHandler(w, r)
 	case "PUT":
 		imagePutHandler(w, r)
+	case "DELETE":
+		imageDeleteHandler(w, r)
 	}
 })
 
@@ -237,5 +259,19 @@ var ActionHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 			}
 			imgs.Update("taken_at", t)
 		}
+	case "delete":
+		var paths []string
+		var models []Image
+		DB.Where("id IN (?)", action.IDs).Find(&models)
+		for _, model := range models {
+			paths = append(paths, model.GetPaths()...)
+		}
+		for _, path := range paths {
+			err := os.Remove(path)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		DB.Where("id IN (?)", action.IDs).Delete(Image{})
 	}
 })

@@ -67,7 +67,7 @@ func main() {
 	r.Handle("/upload-image", jwtMiddleware.Handler(UploadImageHandler)).Methods("POST")
 	r.Handle("/images/", ImagesHandler).Methods("GET")
 	r.Handle("/images/{name}", ImageHandler).Methods("GET")
-	r.Handle("/images/{name}", jwtMiddleware.Handler(ImageHandler)).Methods("PUT")
+	r.Handle("/images/{name}", jwtMiddleware.Handler(ImageHandler)).Methods("PUT", "DELETE")
 	r.Handle("/actions/{name}", jwtMiddleware.Handler(ActionHandler)).Methods("PUT")
 	r.Handle("/tags/", TagsHandler).Methods("GET")
 	r.Handle("/ws", wsHandler{h: h})

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/jinzhu/gorm"
+	"strings"
 	"time"
 )
 
@@ -29,6 +30,28 @@ type Image struct {
 
 func (i *Image) Save() {
 	DB.Create(i)
+}
+
+func (i *Image) GetPaths() []string {
+	var paths []string
+	old := "/static/"
+	new := "assets/"
+	if i.ThumbUrl != "" {
+		paths = append(paths, strings.Replace(i.ThumbUrl, old, new, 1))
+	}
+	if i.SmallUrl != "" {
+		paths = append(paths, strings.Replace(i.SmallUrl, old, new, 1))
+	}
+	if i.MediumUrl != "" {
+		paths = append(paths, strings.Replace(i.MediumUrl, old, new, 1))
+	}
+	if i.LargeUrl != "" {
+		paths = append(paths, strings.Replace(i.LargeUrl, old, new, 1))
+	}
+	if i.Url != "" {
+		paths = append(paths, strings.Replace(i.Url, old, new, 1))
+	}
+	return paths
 }
 
 type ImageJson struct {
