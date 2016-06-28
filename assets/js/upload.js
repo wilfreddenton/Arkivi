@@ -62,11 +62,7 @@
     updateAll: function (name, indices, value) {
       if (name === 'delete') {
         this.images = this.images.filter(function (image, i) {
-          if (indices.indexOf(i) > -1) {
-            console.log(i)
-            return false;
-          }
-          return true;
+          return indices.indexOf(i) < 0;
         });
       } else {
         indices.forEach(function (i) {
@@ -462,8 +458,13 @@
           indices.push(i);
         }
       });
+      if (this.state.actionIndex === 0 || ids.length === 0) return false;
       var value = null;
       var name = action.name;
+      if (name === 'delete') {
+        var c = confirm('Are you sure you want to delete ' + ids.length + ' photo(s)?');
+        if (!c) return false;
+      }
       if (action.secondary !== undefined) {
         name = action.secondary.name;
         value = this.state[name];
