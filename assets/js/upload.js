@@ -99,13 +99,21 @@
     },
     selectAll: function () {
       this.images = this.images.map(function (image) {
-        return image.set('selected', true);
+        if (image.get('model').size > 0) {
+          return image.set('selected', true);
+        } else {
+          return image;
+        }
       });
       this.onChange();
     },
     unselectAll: function () {
       this.images = this.images.map(function (image) {
-        return image.set('selected', false);
+        if (image.get('model').size > 0) {
+          return image.set('selected', false);
+        } else {
+          return image
+        }
       });
       this.onChange();
     },
@@ -408,7 +416,6 @@
       token: React.PropTypes.string,
       hidden: React.PropTypes.bool,
       actions: React.PropTypes.array,
-      busy: React.PropTypes.bool,
       images: React.PropTypes.object
     },
     getInitialState: function () {
@@ -482,7 +489,6 @@
       xhr.send(JSON.stringify(actionObj));
     },
     selectAllHandler: function (e) {
-      if (this.props.busy) return;
       var value = !this.state.allSelected;
       this.setState({ allSelected: value });
       if (value) {
@@ -769,7 +775,7 @@
         thumbnailStyle = { backgroundImage: 'url(' + url + ')' }
         deleteButton = React.DOM.span({ onClick: this.deleteHandler }, 'X');
       } else {
-        name = image.name.substring(0, image.name.lastIndexOf("."));
+        name = React.DOM.span(null, image.name.substring(0, image.name.lastIndexOf(".")));
         ext = image.name.substring(image.name.lastIndexOf(".")).toLowerCase().slice(1);
         dim = '';
         progressDisplay = 'block';
@@ -1005,7 +1011,6 @@
                       React.createElement(ActionBar, {
                         token: this.state.token,
                         display: this.state.images.size > 0,
-                        busy: this.state.totalUploadCount !== this.state.images.size,
                         images: this.state.images
                       }),
                       React.createElement(Previews, {
