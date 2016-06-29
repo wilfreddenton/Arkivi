@@ -33,6 +33,18 @@
   };
   var queue = new UploadQueue(5);
   // stores
+  var ErrorStore = {
+    error: {
+      status: 0,
+      statusText: '',
+      responseText: ''
+    },
+    updateError: function (error) {
+      this.error = error;
+      this.onChange();
+    },
+    onChange: function () {}
+  };
   var ImageStore = {
     images: Immutable.List(),
     addImage: function (image) {
@@ -919,9 +931,36 @@
       return (React.DOM.div({ style: { display: 'none' }}));
     }
   });
+  var Error = React.createClass({
+    getInitialState: function () {
+      return {
+        error: null
+      }
+    },
+    errorHandler: function () {
+      var error = this.state.error;
+      var message = 'ERROR ' + error.status.toString() + '\n' + error.statusText + ': ' + error.responseText;
+      alert(message);
+    },
+    componentDidUpdate: function (prevProps, prevState) {
+      if (prevState.error !== this.state.error) {
+        console.log('hey')
+        this.errorHandler();
+      }
+    },
+    componentDidMount: function () {
+      ErrorStore.onChange = function () {
+        this.setState({ error: ErrorStore.error });
+      }.bind(this);
+    },
+    render: function () {
+      return null
+    }
+  });
   var Uploader = React.createClass({
     getInitialState: function () {
       return {
+        error: null,
         token: '',
         images: ImageStore.images
       };
@@ -934,10 +973,20 @@
       var xhr =  new XMLHttpRequest();
       xhr.open('POST', '/upload-image');
       xhr.setRequestHeader('Authorization', 'Bearer ' + this.state.token);
-      xhr.onload = function () {
-        ImageStore.updateModel(index, Immutable.fromJS(JSON.parse(xhr.responseText)));
-        queue.uploadFinished();
-        this.uploadHandler();
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState !== 4) return;
+        if (xhr.status == 200) {
+          ImageStore.updateModel(index, Immutable.fromJS(JSON.parse(xhr.responseText)));
+          queue.uploadFinished();
+          this.uploadHandler();
+        } else {
+          ErrorStore.updateError({
+            status: xhr.status,
+            statusText: xhr.statusText,
+            responseText: xhr.responseText
+          });
+          ImageStore.removeImage(index);
+        }
       }.bind(this);
       xhr.upload.onprogress = function (e) {
         if (e.lengthComputable) {
@@ -974,8 +1023,12 @@
       var xhr = new XMLHttpRequest();
       xhr.open('DELETE', '/images/' + model.get('Name'));
       xhr.setRequestHeader('Authorization', 'Bearer ' + this.state.token);
-      xhr.onload = function () {
-        ImageStore.removeImage(index);
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+          ImageStore.removeImage(index);
+        } else {
+          console.log(xhr);
+        }
       };
       xhr.send();
     },
@@ -1001,6 +1054,7 @@
     render: function () {
       return (
         React.DOM.div({ id: 'uploader' },
+                      React.createElement(Error, null),
                       React.createElement(Dropzone, {
                         fileHandler: this.fileHandler
                       }),

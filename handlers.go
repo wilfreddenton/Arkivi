@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
@@ -11,12 +12,27 @@ import (
 	"image/jpeg"
 	"image/png"
 	// "io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 )
+
+// types
+type appError struct {
+	Error   error
+	Message string
+	Code    int
+}
+
+type appHandler func(w http.ResponseWriter, r *http.Request) *appError
+
+func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if e := fn(w, r); e != nil { // e is of type *appError no error
+		fmt.Println(e.Error)
+		http.Error(w, e.Message, e.Code)
+	}
+}
 
 // partials
 var EditorViewHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,18 +61,21 @@ var GetTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 	w.Write([]byte(tokenString))
 })
 
-var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 	// index := r.FormValue("index")
 	title := strings.Split(r.FormValue("filename"), ".")[0]
 	src, hdr, err := r.FormFile("img")
 	if err != nil {
-		log.Fatal(err)
+		return &appError{err, "Could not extract image file from form data.", http.StatusBadRequest}
 	}
 	defer src.Close()
 	contentType := hdr.Header["Content-Type"][0]
 	if !isAllowedContentType(contentType) {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return &appError{
+			err,
+			"The file sent is in an unsupported format. Arkivi supports jpg, gif, and png.",
+			http.StatusBadRequest,
+		}
 	}
 	ext := strings.ToLower(strings.Split(contentType, "/")[1])
 	if ext == "jpeg" {
@@ -77,7 +96,11 @@ var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 		gifImg, err = gif.DecodeAll(src)
 	}
 	if err != nil {
-		log.Fatal(err)
+		return &appError{
+			err,
+			"The server was unable to decode the uploaded image.",
+			http.StatusInternalServerError,
+		}
 	}
 	var b image.Rectangle
 	if ext == "gif" {
@@ -98,7 +121,8 @@ var UploadImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 	p.CreateResizes()
 	p.ImageModel.Save()
 	json.NewEncoder(w).Encode(p.ImageModel)
-})
+	return nil
+}
 
 var ImagesHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Images Handler")
@@ -115,12 +139,16 @@ var ImagesHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 	renderTemplate(w, "images", m, false)
 })
 
-var imageGetHandler = func(w http.ResponseWriter, r *http.Request) {
+func ImageGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Image Handler: GET")
 	vars := mux.Vars(r)
 	name := vars["name"]
 	if name == "" {
-		http.NotFound(w, r)
+		return &appError{
+			errors.New("No name provided error"),
+			"No image name was provided.",
+			http.StatusNotFound,
+		}
 	}
 	var image Image
 	DB.Where("name = ?", name).First(&image)
@@ -128,27 +156,31 @@ var imageGetHandler = func(w http.ResponseWriter, r *http.Request) {
 	if len(q["json"]) > 0 && q["json"][0] == "true" {
 		w.Header().Set("Content-Type", "application/javascript")
 		json.NewEncoder(w).Encode(image)
-		return
+		return nil
 	}
 	m := make(map[string]interface{})
 	m["image"] = image
 	renderTemplate(w, "image", m, false)
+	return nil
 }
 
-var imagePutHandler = func(w http.ResponseWriter, r *http.Request) {
+func ImagePutHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Image Handler: PUT")
 	d := json.NewDecoder(r.Body)
 	var updatedImg ImageJson
 	err := d.Decode(&updatedImg)
 	if err != nil {
-		log.Fatal(err)
+		return &appError{
+			err,
+			"An invalid JSON body was sent.",
+			http.StatusBadRequest,
+		}
 	}
 	var img Image
 	DB.Where("id = ?", updatedImg.ID).First(&img)
 	var takenAt interface{}
 	takenAt, err = time.Parse("2006-01-02", updatedImg.TakenAt)
 	if err != nil {
-		fmt.Println("invalid date")
 		takenAt = nil
 	}
 	var tags []Tag
@@ -170,14 +202,19 @@ var imagePutHandler = func(w http.ResponseWriter, r *http.Request) {
 		"Published":   updatedImg.Published,
 	}).Association("Tags").Replace(&tags)
 	w.Write([]byte("success"))
+	return nil
 }
 
-var imageDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Image Handler: DELETE")
 	vars := mux.Vars(r)
 	name := vars["name"]
 	if name == "" {
-		http.NotFound(w, r)
+		return &appError{
+			errors.New("No name provided error"),
+			"No image name was provided.",
+			http.StatusNotFound,
+		}
 	}
 	var image Image
 	DB.Where("name = ?", name).First(&image)
@@ -186,22 +223,16 @@ var imageDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 	for _, path := range paths {
 		err := os.Remove(path)
 		if err != nil {
-			log.Fatal(err)
+			return &appError{
+				err,
+				"The server was unable to remove the associated files",
+				http.StatusInternalServerError,
+			}
 		}
 	}
 	w.Write([]byte("success"))
-})
-
-var ImageHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "GET":
-		imageGetHandler(w, r)
-	case "PUT":
-		imagePutHandler(w, r)
-	case "DELETE":
-		imageDeleteHandler(w, r)
-	}
-})
+	return nil
+}
 
 var TagsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Tags Handler")
@@ -220,19 +251,27 @@ var TagsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	}
 })
 
-var ActionHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Action Handler")
 	vars := mux.Vars(r)
 	name := vars["name"]
 	if name == "" {
-		http.NotFound(w, r)
+		return &appError{
+			errors.New("No name provided error"),
+			"No action name was provided.",
+			http.StatusNotFound,
+		}
 	}
 	fmt.Println(name)
 	d := json.NewDecoder(r.Body)
 	var action Action
 	err := d.Decode(&action)
 	if err != nil {
-		log.Fatal(err)
+		return &appError{
+			err,
+			"An invalid JSON body was sent.",
+			http.StatusBadRequest,
+		}
 	}
 	imgs := DB.Table("images").Where("id IN (?)", action.IDs)
 	switch name {
@@ -254,7 +293,6 @@ var ActionHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 			var err error
 			t, err = time.Parse("2006-01-02", s)
 			if err != nil {
-				fmt.Println("invalid date")
 				t = nil
 			}
 			imgs.Update("taken_at", t)
@@ -269,9 +307,14 @@ var ActionHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 		for _, path := range paths {
 			err := os.Remove(path)
 			if err != nil {
-				log.Fatal(err)
+				return &appError{
+					err,
+					"The server was unable to remove the associated files",
+					http.StatusInternalServerError,
+				}
 			}
 		}
 		DB.Where("id IN (?)", action.IDs).Delete(Image{})
 	}
-})
+	return nil
+}
