@@ -301,6 +301,7 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 		var paths []string
 		var models []Image
 		DB.Where("id IN (?)", action.IDs).Find(&models)
+		DB.Where("id IN (?)", action.IDs).Delete(Image{})
 		for _, model := range models {
 			paths = append(paths, model.GetPaths()...)
 		}
@@ -314,7 +315,6 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 				}
 			}
 		}
-		DB.Where("id IN (?)", action.IDs).Delete(Image{})
 	}
 	return nil
 }

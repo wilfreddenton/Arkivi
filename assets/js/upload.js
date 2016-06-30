@@ -1,13 +1,12 @@
 (function (window) {
   // models
-  var newImage = function (file) {
-    return Immutable.Map({
-      model: Immutable.Map(),
-      file: file,
-      selected: false,
-      progress: 0
-    });
-  }
+  var Image = Immutable.Record({
+    model: Immutable.Map(),
+    file: {},
+    selected: false,
+    failed: false,
+    progress: 0
+  });
   function UploadQueue (maxUploads) {
     this.items = [];
     this.maxUploads = maxUploads;
@@ -166,7 +165,7 @@
     Array.prototype.forEach.call(files, function (file) {
       var validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
       if (validTypes.indexOf(file.type) > -1)
-        images = images.push(newImage(file));
+        images = images.push(new Image({ file: file }));
     });
     return images;
   }
@@ -533,11 +532,19 @@
       var success = function () {
         ImageStore.updateAll(name, indices, value);
       }
+      var failure = function (xhr) {
+        ErrorStore.updateError({
+          status: xhr.status,
+          statusText: xhr.statusText,
+          responseText: xhr.responseText
+        });
+      }
       var actionObj = JSON.stringify({ ids: ids, value: value });
       request({
         method: 'PUT',
         path: '/actions/' + action.name,
         success: success,
+        failure: failure,
         token: this.props.token,
         json: true,
         payload: actionObj
@@ -692,10 +699,18 @@
           this.setState({ submitStatus: 'submit' });
         }.bind(this), 1000);
       }.bind(this);
+      var failure = function (xhr) {
+        ErrorStore.updateError({
+          status: xhr.status,
+          statusText: xhr.statusText,
+          responseText: xhr.responseText
+        });
+      }
       request({
         method: 'PUT',
         path: '/images/' + model.Name,
         success: success,
+        failure: failure,
         token: this.props.token,
         json: true,
         payload: JSON.stringify(model)
