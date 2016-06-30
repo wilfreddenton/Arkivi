@@ -59,6 +59,10 @@
       this.images = this.images.delete(index);
       this.onChange();
     },
+    failImage: function (index) {
+      console.log('image filed to upload', index);
+      this.onChange();
+    },
     updateModel: function (index, model) {
       this.images = this.images.update(index, function (image) {
         return image.set('model', model);
@@ -165,6 +169,45 @@
         images = images.push(newImage(file));
     });
     return images;
+  }
+  var request = function (params) {
+    var xhr = new XMLHttpRequest();
+    var method = params.method;
+    var path = params.path;
+    var success = params.success;
+    var failure = params.failure;
+    var callback = params.callback;
+    var onprogress = params.onprogress;
+    var json = params.json
+    var token = params.token;
+    var payload = params.payload;
+    if (method === undefined || path === undefined || success === undefined) {
+      throw "Error: The 'method', 'path', and 'success' parameters must be defined.";
+    }
+    xhr.open(method, path);
+    if (json !== undefined && json === true)
+      xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+    if (token !== undefined)
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status == 200) {
+        success(xhr);
+      } else {
+        if (failure !== undefined)
+          failure(xhr);
+      }
+      if (callback !== undefined)
+        callback();
+    };
+    if (onprogress !== undefined) {
+      xhr.upload.onprogress = onprogress;
+    }
+    if (payload !== undefined) {
+      xhr.send(payload);
+    } else {
+      xhr.send();
+    }
   }
   // components
   var UploadBar = React.createClass({
@@ -293,27 +336,27 @@
     },
     getSuggestions: function (query) {
       if (query !== '' && !/\s+/.test(query)) {
-        var xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = function() {
-          if (xhr.readyState == 4 && xhr.status == 200) {
-            var suggestions = JSON.parse(xhr.responseText);
-            suggestions.sort(function (a, b) {
-              if (a.Name < b.Name) {
-                return 1;
-              } else if (a.Name < b.Name) {
-                return -1;
-              } else {
-                return 0;
-              }
-            });
-            this.setState({ suggestions: suggestions });
-          }
+        var success = function (xhr) {
+          var suggestions = JSON.parse(xhr.responseText);
+          suggestions.sort(function (a, b) {
+            if (a.Name < b.Name) {
+              return 1;
+            } else if (a.Name < b.Name) {
+              return -1;
+            } else {
+              return 0;
+            }
+          });
+          this.setState({ suggestions: suggestions });
         }.bind(this);
         var currentTags = this.props.tags.map(function (tag) {
           return tag.Name;
         }).join(',');
-        xhr.open("GET", "/tags/?json=true&query=" + query + '&currentTags=' + currentTags);
-        xhr.send();
+        request({
+          method: 'GET',
+          path: '/tags/?json=true&query=' + query + '&currentTags=' + currentTags,
+          success: success
+        });
       } else {
         this.setState({ suggestions: [] });
       }
@@ -380,9 +423,8 @@
       this.refs.input.addEventListener('keydown', this.keydownHandler)
     },
     componentDidUpdate: function (prevProps, prevState) {
-      if (this.state.suggestions.length !== prevState.suggestions.length) {
+      if (this.state.suggestions.length !== prevState.suggestions.length)
         this.setState({ highlighted: this.state.suggestions.length - 1 });
-      }
     },
     componentWillUnmount: function () {
       this.deactivateListeners();
@@ -468,8 +510,8 @@
     },
     submitHandler: function (e) {
       e.preventDefault();
-      var action = this.props.actions[this.state.actionIndex]
-      var ids = []
+      var action = this.props.actions[this.state.actionIndex];
+      var ids = [];
       var indices = [];
       this.props.images.forEach(function (image, i) {
         if (image.get('selected')) {
@@ -488,17 +530,18 @@
         name = action.secondary.name;
         value = this.state[name];
       }
-      var xhr = new XMLHttpRequest();
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-          ImageStore.updateAll(name, indices, value);
-        }
-      }.bind(this);
-      xhr.open("PUT", '/actions/' + action.name);
-      xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-      xhr.setRequestHeader('Authorization', 'Bearer ' + this.props.token);
-      var actionObj = { ids: ids, value: value }
-      xhr.send(JSON.stringify(actionObj));
+      var success = function () {
+        ImageStore.updateAll(name, indices, value);
+      }
+      var actionObj = JSON.stringify({ ids: ids, value: value });
+      request({
+        method: 'PUT',
+        path: '/actions/' + action.name,
+        success: success,
+        token: this.props.token,
+        json: true,
+        payload: actionObj
+      });
     },
     selectAllHandler: function (e) {
       var value = !this.state.allSelected;
@@ -643,19 +686,20 @@
           model.Tags = tags.slice(0, -1);
       }
       model.TakenAt = model.TakenAt !== '' ? moment(model.TakenAt).format('YYYY-MM-DD') : '';
-      xhr = new XMLHttpRequest();
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-          this.setState({ submitStatus: 'success' });
-          setTimeout(function () {
-            this.setState({ submitStatus: 'submit' });
-          }.bind(this), 1000);
-        }
+      var success = function () {
+        this.setState({ submitStatus: 'success' });
+        setTimeout(function () {
+          this.setState({ submitStatus: 'submit' });
+        }.bind(this), 1000);
       }.bind(this);
-      xhr.open("PUT", '/images/' + model.Name);
-      xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-      xhr.setRequestHeader('Authorization', 'Bearer ' + this.props.token);
-      xhr.send(JSON.stringify(model));
+      request({
+        method: 'PUT',
+        path: '/images/' + model.Name,
+        success: success,
+        token: this.props.token,
+        json: true,
+        payload: JSON.stringify(model)
+      });
     },
     render: function () {
       var model = this.props.model;
@@ -943,10 +987,8 @@
       alert(message);
     },
     componentDidUpdate: function (prevProps, prevState) {
-      if (prevState.error !== this.state.error) {
-        console.log('hey')
+      if (prevState.error !== this.state.error)
         this.errorHandler();
-      }
     },
     componentDidMount: function () {
       ErrorStore.onChange = function () {
@@ -970,34 +1012,40 @@
       var formData = new FormData(this.refs.form);
       formData.append('img', file);
       formData.append('filename', file.name);
-      var xhr =  new XMLHttpRequest();
-      xhr.open('POST', '/upload-image');
-      xhr.setRequestHeader('Authorization', 'Bearer ' + this.state.token);
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState !== 4) return;
-        if (xhr.status == 200) {
-          ImageStore.updateModel(index, Immutable.fromJS(JSON.parse(xhr.responseText)));
-          queue.uploadFinished();
-          this.uploadHandler();
-        } else {
-          ErrorStore.updateError({
-            status: xhr.status,
-            statusText: xhr.statusText,
-            responseText: xhr.responseText
-          });
-          ImageStore.removeImage(index);
-        }
+      var success = function (xhr) {
+        ImageStore.updateModel(index, Immutable.fromJS(JSON.parse(xhr.responseText)));
+      }
+      var failure = function (xhr) {
+        ErrorStore.updateError({
+          status: xhr.status,
+          statusText: xhr.statusText,
+          responseText: xhr.responseText
+        });
+        ImageStore.failImage(index);
+      }
+      var callback = function () {
+        queue.uploadFinished();
+        this.uploadHandler();
       }.bind(this);
-      xhr.upload.onprogress = function (e) {
+      var onprogress = function (e) {
         if (e.lengthComputable) {
-          var progress = parseInt(event.loaded / event.total * 100);
+          var progress = parseInt(e.loaded / e.total * 100);
           if (progress >= 100)
             progress = 99;
           ImageStore.updateProgress(index, progress);
         }
-      }.bind(this);
+      };
       queue.uploadStarted();
-      xhr.send(formData);
+      request({
+        method: 'POST',
+        path: '/upload-image',
+        token: this.state.token,
+        success: success,
+        failure: failure,
+        callback: callback,
+        onprogress: onprogress,
+        payload: formData
+      });
     },
     uploadHandler: function () {
       if (queue.size() > 0) {
@@ -1020,17 +1068,23 @@
       var file = image.get('file');
       var a = confirm('Are you sure you want to delete ' + model.get('Title') + '?');
       if (!a) return;
-      var xhr = new XMLHttpRequest();
-      xhr.open('DELETE', '/images/' + model.get('Name'));
-      xhr.setRequestHeader('Authorization', 'Bearer ' + this.state.token);
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-          ImageStore.removeImage(index);
-        } else {
-          console.log(xhr);
-        }
-      };
-      xhr.send();
+      var success = function () {
+        ImageStore.removeImage(index);
+      }
+      var failure = function (xhr) {
+        ErrorStore.updateError({
+          status: xhr.status,
+          statusText: xhr.statusText,
+          responseText: xhr.responseText
+        });
+      }
+      request({
+        method: 'DELETE',
+        path: '/images/' + model.get('Name'),
+        success: success,
+        failure: failure,
+        token: this.state.token
+      });
     },
     componentWillMount: function () {
       ImageStore.onChange = function () {
