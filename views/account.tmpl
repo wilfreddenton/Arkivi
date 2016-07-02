@@ -1,12 +1,16 @@
 {{ define "title" }}<title>Arkivi | account</title>{{ end }}
 {{ define "content" }}
+  <div class="account-username"><span></span><div>
   <form id="settings">
     <label>Default Camera: <input type="text" name="camera"></label>
     <label>Default Film: <input type="text" name="film"></label>
-    <label>Publish uploaded photos automatically: <input type="checkbox" name="public"></label>
-    <div id="admin-settings">
-      <label>Allow account registration (recommended off): <input type="checkbox" name="public"></label>
-    </div>
+    <label>Publish uploaded photos automatically:<br><input type="checkbox" name="public"></label>
+    {{ if .admin }}
+      <div id="admin-settings">
+        <label>Allow account registration (recommended off):<br><input type="checkbox" name="public"></label>
+      </div>
+    {{ end }}
+    <input type="submit" value="submit">
   </form>
 {{ end }}
 {{ define "scripts" }}

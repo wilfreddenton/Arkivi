@@ -96,7 +96,6 @@ var RegisterHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 			Username: username,
 			Password: string(hash),
 			Admin:    admin,
-			Settings: Settings{},
 		}
 		DB.Create(&user)
 		http.Redirect(w, r, "/login", http.StatusMovedPermanently)
@@ -104,7 +103,10 @@ var RegisterHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 })
 
 var AccountHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "account", nil, false)
+	renderTemplate(w, "account", map[string]interface{}{
+		"title":          "Account",
+		"containerClass": "form-page",
+	}, false)
 })
 
 var UploadHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
