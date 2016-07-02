@@ -23,6 +23,8 @@ func initTemplates() {
 	templates["images"] = template.Must(template.ParseFiles(viewsDir+"images.tmpl", layoutsDir+"base.tmpl"))
 	templates["index"] = template.Must(template.ParseFiles(viewsDir+"index.tmpl", layoutsDir+"base.tmpl"))
 	templates["login"] = template.Must(template.ParseFiles(viewsDir+"login.tmpl", layoutsDir+"base.tmpl"))
+	templates["register"] = template.Must(template.ParseFiles(viewsDir+"register.tmpl", layoutsDir+"base.tmpl"))
+	templates["account"] = template.Must(template.ParseFiles(viewsDir+"account.tmpl", layoutsDir+"base.tmpl"))
 	templates["upload"] = template.Must(template.ParseFiles(viewsDir+"upload.tmpl", layoutsDir+"base.tmpl"))
 	templates["editor"] = template.Must(template.ParseFiles(viewsDir + "editor.tmpl"))
 }

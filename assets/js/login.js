@@ -1,16 +1,24 @@
 (function (window) {
   var form = document.getElementById('login');
+  var username = document.getElementById('username');
+  var password = document.getElementById('password');
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState == 4 && xhr.status == 200) {
-        var token = xhr.responseText;
-        window.localStorage.setItem('arkivi-jwt', token);
-        window.location.href = '/upload';
-      }
-    };
-    xhr.open("GET", "/get-token", true);
-    xhr.send();
+    var success = function (xhr) {
+      var token = xhr.responseText;
+      window.localStorage.setItem('arkivi-jwt', token);
+      window.location.href = '/account';
+    }
+    var payload = JSON.stringify({
+      username: username.value,
+      password: password.value
+    });
+    UTILS.request({
+      method: 'POST',
+      path: '/tokens/new',
+      success: success,
+      json: true,
+      payload: payload
+    });
   });
 })(window);

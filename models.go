@@ -6,6 +6,30 @@ import (
 	"time"
 )
 
+// User
+type User struct {
+	gorm.Model
+	Username string
+	Password string
+	Admin    bool
+	Settings Settings
+}
+
+type UserJson struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// Settings
+type Settings struct {
+	gorm.Model
+	UserID       uint
+	Camera       string
+	Film         string
+	Public       bool
+	Registration bool // admin only setting
+}
+
 // Image
 type Image struct {
 	gorm.Model

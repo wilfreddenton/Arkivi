@@ -1,11 +1,12 @@
 {{ define "title" }}<title>Arkivi | login</title>{{ end }}
 {{ define "content" }}
    <form id="login">
-     <input type="text" name="username" placeholder="username">
-     <input type="password" name="password" placeholder="password">
+     <input id="username" type="text" name="username" placeholder="username">
+     <input id="password" type="password" name="password" placeholder="password">
      <input type="submit" value="Submit">
    </form>
 {{ end }}
 {{ define "scripts" }}
+  <script src="/static/js/utils.js"></script>
   <script src="/static/js/login.js"></script>
 {{ end }}

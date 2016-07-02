@@ -1,0 +1,11 @@
+{{ define "title" }}<title>Arkivi | register</title>{{ end }}
+{{ define "content" }}
+   <form id="register" action="/register" method="post">
+     <input type="text" name="username" placeholder="username">
+     <input type="password" name="password" placeholder="password">
+     <input type="password" name="confirm" placeholder="confirm password">
+     <input type="submit" value="Submit">
+   </form>
+{{ end }}
+{{ define "scripts" }}
+{{ end }}

@@ -39,14 +39,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	DB.AutoMigrate(&Image{}, &Tag{})
+	DB.AutoMigrate(&User{}, &Settings{}, &Image{}, &Tag{})
 	var tags []*Tag
 	DB.Find(&tags)
 	for _, tag := range tags {
 		DB.Unscoped().Delete(tag)
 	}
-	tag1 := &Tag{Name: "angelababy"}
-	tag2 := &Tag{Name: "zheng rui xi"}
+	tag1 := &Tag{Name: "nature"}
+	tag2 := &Tag{Name: "space"}
 	tag3 := &Tag{Name: "test"}
 	tag4 := &Tag{Name: "testing"}
 	tag5 := &Tag{Name: "tester"}
@@ -61,10 +61,13 @@ func main() {
 	go h.run()
 	// handlers
 	r.Handle("/", IndexHandler).Methods("GET")
-	r.Handle("/get-token", GetTokenHandler).Methods("GET")
+	r.Handle("/tokens/new", appHandler(NewTokenHandler)).Methods("POST")
 	r.Handle("/login", LoginHandler).Methods("GET")
+	r.Handle("/register", RegisterHandler).Methods("GET", "POST")
+	r.Handle("/account", AccountHandler).Methods("GET")
+	// r.Handle("/account/settings", AccountSettingsHandler).Methods("PUT")
 	r.Handle("/upload", UploadHandler).Methods("GET")
-	r.Handle("/upload-image", jwtMiddleware.Handler(appHandler(UploadImageHandler))).Methods("POST")
+	r.Handle("/upload/image", jwtMiddleware.Handler(appHandler(UploadImageHandler))).Methods("POST")
 	r.Handle("/images/", ImagesHandler).Methods("GET")
 	r.Handle("/images/{name}", appHandler(ImageGetHandler)).Methods("GET")
 	r.Handle("/images/{name}", jwtMiddleware.Handler(appHandler(ImagePutHandler))).Methods("PUT")

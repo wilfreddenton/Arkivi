@@ -9,6 +9,9 @@
 </head>
 <body>
   <div id="content">
+    {{ if .error }}
+      <div id="error"><span>{{ .error }}</span></div>
+    {{ end }}
     {{ template "content" . }}
   </div>
   {{ template "scripts" . }}

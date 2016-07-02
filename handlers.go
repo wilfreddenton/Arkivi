@@ -7,6 +7,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	// "github.com/jinzhu/now"
+	"golang.org/x/crypto/bcrypt"
 	"image"
 	"image/gif"
 	"image/jpeg"
@@ -48,18 +49,94 @@ var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request)
 	renderTemplate(w, "login", nil, false)
 })
 
+var RegisterHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		renderTemplate(w, "register", nil, false)
+	case "POST":
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+		confirm := r.FormValue("confirm")
+		errorMessage := ""
+		if username == "" || password == "" || confirm == "" {
+			errorMessage = "All fields are required."
+		}
+		if password != confirm {
+			errorMessage = "The passwords do not match."
+		}
+		var user User
+		DB.Where("username = ?", username).First(&user)
+		if user != (User{}) {
+			errorMessage = "The username " + username + " is already in use."
+		}
+		admin := false
+		DB.Where("admin = 1").First(&user)
+		if user == (User{}) {
+			admin = true
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			errorMessage = "The password you entered contains invalid characters."
+		}
+		if errorMessage != "" {
+			renderTemplate(w, "register", map[string]interface{}{
+				"error": errorMessage,
+			}, false)
+			return
+		}
+		user = User{
+			Username: username,
+			Password: string(hash),
+			Admin:    admin,
+			Settings: Settings{},
+		}
+		DB.Create(&user)
+		http.Redirect(w, r, "/login", http.StatusMovedPermanently)
+	}
+})
+
+var AccountHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	renderTemplate(w, "account", nil, false)
+})
+
 var UploadHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "upload", nil, false)
 })
 
-// ajax actions
-var GetTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func NewTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
+	var u UserJson
+	err := json.NewDecoder(r.Body).Decode(&u)
+	if err != nil {
+		return &appError{
+			err,
+			"An invalid JSON body was sent.",
+			http.StatusBadRequest,
+		}
+	}
+	var user User
+	DB.Where("username = ?", u.Username).First(&user)
+	if user == (User{}) {
+		return &appError{
+			err,
+			"The username was not found.",
+			http.StatusNotFound,
+		}
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(u.Password))
+	if err != nil {
+		return &appError{
+			err,
+			"The password was incorrect.",
+			http.StatusUnauthorized,
+		}
+	}
 	token := jwt.New(jwt.SigningMethodHS256)
-	token.Claims["userid"] = 3
+	token.Claims["username"] = 3
 	token.Claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 	tokenString, _ := token.SignedString(signingKey)
 	w.Write([]byte(tokenString))
-})
+	return nil
+}
 
 func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 	// index := r.FormValue("index")
