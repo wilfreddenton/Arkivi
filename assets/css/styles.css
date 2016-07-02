@@ -31,8 +31,44 @@ input[type="submit"] {
   text-align: right;
   text-decoration: underline;
 }
+input[type="text"],
+input[type="password"],
+input[type="date"],
+input[type="checkbox"],
+input[type="submit"] {
+  outline: none;
+  width: 100%;
+  font-size: 18px;
+  font-weight: bold;
+  border-left: 0;
+  max-width: 100%;
+  border-right: 0;
+  border-top: 0;
+  border-bottom: 1px solid #ccc;
+}
+input[type="submit"] {
+  border: none;
+}
+textarea {
+  outline: none;
+  width: 100%;
+  border: 1px solid #ccc;
+  max-width: 100%;
+  padding: 5px 7px;
+  font-size: 15px;
+}
+label {
+  font-size: 18px;
+  display: block;
+  margin-bottom: 10px;
+  margin-top: 20px;
+}
 #content {
   margin: 0 auto;
+}
+.form-page {
+  margin: 0 auto;
+  max-width: 300px;
 }
 .row {
   margin: 0;
@@ -72,32 +108,6 @@ input[type="submit"] {
 .editor div {
   padding: 0;
 }
-.editor input {
-  outline: none;
-  width: 100%;
-  font-size: 18px;
-  font-weight: bold;
-  border-left: 0;
-  max-width: 100%;
-  border-right: 0;
-  border-top: 0;
-  border-bottom: 1px solid #ccc;
-}
-.editor textarea {
-  outline: none;
-  width: 100%;
-  border: 1px solid #ccc;
-  max-width: 100%;
-  padding: 5px 7px;
-  font-size: 15px;
-}
-.editor label {
-  font-size: 18px;
-  display: block;
-  margin-bottom: 10px;
-  margin-top: 20px;
-}
-
 .editor .editor-submit {
   border: 0;
   padding: 15px 0 0;
@@ -471,13 +481,13 @@ input[type="submit"] {
   .editor {
     padding-left: 95px;
   }
-  .editor label {
+  label {
     font-size: 15px;
   }
-  .editor input {
+  input {
     font-size: 15px;
   }
-  .editor textarea {
+  textarea {
     font-size: 12px;
   }
   .preview {

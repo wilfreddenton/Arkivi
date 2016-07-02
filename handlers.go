@@ -46,13 +46,19 @@ var IndexHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request)
 })
 
 var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "login", nil, false)
+	renderTemplate(w, "login", map[string]interface{}{
+		"title":          "Login",
+		"containerClass": "form-page",
+	}, false)
 })
 
 var RegisterHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		renderTemplate(w, "register", nil, false)
+		renderTemplate(w, "register", map[string]interface{}{
+			"title":          "Register",
+			"containerClass": "form-page",
+		}, false)
 	case "POST":
 		username := r.FormValue("username")
 		password := r.FormValue("password")
@@ -80,7 +86,9 @@ var RegisterHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 		}
 		if errorMessage != "" {
 			renderTemplate(w, "register", map[string]interface{}{
-				"error": errorMessage,
+				"title":          "Register",
+				"containerClass": "form-page",
+				"error":          errorMessage,
 			}, false)
 			return
 		}
@@ -243,9 +251,8 @@ func ImageGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 
 func ImagePutHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Image Handler: PUT")
-	d := json.NewDecoder(r.Body)
 	var updatedImg ImageJson
-	err := d.Decode(&updatedImg)
+	err := json.NewDecoder(r.Body).Decode(&updatedImg)
 	if err != nil {
 		return &appError{
 			err,
@@ -340,9 +347,8 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	fmt.Println(name)
-	d := json.NewDecoder(r.Body)
 	var action Action
-	err := d.Decode(&action)
+	err := json.NewDecoder(r.Body).Decode(&action)
 	if err != nil {
 		return &appError{
 			err,

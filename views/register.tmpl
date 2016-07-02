@@ -1,11 +1,13 @@
 {{ define "title" }}<title>Arkivi | register</title>{{ end }}
 {{ define "content" }}
-   <form id="register" action="/register" method="post">
-     <input type="text" name="username" placeholder="username">
-     <input type="password" name="password" placeholder="password">
-     <input type="password" name="confirm" placeholder="confirm password">
-     <input type="submit" value="Submit">
-   </form>
+   <div class="form-page">
+    <form id="register" action="/register" method="post">
+      <label>Username:<br><input type="text" name="username"></label>
+      <label>Password:<br><input type="password" name="password"></label>
+      <label>Confirm Password:<br><input type="password" name="confirm"></label>
+      <input type="submit" value="Submit">
+    </form>
+  </div>
 {{ end }}
 {{ define "scripts" }}
 {{ end }}
