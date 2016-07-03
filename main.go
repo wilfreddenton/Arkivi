@@ -62,6 +62,8 @@ func main() {
 	// handlers
 	r.Handle("/", IndexHandler).Methods("GET")
 	r.Handle("/tokens/new", appHandler(NewTokenHandler)).Methods("POST")
+	r.Handle("/tokens/verify", jwtMiddleware.Handler(VerifyTokenHandler)).Methods("GET")
+	r.Handle("/tokens/ping", jwtMiddleware.Handler(appHandler(PingTokenHandler))).Methods("GET")
 	r.Handle("/login", LoginHandler).Methods("GET")
 	r.Handle("/register", RegisterHandler).Methods("GET", "POST")
 	r.Handle("/account", AccountHandler).Methods("GET")

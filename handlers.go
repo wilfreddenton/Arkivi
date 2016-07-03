@@ -140,11 +140,28 @@ func NewTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
 			http.StatusUnauthorized,
 		}
 	}
-	token := jwt.New(jwt.SigningMethodHS256)
-	token.Claims["username"] = 3
-	token.Claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
-	tokenString, _ := token.SignedString(signingKey)
+	tokenString := newToken(user.Username, user.Admin)
 	w.Write([]byte(tokenString))
+	return nil
+}
+
+var VerifyTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("authorized"))
+})
+
+func PingTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
+	tokenString := strings.Split(r.Header.Get("Authorization"), " ")[1]
+	token, err := jwt.Parse(tokenString, keyLookupFunc)
+	if err != nil {
+		return &appError{
+			err,
+			"Token could not be parsed.",
+			http.StatusInternalServerError,
+		}
+	}
+	claims := token.Claims.(jwt.MapClaims)
+	t := newToken(claims["username"].(string), claims["admin"].(bool))
+	w.Write([]byte(t))
 	return nil
 }
 

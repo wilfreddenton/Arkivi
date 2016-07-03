@@ -10,14 +10,15 @@ import (
 	"time"
 )
 
+func keyLookupFunc(token *jwt.Token) (interface{}, error) {
+	if token.Method.Alg() != "HS256" {
+		return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+	}
+	return signingKey, nil
+}
+
 func verifyToken(t string) bool {
-	_, err := jwt.Parse(t, func(token *jwt.Token) (interface{}, error) {
-		if token.Method.Alg() != "HS256" {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-		return signingKey, nil
-	})
-	if err != nil {
+	if _, err := jwt.Parse(t, keyLookupFunc); err != nil {
 		return false
 	} else {
 		return true
@@ -62,4 +63,14 @@ func IsNameUnique(name string) bool {
 		return true
 	}
 	return false
+}
+
+func newToken(username string, admin bool) string {
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["username"] = username
+	claims["admin"] = admin
+	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+	tokenString, _ := token.SignedString(signingKey)
+	return tokenString
 }
