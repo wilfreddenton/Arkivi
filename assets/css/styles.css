@@ -38,7 +38,7 @@ input[type="checkbox"],
 input[type="submit"] {
   outline: none;
   width: 100%;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: bold;
   border-left: 0;
   max-width: 100%;
@@ -58,7 +58,7 @@ textarea {
   font-size: 15px;
 }
 label {
-  font-size: 18px;
+  font-size: 16px;
   display: block;
   margin-bottom: 10px;
   margin-top: 20px;
@@ -463,6 +463,14 @@ label {
   width: auto;
   max-width: 100%;
   max-height: 100vh;
+}
+
+.account-info {
+  font-size: 16px;
+}
+.account-info #message {
+  display: block;
+  margin-top: 20px;
 }
 
 @media (max-width: 800px) {

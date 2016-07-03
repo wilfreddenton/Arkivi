@@ -52,7 +52,20 @@ var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request)
 	}, false)
 })
 
-var RegisterHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func RegisterHandler(w http.ResponseWriter, r *http.Request) *appError {
+	var admin User
+	DB.Where("admin = 1").First(&admin)
+	if admin != (User{}) {
+		var settings Settings
+		DB.Model(&admin).Related(&settings)
+		if !settings.Registration {
+			return &appError{
+				errors.New("An attempt at registering has failed because the current admin has turned off registration."),
+				"The current admin has turned off registration.",
+				http.StatusUnauthorized,
+			}
+		}
+	}
 	switch r.Method {
 	case "GET":
 		renderTemplate(w, "register", map[string]interface{}{
@@ -90,7 +103,7 @@ var RegisterHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 				"containerClass": "form-page",
 				"error":          errorMessage,
 			}, false)
-			return
+			return nil
 		}
 		user = User{
 			Username: username,
@@ -98,9 +111,14 @@ var RegisterHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 			Admin:    admin,
 		}
 		DB.Create(&user)
+		settings := Settings{
+			UserID: user.ID,
+		}
+		DB.Create(&settings)
 		http.Redirect(w, r, "/login", http.StatusMovedPermanently)
 	}
-})
+	return nil
+}
 
 var AccountHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "account", map[string]interface{}{
@@ -108,6 +126,36 @@ var AccountHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 		"containerClass": "form-page",
 	}, false)
 })
+
+func AccountSettingsHandler(w http.ResponseWriter, r *http.Request) *appError {
+	var settings Settings
+	err := json.NewDecoder(r.Body).Decode(&settings)
+	if err != nil {
+		return &appError{
+			err,
+			"An invalid JSON body was sent.",
+			http.StatusBadRequest,
+		}
+	}
+	claims, err := getClaimsFromRequestToken(r)
+	var user User
+	DB.Where("id = ?", settings.UserID).First(&user)
+	if user.Username != claims["username"] {
+		return &appError{
+			errors.New("A user attempted to change another users settings."),
+			"You are not authorized to make changes to another users settings.",
+			http.StatusUnauthorized,
+		}
+	}
+	DB.Table("settings").Where("id = ?", settings.ID).Updates(map[string]interface{}{
+		"Camera":       settings.Camera,
+		"Film":         settings.Film,
+		"Public":       settings.Public,
+		"Registration": settings.Registration,
+	})
+	w.Write([]byte("success"))
+	return nil
+}
 
 var UploadHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "upload", nil, false)
@@ -210,6 +258,11 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 	} else {
 		b = img.Bounds()
 	}
+	claims, err := getClaimsFromRequestToken(r)
+	var user User
+	var settings Settings
+	DB.Where("username = ?", claims["username"]).First(&user)
+	DB.Model(&user).Related(&settings)
 	imgModel := &Image{
 		Title:     title,
 		Name:      name,
@@ -217,7 +270,9 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 		Width:     b.Dx(),
 		Height:    b.Dy(),
 		TakenAt:   nil,
-		Published: false,
+		Camera:    settings.Camera,
+		Film:      settings.Film,
+		Published: settings.Public,
 	}
 	p := &ImageProcessor{imgModel, img, gifImg}
 	p.CreateResizes()
@@ -430,6 +485,7 @@ func TokenUserHandler(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	var user User
 	DB.Where("username = ?", claims["username"]).First(&user)
+	DB.Model(&user).Related(&(user.Settings))
 	json.NewEncoder(w).Encode(user)
 	return nil
 }
