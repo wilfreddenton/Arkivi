@@ -270,6 +270,7 @@ label {
 #action-bar .action-bar-submit {
   font-size: 18px;
   color: #007CFF;
+  padding-right: 20px;
 }
 #action-bar .action-bar-primary {
   outline: none;
@@ -562,6 +563,9 @@ label {
 @media (max-width: 500px) {
   #action-bar {
     padding: 0 20px;
+  }
+  #action-bar .action-bar-submit {
+    padding-right: 0px;
   }
   #action-bar .action-bar-primary {
     padding: 0 20px 0 0;

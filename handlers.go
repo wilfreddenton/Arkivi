@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
+	// "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	// "github.com/jinzhu/now"
 	"golang.org/x/crypto/bcrypt"
@@ -150,8 +150,7 @@ var VerifyTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 })
 
 func PingTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
-	tokenString := strings.Split(r.Header.Get("Authorization"), " ")[1]
-	token, err := jwt.Parse(tokenString, keyLookupFunc)
+	claims, err := getClaimsFromRequestToken(r)
 	if err != nil {
 		return &appError{
 			err,
@@ -159,7 +158,6 @@ func PingTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
 			http.StatusInternalServerError,
 		}
 	}
-	claims := token.Claims.(jwt.MapClaims)
 	t := newToken(claims["username"].(string), claims["admin"].(bool))
 	w.Write([]byte(t))
 	return nil
@@ -418,5 +416,20 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 			}
 		}
 	}
+	return nil
+}
+
+func TokenUserHandler(w http.ResponseWriter, r *http.Request) *appError {
+	claims, err := getClaimsFromRequestToken(r)
+	if err != nil {
+		return &appError{
+			err,
+			"Token could not be parsed.",
+			http.StatusInternalServerError,
+		}
+	}
+	var user User
+	DB.Where("username = ?", claims["username"]).First(&user)
+	json.NewEncoder(w).Encode(user)
 	return nil
 }

@@ -76,6 +76,7 @@ func main() {
 	r.Handle("/images/{name}", jwtMiddleware.Handler(appHandler(ImageDeleteHandler))).Methods("DELETE")
 	r.Handle("/actions/{name}", jwtMiddleware.Handler(appHandler(ActionHandler))).Methods("PUT")
 	r.Handle("/tags/", TagsHandler).Methods("GET")
+	r.Handle("/users/token", appHandler(TokenUserHandler)).Methods("GET")
 	r.Handle("/ws", wsHandler{h: h})
 	r.Handle("/editor-view", jwtMiddleware.Handler(EditorViewHandler)).Methods("GET")
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("assets/"))))

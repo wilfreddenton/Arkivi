@@ -1,12 +1,15 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"image"
 	"image/color/palette"
 	"image/draw"
 	"math/rand"
+	"net/http"
+	"strings"
 	"time"
 )
 
@@ -73,4 +76,19 @@ func newToken(username string, admin bool) string {
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 	tokenString, _ := token.SignedString(signingKey)
 	return tokenString
+}
+
+func getClaimsFromRequestToken(r *http.Request) (jwt.MapClaims, error) {
+	var claims jwt.MapClaims
+	split := strings.Split(r.Header.Get("Authorization"), " ")
+	if len(split) != 2 {
+		return claims, errors.New("Authorization header not sent or not properly formatted.")
+	}
+	tokenString := split[1]
+	token, err := jwt.Parse(tokenString, keyLookupFunc)
+	if err != nil {
+		return claims, err
+	}
+	claims = token.Claims.(jwt.MapClaims)
+	return claims, nil
 }

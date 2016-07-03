@@ -5,11 +5,9 @@
     <label>Default Camera: <input type="text" name="camera"></label>
     <label>Default Film: <input type="text" name="film"></label>
     <label>Publish uploaded photos automatically:<br><input type="checkbox" name="public"></label>
-    {{ if .admin }}
-      <div id="admin-settings">
-        <label>Allow account registration (recommended off):<br><input type="checkbox" name="public"></label>
-      </div>
-    {{ end }}
+    <div id="admin-settings">
+      <label>Allow account registration (recommended off):<br><input type="checkbox" name="public"></label>
+    </div>
     <input type="submit" value="submit">
   </form>
 {{ end }}
