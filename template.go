@@ -20,12 +20,13 @@ func initTemplates() {
 	layoutsDir := "layouts/"
 	viewsDir := "views/"
 	templates["image"] = template.Must(template.ParseFiles(viewsDir+"image.tmpl", layoutsDir+"base.tmpl"))
-	templates["images"] = template.Must(template.ParseFiles(viewsDir+"images.tmpl", layoutsDir+"base.tmpl"))
+	templates["images"] = template.Must(template.ParseFiles(viewsDir+"images.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
+	templates["tags"] = template.Must(template.ParseFiles(viewsDir+"tags.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
 	templates["index"] = template.Must(template.ParseFiles(viewsDir+"index.tmpl", layoutsDir+"base.tmpl"))
-	templates["login"] = template.Must(template.ParseFiles(viewsDir+"login.tmpl", layoutsDir+"base.tmpl"))
-	templates["register"] = template.Must(template.ParseFiles(viewsDir+"register.tmpl", layoutsDir+"base.tmpl"))
-	templates["account"] = template.Must(template.ParseFiles(viewsDir+"account.tmpl", layoutsDir+"base.tmpl"))
-	templates["upload"] = template.Must(template.ParseFiles(viewsDir+"upload.tmpl", layoutsDir+"base.tmpl"))
+	templates["login"] = template.Must(template.ParseFiles(viewsDir+"login.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
+	templates["register"] = template.Must(template.ParseFiles(viewsDir+"register.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
+	templates["account"] = template.Must(template.ParseFiles(viewsDir+"account.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
+	templates["upload"] = template.Must(template.ParseFiles(viewsDir+"upload.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
 	templates["editor"] = template.Must(template.ParseFiles(viewsDir + "editor.tmpl"))
 }
 

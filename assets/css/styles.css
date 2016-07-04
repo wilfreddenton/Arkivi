@@ -13,6 +13,43 @@ body.drag {
 body.dragover {
   background-color: #ccc;
 }
+.topbar {
+  border-bottom: 1px solid #ccc;;
+}
+nav .container {
+  max-width: 800px;
+  text-align: center;
+}
+nav ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+nav ul li {
+  display: inline-block;
+  margin: 0 15px;
+  font-size: 16px;
+  padding: 15px 0;
+}
+nav {
+  text-align: center;
+}
+.pagination {
+  display: inline-block;
+  margin-bottom: 40px;
+}
+nav .pagination li {
+  margin: 0;
+  padding: 3px 8px;
+  cursor: pointer;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}
+nav .pagination li.active {
+  border: 1px solid #2B3046;
+}
 a {
   color: #007CFF;
   text-decoration: underline;
@@ -312,7 +349,7 @@ label {
   max-width: 800px;
   position: relative;
   display: block;
-  margin: 0 auto 60px;
+  margin: 0 auto 40px;
   padding: 0;
 }
 #previews .more-buttons {

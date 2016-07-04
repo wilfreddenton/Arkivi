@@ -20,6 +20,14 @@ type UserJson struct {
 	Password string `json:"password"`
 }
 
+type UserSendJson struct {
+	CreatedAt time.Time
+	Username  string
+	Admin     bool
+	NumImages int
+	Settings  Settings
+}
+
 // Settings
 type Settings struct {
 	gorm.Model
@@ -33,6 +41,7 @@ type Settings struct {
 // Image
 type Image struct {
 	gorm.Model
+	UserID      uint
 	Title       string
 	Description string `gorm:"size:1500"`
 	TakenAt     *time.Time
@@ -78,6 +87,10 @@ func (i *Image) GetPaths() []string {
 	return paths
 }
 
+type ImageMini struct {
+	ID int
+}
+
 type ImageJson struct {
 	ID          int
 	Title       string
@@ -97,6 +110,11 @@ type Tag struct {
 
 type TagJson struct {
 	Name string
+}
+
+type TagCountJson struct {
+	Name  string
+	Count int
 }
 
 // Action

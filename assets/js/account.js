@@ -5,6 +5,7 @@
   var message = document.getElementById('message');
   var username = document.getElementById('username'),
       createdAt = document.getElementById('created-at'),
+      numImages = document.getElementById('num-images'),
       camera = document.getElementById('camera'),
       film = document.getElementById('film'),
       public = document.getElementById('public'),
@@ -39,6 +40,7 @@
     USER = user;
     username.innerHTML = user.Username;
     createdAt.innerHTML = moment(user.CreatedAt).format('MMMM Do YYYY, h:mm:ss a');
+    numImages.innerHTML = user.NumImages;
     camera.value = user.Settings.Camera;
     film.value = user.Settings.Film;
     public.checked = user.Settings.Public;

@@ -264,6 +264,7 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 	DB.Where("username = ?", claims["username"]).First(&user)
 	DB.Model(&user).Related(&settings)
 	imgModel := &Image{
+		UserID:    user.ID,
 		Title:     title,
 		Name:      name,
 		Ext:       ext,
@@ -393,17 +394,35 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 var TagsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Tags Handler")
 	q := r.URL.Query()
-	query := q["query"][0]
-	currentTags := []string{""}
-	if len(q["currentTags"]) > 0 {
-		currentTags = strings.Split(q["currentTags"][0], ",")
-	}
-	var tags []*Tag
-	DB.Where("name LIKE ?", "%"+query+"%").Not("name", currentTags).Find(&tags)
-	if len(q["json"]) > 0 && q["json"][0] == "true" {
-		w.Header().Set("Content-Type", "application/javascript")
-		json.NewEncoder(w).Encode(tags)
-		return
+	if len(q["query"]) > 0 {
+		query := q["query"][0]
+		currentTags := []string{""}
+		if len(q["currentTags"]) > 0 {
+			currentTags = strings.Split(q["currentTags"][0], ",")
+		}
+		var tags []*Tag
+		DB.Where("name LIKE ?", "%"+query+"%").Not("name", currentTags).Find(&tags)
+		if len(q["json"]) > 0 && q["json"][0] == "true" {
+			w.Header().Set("Content-Type", "application/javascript")
+			json.NewEncoder(w).Encode(tags)
+			return
+		}
+	} else {
+		var tags []TagCountJson
+		DB.Raw(`SELECT name, count(image_tags.image_id) FROM tags
+            LEFT JOIN image_tags ON tags.id = image_tags.tag_id
+            GROUP BY tags.id
+            ORDER BY name`).Scan(&tags)
+		if len(q["json"]) > 0 && q["json"][0] == "true" {
+			w.Header().Set("Content-Type", "application/javascript")
+			json.NewEncoder(w).Encode(tags)
+			return
+		}
+		renderTemplate(w, "tags", map[string]interface{}{
+			"title":          "Tags",
+			"containerClass": "form-page",
+			"tags":           tags,
+		}, false)
 	}
 })
 
@@ -484,8 +503,17 @@ func TokenUserHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	var user User
+	var images []ImageMini
 	DB.Where("username = ?", claims["username"]).First(&user)
 	DB.Model(&user).Related(&(user.Settings))
-	json.NewEncoder(w).Encode(user)
+	DB.Raw("SELECT id FROM images WHERE user_id = ? AND deleted_at IS NULL", user.ID).Scan(&images)
+	u := UserSendJson{
+		CreatedAt: user.CreatedAt,
+		Username:  user.Username,
+		Admin:     user.Admin,
+		NumImages: len(images),
+		Settings:  user.Settings,
+	}
+	json.NewEncoder(w).Encode(u)
 	return nil
 }

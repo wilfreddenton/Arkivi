@@ -8,6 +8,7 @@
   <link rel="stylesheet" type="text/css" href="/static/css/styles.css">
 </head>
 <body>
+  {{ template "nav" . }}
   <div id="content" class="{{ .containerClass | }}">
     {{ if .title }}
       <h1>{{ .title }}</h1>
@@ -23,4 +24,5 @@
 {{ end }}
 // We define empty blocks for optional content so we don't have to
 // define a block in child templates that don't need them
+{{ define "nav" }}{{ end }}
 {{ define "scripts" }}{{ end }}

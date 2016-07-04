@@ -868,28 +868,18 @@
   var Previews = React.createClass({
     propTypes: {
       token: React.PropTypes.string,
-      showLimit: React.PropTypes.number,
+      currentPage: React.PropTypes.number,
+      pageCount: React.PropTypes.number,
       onloadHandler: React.PropTypes.func,
       deleteHandler: React.PropTypes.func
-    },
-    getInitialState: function () {
-      return { showLimitMult: 1 }
-    },
-    moreHandler: function (e) {
-      switch (e.target) {
-      case this.refs.more:
-        this.setState({ showLimitMult: this.state.showLimitMult + 1 })
-        break
-      case this.refs.rest:
-        this.setState({ showLimitMult: Math.ceil(this.props.images.size / this.props.showLimit) });
-        break
-      }
     },
     render: function () {
       var previews = [];
       var numImages = this.props.images.size;
-      var limit = Math.min(numImages, this.props.showLimit * this.state.showLimitMult);
-      for (var i = 0; i < limit; i += 1) {
+      var start =  this.props.currentPage * this.props.pageCount;
+      var limit = Math.min(numImages, start + this.props.pageCount);
+      console.log(start, limit)
+      for (var i = start; i < limit; i += 1) {
         var image = this.props.images.get(i);
         previews.push(React.createElement(Preview, {
           key: image.get('file').name + i.toString(),
@@ -900,27 +890,8 @@
           deleteHandler: this.props.deleteHandler
         }));
       }
-      var moreButtonsDisplay = 'none';
-      var rest = numImages - limit;
-      var more = Math.min(rest, this.props.showLimit);
-      if (rest > 0)
-        moreButtonsDisplay = 'block';
       return (
-        React.DOM.ul({ id: 'previews' },
-                     previews,
-                     React.DOM.div({ className: 'row more-buttons', style: { display: moreButtonsDisplay } },
-                                   React.DOM.div({ className: 'col-xs-6' },
-                                                 React.DOM.span({
-                                                   ref: 'more',
-                                                   onClick: this.moreHandler,
-                                                   className: 'more-button'
-                                                 }, 'show ' + more + ' more')),
-                                   React.DOM.div({ className: 'col-xs-6' },
-                                                 React.DOM.span({
-                                                   ref: 'rest',
-                                                   onClick: this.moreHandler,
-                                                   className: 'more-button'
-                                                 }, 'show rest (' + rest + ')'))))
+        React.DOM.ul({ id: 'previews' }, previews)
       );
     }
   });
@@ -979,6 +950,8 @@
     getInitialState: function () {
       return {
         error: null,
+        currentPage: 0,
+        pageCount: 3,
         token: '',
         images: ImageStore.images
       };
@@ -1062,6 +1035,9 @@
         token: this.state.token
       });
     },
+    pageChangeHandler: function (page) {
+      this.setState({ currentPage: page });
+    },
     componentWillMount: function () {
       ImageStore.onChange = function () {
         this.setState({ images: ImageStore.images });
@@ -1082,6 +1058,13 @@
       this.setState({ token: token });
     },
     render: function () {
+      var numPages = Math.ceil(this.state.images.size / this.state.pageCount);
+      var pager = numPages > 1 ? React.createElement(Pager, {
+        total: numPages,
+        current: this.state.currentPage,
+        visiblePages: 3,
+        onPageChanged: this.pageChangeHandler
+      }) : null;
       return (
         React.DOM.div({ id: 'uploader' },
                       React.createElement(Error, null),
@@ -1098,11 +1081,13 @@
                         images: this.state.images
                       }),
                       React.createElement(Previews, {
-                        showLimit: 50,
+                        currentPage: this.state.currentPage,
+                        pageCount: this.state.pageCount,
                         images: this.state.images,
                         token: this.state.token,
                         deleteHandler: this.deleteHandler
                       }),
+                      pager,
                       React.DOM.form({
                         ref: 'form',
                         id: 'img-form',

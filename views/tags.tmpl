@@ -1,0 +1,15 @@
+{{ define "title" }}<title>Arkivi | tags</title>{{ end }}
+{{ define "content" }}
+  <ul id="tags">
+    {{ range .tags }}
+      <a href="/images/tag/{{ .Name }}" title="images tagged with {{ .Name }}">
+        <li>
+          <div class="row">
+            <div class="col-xs-8"><span>{{ .Name }}</span></div>
+            <div class="col-xs-4"><span>{{ .Count }}</span></div>
+          </div>
+        </li>
+      </a>
+    {{ end }}
+  </ul>
+{{ end }}
