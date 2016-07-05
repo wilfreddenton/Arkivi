@@ -41,6 +41,7 @@ type Settings struct {
 // Image
 type Image struct {
 	gorm.Model
+	MonthID     uint
 	UserID      uint
 	Title       string
 	Description string `gorm:"size:1500"`
@@ -121,4 +122,12 @@ type TagCountJson struct {
 type Action struct {
 	IDs   []int
 	Value interface{}
+}
+
+// Month
+type Month struct {
+	gorm.Model
+	Month     string
+	Year      int
+	NumImages int
 }

@@ -1,0 +1,15 @@
+{{ define "title" }}<title>Arkivi | chronology</title>{{ end }}
+{{ define "content" }}
+  <ul id="months">
+    {{ range .months }}
+      <a href="/{{ .Year }}/{{ .Month }}" title="{{ .Month }} - {{ .Year }}">
+        <li>
+          <div class="row">
+            <div class="col-xs-8"><span>{{ .Month }} {{ .Year }}</span></div>
+            <div class="col-xs-4"><span>{{ .NumImages }}</span></div>
+          </div>
+        </li>
+      </a>
+    {{ end }}
+  </ul>
+{{ end }}

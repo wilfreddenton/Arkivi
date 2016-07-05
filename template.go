@@ -22,7 +22,7 @@ func initTemplates() {
 	templates["image"] = template.Must(template.ParseFiles(viewsDir+"image.tmpl", layoutsDir+"base.tmpl"))
 	templates["images"] = template.Must(template.ParseFiles(viewsDir+"images.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
 	templates["tags"] = template.Must(template.ParseFiles(viewsDir+"tags.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
-	templates["index"] = template.Must(template.ParseFiles(viewsDir+"index.tmpl", layoutsDir+"base.tmpl"))
+	templates["chronology"] = template.Must(template.ParseFiles(viewsDir+"chronology.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
 	templates["login"] = template.Must(template.ParseFiles(viewsDir+"login.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
 	templates["register"] = template.Must(template.ParseFiles(viewsDir+"register.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
 	templates["account"] = template.Must(template.ParseFiles(viewsDir+"account.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))

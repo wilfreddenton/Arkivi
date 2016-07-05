@@ -39,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	DB.AutoMigrate(&User{}, &Settings{}, &Image{}, &Tag{})
+	DB.AutoMigrate(&User{}, &Settings{}, &Image{}, &Tag{}, &Month{})
 	var tags []*Tag
 	DB.Find(&tags)
 	for _, tag := range tags {

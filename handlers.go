@@ -42,7 +42,13 @@ var EditorViewHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 
 // pages
 var IndexHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "index", nil, false)
+	var months []Month
+	DB.Order("id desc").Find(&months)
+	renderTemplate(w, "chronology", map[string]interface{}{
+		"months":         months,
+		"title":          "Chronology",
+		"containerClass": "form-page",
+	}, false)
 })
 
 var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -138,12 +144,19 @@ func AccountSettingsHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	claims, err := getClaimsFromRequestToken(r)
+	if err != nil {
+		return &appError{
+			err,
+			"Token could not be parsed.",
+			http.StatusInternalServerError,
+		}
+	}
 	var user User
 	DB.Where("id = ?", settings.UserID).First(&user)
 	if user.Username != claims["username"] {
 		return &appError{
-			errors.New("A user attempted to change another users settings."),
-			"You are not authorized to make changes to another users settings.",
+			errors.New("A user attempted to change another user's settings."),
+			"You are not authorized to make changes to another user's settings.",
 			http.StatusUnauthorized,
 		}
 	}
@@ -259,6 +272,13 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 		b = img.Bounds()
 	}
 	claims, err := getClaimsFromRequestToken(r)
+	if err != nil {
+		return &appError{
+			err,
+			"Token could not be parsed.",
+			http.StatusInternalServerError,
+		}
+	}
 	var user User
 	var settings Settings
 	DB.Where("username = ?", claims["username"]).First(&user)
@@ -277,6 +297,22 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	p := &ImageProcessor{imgModel, img, gifImg}
 	p.CreateResizes()
+	t := time.Now()
+	m := t.Month().String()
+	y := t.Year()
+	var month Month
+	DB.Where("month = ? AND year = ?", m, y).First(&month)
+	if month == (Month{}) {
+		month = Month{
+			Month:     m,
+			Year:      y,
+			NumImages: 1,
+		}
+		DB.Create(&month)
+	} else {
+		DB.Model(&month).Update("num_images", month.NumImages+1)
+	}
+	p.ImageModel.MonthID = month.ID
 	p.ImageModel.Save()
 	json.NewEncoder(w).Encode(p.ImageModel)
 	return nil
@@ -335,6 +371,23 @@ func ImagePutHandler(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	var img Image
 	DB.Where("id = ?", updatedImg.ID).First(&img)
+	claims, err := getClaimsFromRequestToken(r)
+	if err != nil {
+		return &appError{
+			err,
+			"Token could not be parsed.",
+			http.StatusInternalServerError,
+		}
+	}
+	var user User
+	DB.Where("id = ?", img.UserID).First(&user)
+	if user.Username != claims["username"] {
+		return &appError{
+			errors.New("A user attempted to change another user's photo."),
+			"You are not authorized to make changes to another user's photo.",
+			http.StatusUnauthorized,
+		}
+	}
 	var takenAt interface{}
 	takenAt, err = time.Parse("2006-01-02", updatedImg.TakenAt)
 	if err != nil {
@@ -373,10 +426,39 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 			http.StatusNotFound,
 		}
 	}
-	var image Image
-	DB.Where("name = ?", name).First(&image)
-	paths := image.GetPaths()
-	DB.Delete(&image)
+	var img Image
+	DB.Where("name = ?", name).First(&img)
+	claims, err := getClaimsFromRequestToken(r)
+	if err != nil {
+		return &appError{
+			err,
+			"Token could not be parsed.",
+			http.StatusInternalServerError,
+		}
+	}
+	var user User
+	DB.Where("id = ?", img.UserID).First(&user)
+	if user.Username != claims["username"] {
+		return &appError{
+			errors.New("A user attempted to delete another user's photo."),
+			"You are not authorized to delete another user's photo.",
+			http.StatusUnauthorized,
+		}
+	}
+	currentMonth := time.Now().Month().String()
+	var m Month
+	DB.Where("id = ?", img.MonthID).First(&m)
+	if m.NumImages-1 < 1 {
+		if m.Month == currentMonth {
+			DB.Model(&m).Update("num_images", 0)
+		} else {
+			DB.Delete(&m)
+		}
+	} else {
+		DB.Model(&m).Update("num_images", m.NumImages-1)
+	}
+	paths := img.GetPaths()
+	DB.Delete(&img)
 	for _, path := range paths {
 		err := os.Remove(path)
 		if err != nil {
@@ -409,7 +491,7 @@ var TagsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		}
 	} else {
 		var tags []TagCountJson
-		DB.Raw(`SELECT name, count(image_tags.image_id) FROM tags
+		DB.Raw(`SELECT name, COUNT(image_tags.image_id) FROM tags
             LEFT JOIN image_tags ON tags.id = image_tags.tag_id
             GROUP BY tags.id
             ORDER BY name`).Scan(&tags)
@@ -475,10 +557,23 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 		var paths []string
 		var models []Image
 		DB.Where("id IN (?)", action.IDs).Find(&models)
-		DB.Where("id IN (?)", action.IDs).Delete(Image{})
 		for _, model := range models {
+			// get paths
 			paths = append(paths, model.GetPaths()...)
+			// process month
+			var m Month
+			currentMonth := time.Now().Month().String()
+			DB.Where("id = ?", model.MonthID).Find(&m)
+			if m.NumImages-1 < 1 && m.Month != currentMonth {
+				DB.Delete(&m)
+			}
+			num := m.NumImages - 1
+			if num < 0 {
+				num = 0
+			}
+			DB.Model(&m).Update("num_images", num)
 		}
+		DB.Where("id IN (?)", action.IDs).Delete(Image{})
 		for _, path := range paths {
 			err := os.Remove(path)
 			if err != nil {
