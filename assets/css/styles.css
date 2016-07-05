@@ -141,7 +141,6 @@ label {
   padding-left: 130px;
   padding-top: 10px;
   padding-bottom: 20px;
-  padding-right: 20px;
 }
 .editor div {
   padding: 0;
@@ -244,6 +243,7 @@ label {
   max-width: 800px;
   padding: 10px 0;
   margin: 0 auto;
+  padding: 0 15px;
   position: relative;
 }
 #action-bar div {
@@ -307,7 +307,7 @@ label {
 #action-bar .action-bar-submit {
   font-size: 18px;
   color: #007CFF;
-  padding-right: 20px;
+  padding-right: 0;
 }
 #action-bar .action-bar-primary {
   outline: none;
@@ -369,6 +369,7 @@ label {
   margin-top: 15px;
   background-color: white;
   position: relative;
+  padding: 0 15px;
 }
 .preview:first-child {
 }
@@ -414,7 +415,7 @@ label {
 }
 .preview .preview-delete {
   text-align: right;
-  padding: 0 25px 0 0;
+  padding: 0;
   font-size: 18px;
   color: #D23B66;
   cursor: pointer;
@@ -445,15 +446,15 @@ label {
   font-size: 23px;
   width: 100%;
   margin-top: 2px;
-  padding-right: 20px;
   text-align: right;
   display: inline-block;
 }
 .preview .preview-edit {
   font-size: 18px;
   float: right;
-  margin-right: 20px;
+  margin-right: 0;
   margin-top: 2px;
+  padding-right: 0;
   display: block;
   background-color: transparent;
   border: 0;
@@ -547,7 +548,7 @@ label {
   }
   .preview .preview-description {
     padding-top: 6px;
-    padding-left: 95px;
+    padding-left: 90px;
     padding-bottom: 7px;
   }
   .preview .preview-size {
@@ -606,12 +607,6 @@ label {
   }
 }
 @media (max-width: 500px) {
-  #action-bar {
-    padding: 0 20px;
-  }
-  #action-bar .action-bar-submit {
-    padding-right: 0px;
-  }
   #action-bar .action-bar-primary {
     padding: 0 20px 0 0;
   }
@@ -634,9 +629,18 @@ label {
   .preview .preview-dim {
     display: none;
   }
+  .col-xx-5 {
+    width: 41.666667%;
+  }
+  .col-xx-2 {
+    width: 16.666667%;
+  }
+  .col-xx-3 {
+    width: 25%;
+  }
 }
 @media (max-width: 400px) {
   .editor {
-    padding-left: 20px;
+    padding-left: 0px;
   }
 }
