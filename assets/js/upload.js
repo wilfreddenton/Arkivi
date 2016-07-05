@@ -149,6 +149,20 @@
       if (callNow) func.apply(context, args);
     };
   };
+  var clearFileInput = function (f){
+    if (f.value){
+      try {
+        f.value = ''; //for IE11, latest Chrome/Firefox/Opera...
+      } catch (err) {}
+      if (f.value) { //for IE5 ~ IE10
+        var form = document.createElement('form'),
+            parentNode = f.parentNode, ref = f.nextSibling;
+        form.appendChild(f);
+        form.reset();
+        parentNode.insertBefore(f,ref);
+      }
+    }
+  };
   var getSizeAndUnit = function (size) {
     var unit = '';
     if (size >= Math.pow(10, 6)) {
@@ -178,6 +192,7 @@
     componentDidMount: function () {
       this.refs.input.addEventListener('change', function (e) {
         this.props.fileHandler(this.refs.input.files);
+        clearFileInput(this.refs.input);
       }.bind(this));
     },
     render: function () {
