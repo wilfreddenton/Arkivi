@@ -27,6 +27,7 @@ type appError struct {
 	Error   error
 	Message string
 	Code    int
+	Render  bool
 }
 
 type appHandler func(w http.ResponseWriter, r *http.Request) *appError
@@ -34,12 +35,21 @@ type appHandler func(w http.ResponseWriter, r *http.Request) *appError
 func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if e := fn(w, r); e != nil { // e is of type *appError no error
 		fmt.Println(e.Error)
-		http.Error(w, e.Message, e.Code)
+		if e.Render {
+			renderTemplate(w, "error", map[string]interface{}{
+				"title":          e.Code,
+				"code":           e.Code,
+				"message":        e.Message,
+				"containerClass": "form-page",
+			}, false)
+		} else {
+			http.Error(w, e.Message, e.Code)
+		}
 	}
 }
 
 // pages
-var ChronologyHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
 	var c int
 	DB.Model(Month{}).Count(&c)
 	pageCount := 3
@@ -52,6 +62,13 @@ var ChronologyHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	if page != "" {
 		if p, err := strconv.Atoi(page); err == nil && p <= numPages {
 			pageNum = p
+		} else {
+			return &appError{
+				Error:   errors.New("The page the user requested in the chronology does not exist."),
+				Message: "This page does not exist in the chronology",
+				Code:    http.StatusNotFound,
+				Render:  true,
+			}
 		}
 	}
 	offset := (pageNum - 1) * pageCount
@@ -76,6 +93,18 @@ var ChronologyHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 		"containerClass": "form-page",
 		"Page":           p,
 	}, false)
+	return nil
+}
+
+var ChronologyYearHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	year := vars["year"]
+	var months []Month
+	renderTemplate(w, "year", map[string]interface{}{
+		"months":         months,
+		"title":          year,
+		"containerClass": "form-page",
+	}, false)
 })
 
 var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -93,9 +122,9 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) *appError {
 		DB.Model(&admin).Related(&settings)
 		if !settings.Registration {
 			return &appError{
-				errors.New("An attempt at registering has failed because the current admin has turned off registration."),
-				"The current admin has turned off registration.",
-				http.StatusUnauthorized,
+				Error:   errors.New("An attempt at registering has failed because the current admin has turned off registration."),
+				Message: "The current admin has turned off registration.",
+				Code:    http.StatusUnauthorized,
 			}
 		}
 	}
@@ -165,26 +194,26 @@ func AccountSettingsHandler(w http.ResponseWriter, r *http.Request) *appError {
 	err := json.NewDecoder(r.Body).Decode(&settings)
 	if err != nil {
 		return &appError{
-			err,
-			"An invalid JSON body was sent.",
-			http.StatusBadRequest,
+			Error:   err,
+			Message: "An invalid JSON body was sent.",
+			Code:    http.StatusBadRequest,
 		}
 	}
 	claims, err := getClaimsFromRequestToken(r)
 	if err != nil {
 		return &appError{
-			err,
-			"Token could not be parsed.",
-			http.StatusInternalServerError,
+			Error:   err,
+			Message: "Token could not be parsed.",
+			Code:    http.StatusInternalServerError,
 		}
 	}
 	var user User
 	DB.Where("id = ?", settings.UserID).First(&user)
 	if user.Username != claims["username"] {
 		return &appError{
-			errors.New("A user attempted to change another user's settings."),
-			"You are not authorized to make changes to another user's settings.",
-			http.StatusUnauthorized,
+			Error:   errors.New("A user attempted to change another user's settings."),
+			Message: "You are not authorized to make changes to another user's settings.",
+			Code:    http.StatusUnauthorized,
 		}
 	}
 	DB.Table("settings").Where("id = ?", settings.ID).Updates(map[string]interface{}{
@@ -206,26 +235,26 @@ func NewTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
 	err := json.NewDecoder(r.Body).Decode(&u)
 	if err != nil {
 		return &appError{
-			err,
-			"An invalid JSON body was sent.",
-			http.StatusBadRequest,
+			Error:   err,
+			Message: "An invalid JSON body was sent.",
+			Code:    http.StatusBadRequest,
 		}
 	}
 	var user User
 	DB.Where("username = ?", u.Username).First(&user)
 	if user == (User{}) {
 		return &appError{
-			err,
-			"The username was not found.",
-			http.StatusNotFound,
+			Error:   err,
+			Message: "The username was not found.",
+			Code:    http.StatusNotFound,
 		}
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(u.Password))
 	if err != nil {
 		return &appError{
-			err,
-			"The password was incorrect.",
-			http.StatusUnauthorized,
+			Error:   err,
+			Message: "The password was incorrect.",
+			Code:    http.StatusUnauthorized,
 		}
 	}
 	tokenString := newToken(user.Username, user.Admin)
@@ -241,9 +270,9 @@ func PingTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
 	claims, err := getClaimsFromRequestToken(r)
 	if err != nil {
 		return &appError{
-			err,
-			"Token could not be parsed.",
-			http.StatusInternalServerError,
+			Error:   err,
+			Message: "Token could not be parsed.",
+			Code:    http.StatusInternalServerError,
 		}
 	}
 	t := newToken(claims["username"].(string), claims["admin"].(bool))
@@ -256,15 +285,19 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 	title := strings.Split(r.FormValue("filename"), ".")[0]
 	src, hdr, err := r.FormFile("img")
 	if err != nil {
-		return &appError{err, "Could not extract image file from form data.", http.StatusBadRequest}
+		return &appError{
+			Error:   err,
+			Message: "Could not extract image file from form data.",
+			Code:    http.StatusBadRequest,
+		}
 	}
 	defer src.Close()
 	contentType := hdr.Header["Content-Type"][0]
 	if !isAllowedContentType(contentType) {
 		return &appError{
-			err,
-			"The file sent is in an unsupported format. Arkivi supports jpg, gif, and png.",
-			http.StatusBadRequest,
+			Error:   err,
+			Message: "The file sent is in an unsupported format. Arkivi supports jpg, gif, and png.",
+			Code:    http.StatusBadRequest,
 		}
 	}
 	ext := strings.ToLower(strings.Split(contentType, "/")[1])
@@ -287,9 +320,9 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	if err != nil {
 		return &appError{
-			err,
-			"The server was unable to decode the uploaded image.",
-			http.StatusInternalServerError,
+			Error:   err,
+			Message: "The server was unable to decode the uploaded image.",
+			Code:    http.StatusInternalServerError,
 		}
 	}
 	var b image.Rectangle
@@ -301,9 +334,9 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 	claims, err := getClaimsFromRequestToken(r)
 	if err != nil {
 		return &appError{
-			err,
-			"Token could not be parsed.",
-			http.StatusInternalServerError,
+			Error:   err,
+			Message: "Token could not be parsed.",
+			Code:    http.StatusInternalServerError,
 		}
 	}
 	var user User
@@ -366,9 +399,9 @@ func ImageGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 	name := vars["name"]
 	if name == "" {
 		return &appError{
-			errors.New("No name provided error"),
-			"No image name was provided.",
-			http.StatusNotFound,
+			Error:   errors.New("No name provided error"),
+			Message: "No image name was provided.",
+			Code:    http.StatusNotFound,
 		}
 	}
 	var image Image
@@ -391,9 +424,9 @@ func ImagePutHandler(w http.ResponseWriter, r *http.Request) *appError {
 	err := json.NewDecoder(r.Body).Decode(&updatedImg)
 	if err != nil {
 		return &appError{
-			err,
-			"An invalid JSON body was sent.",
-			http.StatusBadRequest,
+			Error:   err,
+			Message: "An invalid JSON body was sent.",
+			Code:    http.StatusBadRequest,
 		}
 	}
 	var img Image
@@ -401,18 +434,18 @@ func ImagePutHandler(w http.ResponseWriter, r *http.Request) *appError {
 	claims, err := getClaimsFromRequestToken(r)
 	if err != nil {
 		return &appError{
-			err,
-			"Token could not be parsed.",
-			http.StatusInternalServerError,
+			Error:   err,
+			Message: "Token could not be parsed.",
+			Code:    http.StatusInternalServerError,
 		}
 	}
 	var user User
 	DB.Where("id = ?", img.UserID).First(&user)
 	if user.Username != claims["username"] {
 		return &appError{
-			errors.New("A user attempted to change another user's photo."),
-			"You are not authorized to make changes to another user's photo.",
-			http.StatusUnauthorized,
+			Error:   errors.New("A user attempted to change another user's photo."),
+			Message: "You are not authorized to make changes to another user's photo.",
+			Code:    http.StatusUnauthorized,
 		}
 	}
 	var takenAt interface{}
@@ -448,9 +481,9 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 	name := vars["name"]
 	if name == "" {
 		return &appError{
-			errors.New("No name provided error"),
-			"No image name was provided.",
-			http.StatusNotFound,
+			Error:   errors.New("No name provided error"),
+			Message: "No image name was provided.",
+			Code:    http.StatusNotFound,
 		}
 	}
 	var img Image
@@ -458,18 +491,18 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 	claims, err := getClaimsFromRequestToken(r)
 	if err != nil {
 		return &appError{
-			err,
-			"Token could not be parsed.",
-			http.StatusInternalServerError,
+			Error:   err,
+			Message: "Token could not be parsed.",
+			Code:    http.StatusInternalServerError,
 		}
 	}
 	var user User
 	DB.Where("id = ?", img.UserID).First(&user)
 	if user.Username != claims["username"] {
 		return &appError{
-			errors.New("A user attempted to delete another user's photo."),
-			"You are not authorized to delete another user's photo.",
-			http.StatusUnauthorized,
+			Error:   errors.New("A user attempted to delete another user's photo."),
+			Message: "You are not authorized to delete another user's photo.",
+			Code:    http.StatusUnauthorized,
 		}
 	}
 	currentMonth := time.Now().Month().String()
@@ -490,9 +523,9 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 		err := os.Remove(path)
 		if err != nil {
 			return &appError{
-				err,
-				"The server was unable to remove the associated files",
-				http.StatusInternalServerError,
+				Error:   err,
+				Message: "The server was unable to remove the associated files",
+				Code:    http.StatusInternalServerError,
 			}
 		}
 	}
@@ -541,9 +574,9 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 	name := vars["name"]
 	if name == "" {
 		return &appError{
-			errors.New("No name provided error"),
-			"No action name was provided.",
-			http.StatusNotFound,
+			Error:   errors.New("No name provided error"),
+			Message: "No action name was provided.",
+			Code:    http.StatusNotFound,
 		}
 	}
 	fmt.Println(name)
@@ -551,9 +584,9 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 	err := json.NewDecoder(r.Body).Decode(&action)
 	if err != nil {
 		return &appError{
-			err,
-			"An invalid JSON body was sent.",
-			http.StatusBadRequest,
+			Error:   err,
+			Message: "An invalid JSON body was sent.",
+			Code:    http.StatusBadRequest,
 		}
 	}
 	imgs := DB.Table("images").Where("id IN (?)", action.IDs)
@@ -605,9 +638,9 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 			err := os.Remove(path)
 			if err != nil {
 				return &appError{
-					err,
-					"The server was unable to remove the associated files",
-					http.StatusInternalServerError,
+					Error:   err,
+					Message: "The server was unable to remove the associated files",
+					Code:    http.StatusInternalServerError,
 				}
 			}
 		}
@@ -619,9 +652,9 @@ func TokenUserHandler(w http.ResponseWriter, r *http.Request) *appError {
 	claims, err := getClaimsFromRequestToken(r)
 	if err != nil {
 		return &appError{
-			err,
-			"Token could not be parsed.",
-			http.StatusInternalServerError,
+			Error:   err,
+			Message: "Token could not be parsed.",
+			Code:    http.StatusInternalServerError,
 		}
 	}
 	var user User

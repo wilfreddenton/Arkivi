@@ -1,6 +1,6 @@
 {{ define "year" }}
   <li class="year">
-    <a href="/{{ .Year }}/" title="{{ .Year }}"><h3>{{ .Year }}</h3></a>
+    <a href="/chronology/{{ .Year }}/" title="{{ .Year }}"><h3>{{ .Year }}</h3></a>
     <ul class="months">
       {{ range $month := .Months }}
         {{ template "month" $month }} 

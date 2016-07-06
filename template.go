@@ -16,41 +16,50 @@ type Template struct {
 	Name   string
 	Views  []string
 	Layout string
+	NoNav  bool
 }
 
-func createTemplate(views []string, layout string) *template.Template {
+func createTemplate(t Template) *template.Template {
 	layoutsDir := "layouts/"
 	viewsDir := "views/"
 	ext := ".tmpl"
-	for i, v := range views {
-		views[i] = viewsDir + v + ext
+	layout := "base"
+	views := t.Views
+	if t.Layout != "" {
+		layout = t.Layout
 	}
-	layout = layoutsDir + layout + ext
-	t := append(views, layout)
-	return template.Must(template.ParseFiles(t...))
+	if views != nil {
+		for i, v := range views {
+			views[i] = viewsDir + v + ext
+		}
+	} else {
+		views = append(views, viewsDir+t.Name+ext)
+	}
+	if !t.NoNav {
+		views = append(views, viewsDir+"nav"+ext)
+	}
+	views = append(views, layoutsDir+layout+ext)
+	return template.Must(template.ParseFiles(views...))
 }
 
 func createTemplates(ts []Template) {
 	for _, t := range ts {
-		layout := "base"
-		if t.Layout != "" {
-			layout = t.Layout
-		}
-		templates[t.Name] = createTemplate(t.Views, layout)
+		templates[t.Name] = createTemplate(t)
 	}
 }
 
 func initTemplates() {
 	bufpool = bpool.NewBufferPool(64)
 	ts := []Template{
-		Template{Name: "image", Views: []string{"image"}},
-		Template{Name: "images", Views: []string{"images", "nav"}},
-		Template{Name: "tags", Views: []string{"tags", "nav"}},
-		Template{Name: "chronology", Views: []string{"month", "year", "chronology", "pager", "nav"}},
-		Template{Name: "login", Views: []string{"login", "nav"}},
-		Template{Name: "register", Views: []string{"register", "nav"}},
-		Template{Name: "account", Views: []string{"account", "nav"}},
-		Template{Name: "upload", Views: []string{"upload", "nav"}},
+		Template{Name: "image"},
+		Template{Name: "images"},
+		Template{Name: "tags"},
+		Template{Name: "chronology", Views: []string{"month", "year", "chronology", "pager"}},
+		Template{Name: "login"},
+		Template{Name: "register"},
+		Template{Name: "account"},
+		Template{Name: "upload"},
+		Template{Name: "error"},
 	}
 	if templates == nil {
 		templates = make(map[string]*template.Template)
