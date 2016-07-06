@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	// "github.com/dgrijalva/jwt-go"
+	"github.com/Unknwon/paginater"
 	"github.com/gorilla/mux"
 	// "github.com/jinzhu/now"
 	"golang.org/x/crypto/bcrypt"
@@ -42,12 +43,29 @@ var EditorViewHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 
 // pages
 var IndexHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var years []*Year
 	var months []Month
-	DB.Order("id desc").Find(&months)
+	var c int
+	DB.Model(Month{}).Count(&c)
+	DB.Order("id desc").Limit(3).Find(&months)
+	if len(months) > 0 {
+		prevYear := &Year{}
+		for _, m := range months {
+			if m.Year != prevYear.Year {
+				prevYear = &Year{m.Year, []Month{m}}
+				years = append(years, prevYear)
+			} else {
+				prevYear.Months = append(prevYear.Months, m)
+			}
+		}
+	}
+	fmt.Println(c)
+	p := paginater.New(c, 2, 2, 3)
 	renderTemplate(w, "chronology", map[string]interface{}{
-		"months":         months,
+		"years":          years,
 		"title":          "Chronology",
 		"containerClass": "form-page",
+		"Page":           p,
 	}, false)
 })
 

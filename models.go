@@ -131,3 +131,14 @@ type Month struct {
 	Year      int
 	NumImages int
 }
+
+// Year
+type Year struct {
+	Year   int
+	Months []Month
+}
+
+// misc
+type count struct {
+	Count int
+}
