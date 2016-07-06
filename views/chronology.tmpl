@@ -1,20 +1,33 @@
 {{ define "title" }}<title>Arkivi | chronology</title>{{ end }}
 {{ define "content" }}
-  {{ range .years }}
-    <ul class="years">
-      <a href="/{{ .Year }}/" title="{{ .Year }}">{{ .Year }}</a>
-      <ul class="months">
-        {{ range .Months }}
-          <a href="/{{ .Year }}/{{ .Month }}" title="{{ .Month }} - {{ .Year }}">
-            <li>
+  <ul class="years">
+    {{ range .years }}
+      <li class="year">
+        <a href="/{{ .Year }}/" title="{{ .Year }}"><h3>{{ .Year }}</h3></a>
+        <ul class="months">
+          {{ range .Months }}
+            <li class="month">
               <div class="row">
-                <div class="col-xs-8"><span>{{ .Month }} {{ .Year }}</span></div>
-                <div class="col-xs-4"><span>{{ .NumImages }}</span></div>
+                <div class="col-xs-7">
+                  <a href="/{{ .Year }}/{{ .Month }}" title="{{ .Month }} - {{ .Year }}">
+                    <span>{{ .Month }} {{ .Year }}</span>
+                  </a>
+                </div>
+                <div class="col-xs-5 month-num-images">
+                  <span>
+                    {{ .NumImages }}
+                    {{ if eq .NumImages 1 }}
+                      image
+                    {{ else }}
+                      images
+                    {{ end }}
+                  </span>
+                </div>
               </div>
             </li>
-          </a>
-        {{ end }}
-      </ul>
-    </ul>
-  {{ end }}
+          {{ end }}
+        </ul>
+      </li>
+    {{ end }}
+  </ul>
 {{ end }}

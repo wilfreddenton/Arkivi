@@ -52,7 +52,6 @@ nav .pagination li.active {
 }
 a {
   color: #007CFF;
-  text-decoration: underline;
 }
 a:visited {
   color: #007CFF;
@@ -102,6 +101,14 @@ label {
 }
 #content {
   margin: 0 auto;
+}
+#content ul {
+  list-style-type: none;
+  font-size: 16px;
+  padding-left: 0px;
+}
+#content ul li {
+  margin-top: 15px;
 }
 .form-page {
   margin: 0 auto;
@@ -509,6 +516,17 @@ label {
 .account-info #message {
   display: block;
   margin-top: 20px;
+}
+.years {
+  margin-bottom: 25px;
+}
+.years .year a {
+  
+}
+.months .month span {
+}
+.months .month .month-num-images {
+  text-align: right;
 }
 
 @media (max-width: 800px) {
