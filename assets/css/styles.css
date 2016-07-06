@@ -41,11 +41,13 @@ nav {
 nav .pagination li {
   margin: 0;
   padding: 3px 8px;
-  cursor: pointer;
   user-select: none;
   -moz-user-select: none;
   -webkit-user-select: none;
   -ms-user-select: none;
+}
+#uploader nav .pagination li a {
+  cursor: pointer;
 }
 nav .pagination li.active {
   border: 1px solid #2B3046;

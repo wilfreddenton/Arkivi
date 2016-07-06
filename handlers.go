@@ -7,6 +7,7 @@ import (
 	// "github.com/dgrijalva/jwt-go"
 	"github.com/Unknwon/paginater"
 	"github.com/gorilla/mux"
+	"math"
 	// "github.com/jinzhu/now"
 	"golang.org/x/crypto/bcrypt"
 	"image"
@@ -16,6 +17,7 @@ import (
 	// "io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -36,18 +38,26 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// partials
-var EditorViewHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "editor", nil, true)
-})
-
 // pages
-var IndexHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	var years []*Year
-	var months []Month
+var ChronologyHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	var c int
 	DB.Model(Month{}).Count(&c)
-	DB.Order("id desc").Limit(3).Find(&months)
+	pageCount := 3
+	pageNum := 1
+	numPages := int(math.Ceil(float64(c) / float64(pageCount)))
+	if numPages == 0 {
+		numPages = 1
+	}
+	page := r.URL.Query().Get("page")
+	if page != "" {
+		if p, err := strconv.Atoi(page); err == nil && p <= numPages {
+			pageNum = p
+		}
+	}
+	offset := (pageNum - 1) * pageCount
+	var months []Month
+	DB.Order("id desc").Offset(offset).Limit(pageCount).Find(&months)
+	var years []*Year
 	if len(months) > 0 {
 		prevYear := &Year{}
 		for _, m := range months {
@@ -59,8 +69,7 @@ var IndexHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request)
 			}
 		}
 	}
-	fmt.Println(c)
-	p := paginater.New(c, 2, 2, 3)
+	p := paginater.New(c, pageCount, pageNum, 3)
 	renderTemplate(w, "chronology", map[string]interface{}{
 		"years":          years,
 		"title":          "Chronology",

@@ -1,33 +1,8 @@
 {{ define "title" }}<title>Arkivi | chronology</title>{{ end }}
 {{ define "content" }}
   <ul class="years">
-    {{ range .years }}
-      <li class="year">
-        <a href="/{{ .Year }}/" title="{{ .Year }}"><h3>{{ .Year }}</h3></a>
-        <ul class="months">
-          {{ range .Months }}
-            <li class="month">
-              <div class="row">
-                <div class="col-xs-7">
-                  <a href="/{{ .Year }}/{{ .Month }}" title="{{ .Month }} - {{ .Year }}">
-                    <span>{{ .Month }} {{ .Year }}</span>
-                  </a>
-                </div>
-                <div class="col-xs-5 month-num-images">
-                  <span>
-                    {{ .NumImages }}
-                    {{ if eq .NumImages 1 }}
-                      image
-                    {{ else }}
-                      images
-                    {{ end }}
-                  </span>
-                </div>
-              </div>
-            </li>
-          {{ end }}
-        </ul>
-      </li>
+    {{ range $year := .years }}
+      {{ template "year" $year }} 
     {{ end }}
   </ul>
 {{ end }}

@@ -12,22 +12,50 @@ var (
 	bufpool   *bpool.BufferPool
 )
 
+type Template struct {
+	Name   string
+	Views  []string
+	Layout string
+}
+
+func createTemplate(views []string, layout string) *template.Template {
+	layoutsDir := "layouts/"
+	viewsDir := "views/"
+	ext := ".tmpl"
+	for i, v := range views {
+		views[i] = viewsDir + v + ext
+	}
+	layout = layoutsDir + layout + ext
+	t := append(views, layout)
+	return template.Must(template.ParseFiles(t...))
+}
+
+func createTemplates(ts []Template) {
+	for _, t := range ts {
+		layout := "base"
+		if t.Layout != "" {
+			layout = t.Layout
+		}
+		templates[t.Name] = createTemplate(t.Views, layout)
+	}
+}
+
 func initTemplates() {
 	bufpool = bpool.NewBufferPool(64)
+	ts := []Template{
+		Template{Name: "image", Views: []string{"image"}},
+		Template{Name: "images", Views: []string{"images", "nav"}},
+		Template{Name: "tags", Views: []string{"tags", "nav"}},
+		Template{Name: "chronology", Views: []string{"month", "year", "chronology", "pager", "nav"}},
+		Template{Name: "login", Views: []string{"login", "nav"}},
+		Template{Name: "register", Views: []string{"register", "nav"}},
+		Template{Name: "account", Views: []string{"account", "nav"}},
+		Template{Name: "upload", Views: []string{"upload", "nav"}},
+	}
 	if templates == nil {
 		templates = make(map[string]*template.Template)
 	}
-	layoutsDir := "layouts/"
-	viewsDir := "views/"
-	templates["image"] = template.Must(template.ParseFiles(viewsDir+"image.tmpl", layoutsDir+"base.tmpl"))
-	templates["images"] = template.Must(template.ParseFiles(viewsDir+"images.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
-	templates["tags"] = template.Must(template.ParseFiles(viewsDir+"tags.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
-	templates["chronology"] = template.Must(template.ParseFiles(viewsDir+"chronology.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
-	templates["login"] = template.Must(template.ParseFiles(viewsDir+"login.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
-	templates["register"] = template.Must(template.ParseFiles(viewsDir+"register.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
-	templates["account"] = template.Must(template.ParseFiles(viewsDir+"account.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
-	templates["upload"] = template.Must(template.ParseFiles(viewsDir+"upload.tmpl", viewsDir+"nav.tmpl", layoutsDir+"base.tmpl"))
-	templates["editor"] = template.Must(template.ParseFiles(viewsDir + "editor.tmpl"))
+	createTemplates(ts)
 }
 
 func renderTemplate(w http.ResponseWriter, name string, data map[string]interface{}, isPartial bool) error {

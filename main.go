@@ -60,7 +60,7 @@ func main() {
 	h := newHub()
 	go h.run()
 	// handlers
-	r.Handle("/", IndexHandler).Methods("GET")
+	r.Handle("/", ChronologyHandler).Methods("GET")
 	r.Handle("/tokens/new", appHandler(NewTokenHandler)).Methods("POST")
 	r.Handle("/tokens/verify", jwtMiddleware.Handler(VerifyTokenHandler)).Methods("GET")
 	r.Handle("/tokens/ping", jwtMiddleware.Handler(appHandler(PingTokenHandler))).Methods("GET")
@@ -78,7 +78,6 @@ func main() {
 	r.Handle("/tags/", TagsHandler).Methods("GET")
 	r.Handle("/users/token", appHandler(TokenUserHandler)).Methods("GET")
 	r.Handle("/ws", wsHandler{h: h})
-	r.Handle("/editor-view", jwtMiddleware.Handler(EditorViewHandler)).Methods("GET")
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("assets/"))))
 	http.ListenAndServe(":6969", handlers.LoggingHandler(os.Stdout, r))
 }

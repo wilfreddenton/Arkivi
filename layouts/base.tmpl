@@ -17,31 +17,7 @@
       <div id="error"><span>{{ .error }}</span></div>
     {{ end }}
     {{ template "content" . }}
-    {{/* PAGINATION */}}
-    {{ if .Page }}
-      <nav><ul class="pagination">{{if not .Page.IsFirst -}}
-            <li><a>First</a></li>
-          {{- end -}}
-          {{- if .Page.HasPrevious -}}
-            <li><a>«</a></li>
-          {{- end -}}
-          {{- range .Page.Pages -}}
-            <li class="{{if .IsCurrent}}active{{end}}">
-              {{- if eq .Num -1 -}}
-                <span>...</span>
-              {{- else -}}
-                <a>{{.Num}}</a>
-              {{- end -}}
-            </li>
-          {{- end -}}
-          {{- if .Page.HasNext -}}
-            <li><a>»</a></li>
-          {{- end -}}
-          {{- if not .Page.IsLast -}}
-            <li><a>Last</a></li>
-          {{- end -}}
-      </ul></nav>
-    {{ end }}
+    {{ template "pager" . }}
   </div>
   {{ template "scripts" . }}
 </body>
@@ -50,4 +26,5 @@
 // We define empty blocks for optional content so we don't have to
 // define a block in child templates that don't need them
 {{ define "nav" }}{{ end }}
+{{ define "pager" }}{{ end }}
 {{ define "scripts" }}{{ end }}
