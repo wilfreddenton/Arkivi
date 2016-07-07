@@ -61,7 +61,7 @@ func main() {
 	go h.run()
 	// handlers
 	r.Handle("/", appHandler(ChronologyHandler)).Methods("GET")
-	r.Handle("/chronology/{year}/", ChronologyYearHandler).Methods("GET")
+	r.Handle("/chronology/{year}/", appHandler(ChronologyYearHandler)).Methods("GET")
 	r.Handle("/tokens/new", appHandler(NewTokenHandler)).Methods("POST")
 	r.Handle("/tokens/verify", jwtMiddleware.Handler(VerifyTokenHandler)).Methods("GET")
 	r.Handle("/tokens/ping", jwtMiddleware.Handler(appHandler(PingTokenHandler))).Methods("GET")

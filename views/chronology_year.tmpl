@@ -1,0 +1,8 @@
+{{ define "title" }}<title>Arkivi | {{ .title }}</title>{{ end }}
+{{ define "content" }}
+  <ul class="months">
+    {{ range $month := .months }}
+      {{ template "month" $month }}
+    {{ end }}
+  </ul>
+{{ end }}

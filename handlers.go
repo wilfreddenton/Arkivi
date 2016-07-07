@@ -96,16 +96,35 @@ func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-var ChronologyYearHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func ChronologyYearHandler(w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	year := vars["year"]
+	y, err := strconv.Atoi(year)
+	if err != nil {
+		return &appError{
+			Error:   errors.New("An invalid year was entered."),
+			Message: year + " is not a valid year.",
+			Code:    http.StatusNotFound,
+			Render:  true,
+		}
+	}
 	var months []Month
-	renderTemplate(w, "year", map[string]interface{}{
+	DB.Where("year = ?", y).Find(&months)
+	if len(months) == 0 {
+		return &appError{
+			Error:   errors.New("A user tried to acccess a year with no images."),
+			Message: "No images were uploaded this year.",
+			Code:    http.StatusNotFound,
+			Render:  true,
+		}
+	}
+	renderTemplate(w, "chronology_year", map[string]interface{}{
 		"months":         months,
 		"title":          year,
 		"containerClass": "form-page",
 	}, false)
-})
+	return nil
+}
 
 var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "login", map[string]interface{}{
