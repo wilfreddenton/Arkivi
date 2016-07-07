@@ -7,8 +7,10 @@ import (
 	"image"
 	"image/color/palette"
 	"image/draw"
+	"math"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -91,4 +93,26 @@ func getClaimsFromRequestToken(r *http.Request) (jwt.MapClaims, error) {
 	}
 	claims = token.Claims.(jwt.MapClaims)
 	return claims, nil
+}
+
+func pagination(count int, pageCount int, page string) (pageNum int, offset int, appErr *appError) {
+	pageNum = 1
+	numPages := int(math.Ceil(float64(count) / float64(pageCount)))
+	if numPages == 0 {
+		numPages = 1
+	}
+	if page != "" {
+		if p, err := strconv.Atoi(page); err == nil && p <= numPages {
+			pageNum = p
+		} else {
+			appErr = &appError{
+				Error:   errors.New("The page the user requested does not exist."),
+				Message: "This page does not exist.",
+				Code:    http.StatusNotFound,
+				Render:  true,
+			}
+		}
+	}
+	offset = (pageNum - 1) * pageCount
+	return
 }

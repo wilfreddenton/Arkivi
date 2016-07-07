@@ -7,7 +7,7 @@ import (
 	// "github.com/dgrijalva/jwt-go"
 	"github.com/Unknwon/paginater"
 	"github.com/gorilla/mux"
-	"math"
+	// "math"
 	// "github.com/jinzhu/now"
 	"golang.org/x/crypto/bcrypt"
 	"image"
@@ -53,25 +53,11 @@ func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
 	var c int
 	DB.Model(Month{}).Count(&c)
 	pageCount := 3
-	pageNum := 1
-	numPages := int(math.Ceil(float64(c) / float64(pageCount)))
-	if numPages == 0 {
-		numPages = 1
-	}
 	page := r.URL.Query().Get("page")
-	if page != "" {
-		if p, err := strconv.Atoi(page); err == nil && p <= numPages {
-			pageNum = p
-		} else {
-			return &appError{
-				Error:   errors.New("The page the user requested in the chronology does not exist."),
-				Message: "This page does not exist in the chronology",
-				Code:    http.StatusNotFound,
-				Render:  true,
-			}
-		}
+	pageNum, offset, appErr := pagination(c, pageCount, page)
+	if appErr != nil {
+		return appErr
 	}
-	offset := (pageNum - 1) * pageCount
 	var months []Month
 	DB.Order("id desc").Offset(offset).Limit(pageCount).Find(&months)
 	var years []*Year
@@ -92,6 +78,7 @@ func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
 		"title":          "Chronology",
 		"containerClass": "form-page",
 		"Page":           p,
+		"baseUrl":        "/",
 	}, false)
 	return nil
 }
@@ -122,6 +109,63 @@ func ChronologyYearHandler(w http.ResponseWriter, r *http.Request) *appError {
 		"months":         months,
 		"title":          year,
 		"containerClass": "form-page",
+	}, false)
+	return nil
+}
+
+func ChronologyMonthHandler(w http.ResponseWriter, r *http.Request) *appError {
+	vars := mux.Vars(r)
+	year := vars["year"]
+	y, err := strconv.Atoi(year)
+	if err != nil {
+		return &appError{
+			Error:   errors.New("An invalid year was entered."),
+			Message: year + " is not a valid year.",
+			Code:    http.StatusNotFound,
+			Render:  true,
+		}
+	}
+	m := vars["month"]
+	if _, err = time.Parse("January", m); err != nil {
+		return &appError{
+			Error:   errors.New("An invalid month was entered."),
+			Message: m + " is not a valid month.",
+			Code:    http.StatusNotFound,
+			Render:  true,
+		}
+	}
+	var month Month
+	DB.Where("year = ? AND month = ?", y, m).Find(&month)
+	noImgErr := &appError{
+		Error:   errors.New("A user tried to acccess a month with no images."),
+		Message: "No images were uploaded this month.",
+		Code:    http.StatusNotFound,
+		Render:  true,
+	}
+	if month == (Month{}) {
+		return noImgErr
+	}
+	pageCount := 12
+	page := r.URL.Query().Get("page")
+	var c int
+	DB.Model(Image{}).Where("month_id = ?", month.ID).Count(&c)
+	pageNum, offset, appErr := pagination(c, pageCount, page)
+	if appErr != nil {
+		return appErr
+	}
+	var images []Image
+	DB.Where("month_id = ?", month.ID).Offset(offset).Limit(pageCount).Find(&images)
+	if len(images) == 0 {
+		return noImgErr
+	}
+	p := paginater.New(c, pageCount, pageNum, 3)
+	yearStr := strconv.Itoa(month.Year)
+	renderTemplate(w, "chronology_month", map[string]interface{}{
+		"images":         images,
+		"title":          month.Month + " " + yearStr,
+		"Page":           p,
+		"baseUrl":        "/chronology/" + yearStr + "/" + month.Month,
+		"containerClass": "image-list",
 	}, false)
 	return nil
 }

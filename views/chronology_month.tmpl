@@ -1,4 +1,4 @@
-{{ define "title" }}<title>Arkivi | images</title>{{ end }}
+{{ define "title" }}<title>Arkivi | {{ .title }}</title>{{ end }}
 {{ define "content" }}
   <ul id="images" class="clearfix">
     {{ range $image := .images }}
