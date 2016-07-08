@@ -1,0 +1,7 @@
+{{ define "image_list" }}
+  <ul id="images" class="clearfix">
+    {{ range $image := .images }}
+      {{ template "image_thumb" $image }}
+    {{ end }}
+  </ul>
+{{ end }}

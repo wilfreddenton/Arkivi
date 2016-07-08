@@ -53,12 +53,12 @@ func initTemplates() {
 	bufpool = bpool.NewBufferPool(64)
 	ts := []Template{
 		Template{Name: "image"},
-		Template{Name: "images", Views: []string{"image_thumb", "images"}},
-		Template{Name: "tags", Views: []string{"tags", "pager"}},
+		Template{Name: "images", Views: []string{"image_thumb", "image_list", "images"}},
+		Template{Name: "tags", Views: []string{"image_thumb", "image_list", "tags", "pager"}},
 		Template{Name: "tags_list", Views: []string{"tags_list", "pager"}},
 		Template{Name: "chronology", Views: []string{"month", "year", "chronology", "pager"}},
 		Template{Name: "chronology_year", Views: []string{"month", "chronology_year"}},
-		Template{Name: "chronology_month", Views: []string{"image_thumb", "chronology_month", "pager"}},
+		Template{Name: "chronology_month", Views: []string{"image_thumb", "image_list", "chronology_month", "pager"}},
 		Template{Name: "login"},
 		Template{Name: "register"},
 		Template{Name: "account"},
