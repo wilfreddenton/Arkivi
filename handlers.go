@@ -597,6 +597,14 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
+func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
+	renderTemplate(w, "tags", "base", map[string]interface{}{
+		"title":          "Search by Tags",
+		"containerClass": "image-list",
+	})
+	return nil
+}
+
 func TagsListHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Tags List Handler")
 	q := r.URL.Query()

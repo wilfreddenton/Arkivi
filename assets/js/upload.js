@@ -135,20 +135,6 @@
     onChange: function () {}
   }
   // util functions
-  var debounce = function (func, wait, immediate) {
-    var timeout;
-    return function() {
-      var context = this, args = arguments;
-      var later = function() {
-        timeout = null;
-        if (!immediate) func.apply(context, args);
-      };
-      var callNow = immediate && !timeout;
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-      if (callNow) func.apply(context, args);
-    };
-  };
   var clearFileInput = function (f){
     if (f.value){
       try {
@@ -238,205 +224,6 @@
                                                                 React.DOM.span({ className: 'info-header' }, 'total progress:')),
                                                   React.DOM.div({ className: 'col-xs-6' },
                                                                 React.DOM.span({ className: 'info' }, progress)))))
-      );
-    }
-  });
-  var TagSuggestion = React.createClass({
-    propTypes: {
-      index: React.PropTypes.number,
-      suggestion: React.PropTypes.object,
-      highlighted: React.PropTypes.bool
-    },
-    render: function () {
-      var className = 'tag-suggestion';
-      if (this.props.highlighted)
-        className += ' highlighted-tag';
-      return (
-        React.DOM.li({
-          className: className,
-          'data-index': this.props.index
-        }, this.props.suggestion.Name)
-      );
-    }
-  });
-  var TagsSuggestions = React.createClass({
-    propTypes: {
-      suggestions: React.PropTypes.array,
-      highlighted: React.PropTypes.number
-    },
-    render: function () {
-      var suggestions = this.props.suggestions.map(function (suggestion, i) {
-        var highlighted = false;
-        if (i === this.props.highlighted)
-          highlighted = true;
-        return React.createElement(TagSuggestion, {
-          key: i,
-          index: i,
-          suggestion: suggestion,
-          highlighted: highlighted
-        });
-      }.bind(this));
-      return (
-        React.DOM.div({ className: 'tags-suggestions' },
-                      React.DOM.ul(null, suggestions))
-      );
-    }
-  });
-  var TagsInput = React.createClass({
-    propTypes: {
-      tags: React.PropTypes.array,
-      editHandler: React.PropTypes.func
-    },
-    getInitialState: function () {
-      return {
-        delim: ', ',
-        suggestions: [],
-        highlighted: 0
-      }
-    },
-    selectSuggestion: function (e) {
-      e.preventDefault();
-      if (this.state.suggestions.length > 0) {
-        var i = parseInt(e.target.dataset.index ? e.target.dataset.index : this.state.highlighted);
-        var tags = this.refs.input.value.split(this.state.delim);
-        tags[tags.length - 1] = this.state.suggestions[i].Name;
-        tags.push('');
-        this.refs.input.dataset.value = tags.join(', ');
-        tags = tags.map(function (name) {
-          return { Name: name };
-        });
-        this.props.editHandler({ name: 'Tags', value: tags });
-        this.getSuggestions('');
-      }
-    },
-    getSuggestions: function (query) {
-      if (query !== '' && !/\s+/.test(query)) {
-        var success = function (xhr) {
-          var suggestions = JSON.parse(xhr.responseText);
-          suggestions.sort(function (a, b) {
-            if (a.Name < b.Name) {
-              return 1;
-            } else if (a.Name < b.Name) {
-              return -1;
-            } else {
-              return 0;
-            }
-          });
-          this.setState({ suggestions: suggestions });
-        }.bind(this);
-        var currentTags = this.props.tags.map(function (tag) {
-          return tag.Name;
-        }).join(',');
-        UTILS.request({
-          method: 'GET',
-          path: '/tags/list?json=true&query=' + query + '&currentTags=' + currentTags,
-          success: success
-        });
-      } else {
-        this.setState({ suggestions: [] });
-      }
-    },
-    changeHandler: function (e) {
-      var value = e.target.value;
-      var prevValue = e.target.dataset.value;
-      if (value.slice(-1) === ',') {
-        if (prevValue.length < value.length) {
-          value = value.slice(0, -1) + this.state.delim;
-        } else {
-          value = value.slice(0, -1);
-        }
-      } else if (value.slice(-1) === ' ') {
-        if (!/[A-zÀ-ÿ0-9,]/.test(value.slice(-2, -1))) {
-          value = value.slice(0, -1);
-        } else if (value.slice(-2, -1) === ',') {
-          value = value.slice(0, -2);
-        }
-      }
-      e.target.dataset.value = value;
-      var tags = value.split(this.state.delim).map(function (name) {
-        return { Name: name };
-      });
-      this.getSuggestionsDebounced(tags[tags.length - 1].Name);
-      this.props.editHandler({ name: 'Tags', value: tags });
-    },
-    clickHandler: function (e) {
-      if (e.target.nodeName === 'LI')
-        this.selectSuggestion(e);
-    },
-    hoverHandler: function (e) {
-      if (e.target.nodeName === 'LI') {
-        var i = parseInt(e.target.dataset.index);
-        this.setState({ highlighted: i });
-      }
-    },
-    keydownHandler: function (e) {
-      var highlighted = 0;
-      switch (e.keyCode) {
-      case 9: // tab
-        this.selectSuggestion(e);
-        break
-      case 13: // enter
-        this.selectSuggestion(e);
-        break
-      case 38: // up
-        e.preventDefault();
-        highlighted = (this.state.highlighted - 1) % this.state.suggestions.length;
-        if (highlighted < 0) highlighted = this.state.suggestions.length - 1;
-        this.setState({ highlighted: highlighted });
-        break
-      case 40: // down
-        e.preventDefault();
-        highlighted = (this.state.highlighted + 1) % this.state.suggestions.length;
-        this.setState({ highlighted: highlighted });
-        break
-      }
-    },
-    deactivateListeners: function () {
-      this.refs.input.removeEventListener('keydown', this.keydownHandler)
-    },
-    activateListeners: function () {
-      this.refs.input.addEventListener('keydown', this.keydownHandler)
-    },
-    componentDidUpdate: function (prevProps, prevState) {
-      if (this.state.suggestions.length !== prevState.suggestions.length)
-        this.setState({ highlighted: this.state.suggestions.length - 1 });
-    },
-    componentWillUnmount: function () {
-      this.deactivateListeners();
-    },
-    componentDidMount: function () {
-      // initialize prevalue
-      this.refs.input.dataset.value = this.refs.input.value;
-      this.getSuggestionsDebounced = debounce(this.getSuggestions, 100);
-      this.activateListeners();
-    },
-    render: function () {
-      var suggestions = this.state.suggestions.map(function (suggestion, i) {
-        return React.DOM.li({ key: i }, suggestion.Name);
-      });
-      var tags = this.props.tags.map(function (tag) {
-        return tag.Name;
-      }).join(this.state.delim);
-      return (
-        React.DOM.span({
-          className: 'tags-input',
-          onClick: this.clickHandler,
-          onMouseOver: this.hoverHandler
-        },
-                       React.createElement(TagsSuggestions, {
-                         suggestions: this.state.suggestions,
-                         highlighted: this.state.highlighted
-                       }),
-                       React.DOM.input({
-                         ref: 'input',
-                         className: 'editor-tags',
-                         type: 'text',
-                         name: 'Tags',
-                         onChange: this.changeHandler,
-                         placeholder: 'tag1, tag2, tag3',
-                         autoComplete: 'off',
-                         value: tags
-                      }))
       );
     }
   });
@@ -575,7 +362,7 @@
           onChange: this.changeHandler
         })
       case 'tags':
-        return React.createElement(TagsInput, {
+        return React.createElement(COMPONENTS.TagsInput, {
           tags: this.state.Tags,
           editHandler: this.editHandler
         });
@@ -628,7 +415,7 @@
                                                                                              secondary))),
                                                    React.DOM.div({ className: 'col-xs-1 right' },
                                                                  React.DOM.input({
-                                                                   className: 'action-bar-submit',
+                                                                   className: 'action-bar-submit float-right-submit',
                                                                    type: 'submit',
                                                                    value: 'do'
                                                                  })))))
@@ -704,61 +491,68 @@
         React.DOM.div({ className: 'editor' },
                       React.DOM.form({ className: 'row', onSubmit: this.submitHandler },
                                      React.DOM.div({ className: 'col-xs-6' },
-                                                   React.DOM.label(null, 'Title'),
-                                                   React.DOM.input({
-                                                     className: 'editor-title',
-                                                     type: 'text',
-                                                     name: 'Title',
-                                                     onChange: this.changeHandler,
-                                                     value: model.get('Title')
-                                                   }),
-                                                   React.DOM.label(null, 'Date Taken'),
-                                                   React.DOM.input({
-                                                     className: 'editor-takenat',
-                                                     type: 'date',
-                                                     name: 'TakenAt',
-                                                     onChange: this.changeHandler,
-                                                     value: takenAt
-                                                   }),
-                                                   React.DOM.label(null, 'Description'),
-                                                   React.DOM.textarea({
-                                                     className: 'editor-description',
-                                                     name: 'Description',
-                                                     onChange: this.changeHandler,
-                                                     value: model.get('Description')
-                                                   })),
+                                                   React.DOM.label(null, 'Title',
+                                                                   React.DOM.br(null),
+                                                                   React.DOM.input({
+                                                                     className: 'editor-title',
+                                                                     type: 'text',
+                                                                     name: 'Title',
+                                                                     onChange: this.changeHandler,
+                                                                     value: model.get('Title')
+                                                                   })),
+                                                   React.DOM.label(null, 'Date Taken',
+                                                                   React.DOM.br(null),
+                                                                   React.DOM.input({
+                                                                     className: 'editor-takenat',
+                                                                     type: 'date',
+                                                                     name: 'TakenAt',
+                                                                     onChange: this.changeHandler,
+                                                                     value: takenAt
+                                                                   })),
+                                                   React.DOM.label(null, 'Description',
+                                                                   React.DOM.br(null),
+                                                                   React.DOM.textarea({
+                                                                     className: 'editor-description',
+                                                                     name: 'Description',
+                                                                     onChange: this.changeHandler,
+                                                                     value: model.get('Description')
+                                                                   }))),
                                      React.DOM.div({ className: 'col-xs-6'},
-                                                   React.DOM.label(null, 'Camera Model'),
+                                                   React.DOM.label(null, 'Camera Model',
+                                                                   React.DOM.br(null),
+                                                                   React.DOM.input({
+                                                                     className: 'editor-camera',
+                                                                     type: 'text',
+                                                                     name: 'Camera',
+                                                                     onChange: this.changeHandler,
+                                                                     value: model.get('Camera')
+                                                                   })),
+                                                   React.DOM.label(null, 'Film Type',
+                                                                   React.DOM.br(null),
+                                                                   React.DOM.input({
+                                                                     className: 'editor-film',
+                                                                     type: 'text',
+                                                                     name: 'Film',
+                                                                     onChange: this.changeHandler,
+                                                                     value: model.get('Film')
+                                                                   })),
+                                                   React.DOM.label(null, 'Tags',
+                                                                   React.DOM.br(null),
+                                                                   React.createElement(COMPONENTS.TagsInput, {
+                                                                     tags: tags,
+                                                                     editHandler: this.editHandler
+                                                                   })),
+                                                   React.DOM.label(null, 'Published',
+                                                                   React.DOM.br(null),
+                                                                   React.DOM.input({
+                                                                     className: 'editor-published',
+                                                                     type: 'checkbox',
+                                                                     name: 'Published',
+                                                                     onChange: this.changeHandler,
+                                                                     checked: model.get('Published')
+                                                                   })),
                                                    React.DOM.input({
-                                                     className: 'editor-camera',
-                                                     type: 'text',
-                                                     name: 'Camera',
-                                                     onChange: this.changeHandler,
-                                                     value: model.get('Camera')
-                                                   }),
-                                                   React.DOM.label(null, 'Film Type'),
-                                                   React.DOM.input({
-                                                     className: 'editor-film',
-                                                     type: 'text',
-                                                     name: 'Film',
-                                                     onChange: this.changeHandler,
-                                                     value: model.get('Film')
-                                                   }),
-                                                   React.DOM.label(null, 'Tags'),
-                                                   React.createElement(TagsInput, {
-                                                     tags: tags,
-                                                     editHandler: this.editHandler
-                                                   }),
-                                                   React.DOM.label(null, 'Published'),
-                                                   React.DOM.input({
-                                                     className: 'editor-published',
-                                                     type: 'checkbox',
-                                                     name: 'Published',
-                                                     onChange: this.changeHandler,
-                                                     checked: model.get('Published')
-                                                   }),
-                                                   React.DOM.input({
-                                                     className: 'editor-submit',
+                                                     className: 'editor-submit float-right-submit',
                                                      type: 'submit',
                                                      value: this.state.submitStatus
                                                    }))))

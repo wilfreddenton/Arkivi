@@ -5,13 +5,13 @@
   <div class="account-info"><span># Images: </span><strong id="num-images"></strong></div>
   <div class="account-info"><span id="message"></span></div>
   <form id="settings">
-    <label>Default Camera: <input id="camera" type="text" name="camera"></label>
-    <label>Default Film: <input id="film" type="text" name="film"></label>
+    <label>Default Camera: <br><input id="camera" type="text" name="camera"></label>
+    <label>Default Film: <br><input id="film" type="text" name="film"></label>
     <label>Publish uploaded photos automatically:<br><input id="public" type="checkbox" name="public"></label>
     <div id="admin-settings">
       <label>Allow account registration (recommended off):<br><input id="registration" type="checkbox" name="registration"></label>
     </div>
-    <input type="submit" value="submit">
+    <input class="float-right-submit" type="submit" value="submit">
   </form>
 {{ end }}
 {{ define "scripts" }}

@@ -54,6 +54,7 @@ func initTemplates() {
 	ts := []Template{
 		Template{Name: "image"},
 		Template{Name: "images", Views: []string{"image_thumb", "images"}},
+		Template{Name: "tags", Views: []string{"tags", "pager"}},
 		Template{Name: "tags_list", Views: []string{"tags_list", "pager"}},
 		Template{Name: "chronology", Views: []string{"month", "year", "chronology", "pager"}},
 		Template{Name: "chronology_year", Views: []string{"month", "chronology_year"}},
