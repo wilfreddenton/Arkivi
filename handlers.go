@@ -598,6 +598,15 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 }
 
 func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
+	fmt.Println("Tags Handler")
+	filter := r.URL.Query().Get("filter")
+	// var images []Image
+	if filter != "" {
+		var tags []string
+		r := regexp.MustCompile(`(\w+)(,\s*\d+)*`)
+		tags = r.FindAllString(filter, -1)
+		fmt.Println(tags)
+	}
 	renderTemplate(w, "tags", "base", map[string]interface{}{
 		"title":          "Search by Tags",
 		"containerClass": "image-list",
