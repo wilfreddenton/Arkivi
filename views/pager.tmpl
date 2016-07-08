@@ -2,25 +2,25 @@
   {{ if .Page }}
     {{ if gt .Page.TotalPages 1 }}
       <nav><ul class="pagination">{{if not .Page.IsFirst -}}
-            <li><a href="{{ .baseUrl }}" title="first">First</a></li>
+            <li><a href="{{ .baseUrl }}{{ if .sort }}?sort={{ .sort }}{{ end }}" title="first">First</a></li>
           {{- end -}}
           {{- if .Page.HasPrevious -}}
-            <li><a href="{{ .baseUrl }}?page={{ .Page.Previous }}" title="previous">«</a></li>
+            <li><a href="{{ .baseUrl }}?page={{ .Page.Previous }}{{ if .sort }}&sort={{ .sort }}{{ end }}" title="previous">«</a></li>
           {{- end -}}
           {{- range .Page.Pages -}}
             <li class="{{if .IsCurrent}}active{{end}}">
               {{- if eq .Num -1 -}}
                 <span>...</span>
               {{- else -}}
-                <a href="{{ $.baseUrl }}?page={{ .Num }}" title="page {{ .Num }}">{{.Num}}</a>
+                <a href="{{ $.baseUrl }}?page={{ .Num }}{{ if $.sort }}&sort={{ $.sort }}{{ end }}" title="page {{ .Num }}">{{.Num}}</a>
               {{- end -}}
             </li>
           {{- end -}}
           {{- if .Page.HasNext -}}
-            <li><a href="{{ .baseUrl }}?page={{ .Page.Next }}" title="next">»</a></li>
+            <li><a href="{{ .baseUrl }}?page={{ .Page.Next }}{{ if .sort }}&sort={{ .sort }}{{ end }}" title="next">»</a></li>
           {{- end -}}
           {{- if not .Page.IsLast -}}
-            <li><a href="{{ .baseUrl }}?page={{ .Page.TotalPages }}" title="last">Last</a></li>
+            <li><a href="{{ .baseUrl }}?page={{ .Page.TotalPages }}{{ if .sort }}&sort={{ .sort }}{{ end }}" title="last">Last</a></li>
           {{- end -}}
       </ul></nav>
     {{ end }}

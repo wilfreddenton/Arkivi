@@ -17,6 +17,7 @@ import (
 	// "io"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -596,7 +597,7 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-var TagsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Tags Handler")
 	q := r.URL.Query()
 	if len(q["query"]) > 0 {
@@ -610,26 +611,54 @@ var TagsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		if len(q["json"]) > 0 && q["json"][0] == "true" {
 			w.Header().Set("Content-Type", "application/javascript")
 			json.NewEncoder(w).Encode(tags)
-			return
+			return nil
 		}
 	} else {
+		page := q.Get("page")
+		pageCount := 2
+		var c int
+		DB.Model(Tag{}).Count(&c)
+		pageNum, offset, appErr := pagination(c, pageCount, page)
+		if appErr != nil {
+			return appErr
+		}
+		col := "name"
+		d := "ASC"
+		sort := ""
+		sortq := q.Get("sort")
+		if b, err := regexp.Match("(alpha|count)-(asc|desc)", []byte(sortq)); b && err == nil {
+			sort = sortq
+			a := strings.Split(sortq, "-")
+			if a[0] == "count" {
+				col = "count"
+			}
+			d = a[1]
+		}
 		var tags []TagCountJson
-		DB.Raw(`SELECT name, COUNT(image_tags.image_id) FROM tags
-            LEFT JOIN image_tags ON tags.id = image_tags.tag_id
-            GROUP BY tags.id
-            ORDER BY name`).Scan(&tags)
+		DB.Raw(`SELECT * FROM
+							(SELECT name, COUNT(image_tags.image_id) as count FROM tags
+							LEFT JOIN image_tags ON tags.id = image_tags.tag_id
+							GROUP BY tags.id)
+            ORDER BY `+col+` `+d+`
+            LIMIT ?
+            OFFSET ?`, pageCount, offset).Scan(&tags)
 		if len(q["json"]) > 0 && q["json"][0] == "true" {
 			w.Header().Set("Content-Type", "application/javascript")
 			json.NewEncoder(w).Encode(tags)
-			return
+			return nil
 		}
+		p := paginater.New(c, pageCount, pageNum, 3)
 		renderTemplate(w, "tags", map[string]interface{}{
 			"title":          "Tags",
 			"containerClass": "form-page",
 			"tags":           tags,
+			"Page":           p,
+			"baseUrl":        "/tags",
+			"sort":           sort,
 		}, false)
 	}
-})
+	return nil
+}
 
 func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Action Handler")
