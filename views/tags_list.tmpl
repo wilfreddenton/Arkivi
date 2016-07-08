@@ -1,0 +1,34 @@
+{{ define "title" }}<title>Arkivi | tags</title>{{ end }}
+{{ define "content" }}
+  <form class="tags-sort" action="{{ .baseUrl }}" method="GET">
+    <div class="row">
+      <div class="col-xs-8">
+        <label>Sort by: 
+          <select name="sort">
+            <option value="alpha-asc" {{ if eq .sort "alpha-asc" }}selected{{ end }}>A - Z</option>
+            <option value="alpha-desc" {{ if eq .sort "alpha-desc" }}selected{{ end }}>Z - A</option>
+            <option value="count-desc" {{ if eq .sort "count-desc" }}selected{{ end }}>Highest # Images</option>
+            <option value="count-asc" {{ if eq .sort "count-asc" }}selected{{ end }}>Lowest # Images</option>
+          </select>
+        </label>
+      </div>
+      <div class="col-xs-4">
+        <input type="submit" value="submit">
+      </div>
+    </div>
+  </form>
+  <ul id="tags">
+    {{ range .tags }}
+      <li>
+        <div class="row">
+          <div class="col-xs-8">
+            <a href="/images/tag/{{ .Name }}" title="images tagged with {{ .Name }}">
+              {{ .Name }}
+            </a>
+          </div>
+          <div class="col-xs-4 tags-count"><span>{{ .Count }}</span></div>
+        </div>
+      </li>
+    {{ end }}
+  </ul>
+{{ end }}

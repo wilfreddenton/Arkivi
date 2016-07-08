@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/oxtoacart/bpool"
 	"html/template"
+	"log"
 	"net/http"
 )
 
@@ -53,7 +54,7 @@ func initTemplates() {
 	ts := []Template{
 		Template{Name: "image"},
 		Template{Name: "images", Views: []string{"image_thumb", "images"}},
-		Template{Name: "tags", Views: []string{"tags", "pager"}},
+		Template{Name: "tags_list", Views: []string{"tags_list", "pager"}},
 		Template{Name: "chronology", Views: []string{"month", "year", "chronology", "pager"}},
 		Template{Name: "chronology_year", Views: []string{"month", "chronology_year"}},
 		Template{Name: "chronology_month", Views: []string{"image_thumb", "chronology_month", "pager"}},
@@ -69,20 +70,17 @@ func initTemplates() {
 	createTemplates(ts)
 }
 
-func renderTemplate(w http.ResponseWriter, name string, data map[string]interface{}, isPartial bool) error {
+func renderTemplate(w http.ResponseWriter, name string, layout string, data map[string]interface{}) error {
 	tmpl, ok := templates[name]
 	if !ok {
 		return fmt.Errorf("The template %s does not exist", name)
 	}
 	buf := bufpool.Get()
 	defer bufpool.Put(buf)
-	var err error
-	if isPartial {
-		err = tmpl.ExecuteTemplate(buf, name, data)
-	} else {
-		err = tmpl.ExecuteTemplate(buf, "base", data)
-	}
+	err := tmpl.ExecuteTemplate(buf, layout, data)
 	if err != nil {
+		log.Println(err)
+		http.Error(w, "There was a problem rendering the page.", http.StatusInternalServerError)
 		return err
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

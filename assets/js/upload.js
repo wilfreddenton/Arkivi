@@ -329,7 +329,7 @@
         }).join(',');
         UTILS.request({
           method: 'GET',
-          path: '/tags/?json=true&query=' + query + '&currentTags=' + currentTags,
+          path: '/tags/list?json=true&query=' + query + '&currentTags=' + currentTags,
           success: success
         });
       } else {

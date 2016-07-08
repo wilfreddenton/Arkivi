@@ -37,12 +37,12 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if e := fn(w, r); e != nil { // e is of type *appError no error
 		fmt.Println(e.Error)
 		if e.Render {
-			renderTemplate(w, "error", map[string]interface{}{
+			renderTemplate(w, "error", "base", map[string]interface{}{
 				"title":          e.Code,
 				"code":           e.Code,
 				"message":        e.Message,
 				"containerClass": "form-page",
-			}, false)
+			})
 		} else {
 			http.Error(w, e.Message, e.Code)
 		}
@@ -74,13 +74,13 @@ func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	p := paginater.New(c, pageCount, pageNum, 3)
-	renderTemplate(w, "chronology", map[string]interface{}{
+	renderTemplate(w, "chronology", "base", map[string]interface{}{
 		"years":          years,
 		"title":          "Chronology",
 		"containerClass": "form-page",
 		"Page":           p,
 		"baseUrl":        "/",
-	}, false)
+	})
 	return nil
 }
 
@@ -106,11 +106,11 @@ func ChronologyYearHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Render:  true,
 		}
 	}
-	renderTemplate(w, "chronology_year", map[string]interface{}{
+	renderTemplate(w, "chronology_year", "base", map[string]interface{}{
 		"months":         months,
 		"title":          year,
 		"containerClass": "form-page",
-	}, false)
+	})
 	return nil
 }
 
@@ -161,21 +161,21 @@ func ChronologyMonthHandler(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	p := paginater.New(c, pageCount, pageNum, 3)
 	yearStr := strconv.Itoa(month.Year)
-	renderTemplate(w, "chronology_month", map[string]interface{}{
+	renderTemplate(w, "chronology_month", "base", map[string]interface{}{
 		"images":         images,
 		"title":          month.Month + " " + yearStr,
 		"Page":           p,
 		"baseUrl":        "/chronology/" + yearStr + "/" + month.Month,
 		"containerClass": "image-list",
-	}, false)
+	})
 	return nil
 }
 
 var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "login", map[string]interface{}{
+	renderTemplate(w, "login", "base", map[string]interface{}{
 		"title":          "Login",
 		"containerClass": "form-page",
-	}, false)
+	})
 })
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) *appError {
@@ -194,10 +194,10 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	switch r.Method {
 	case "GET":
-		renderTemplate(w, "register", map[string]interface{}{
+		renderTemplate(w, "register", "base", map[string]interface{}{
 			"title":          "Register",
 			"containerClass": "form-page",
-		}, false)
+		})
 	case "POST":
 		username := r.FormValue("username")
 		password := r.FormValue("password")
@@ -224,11 +224,11 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) *appError {
 			errorMessage = "The password you entered contains invalid characters."
 		}
 		if errorMessage != "" {
-			renderTemplate(w, "register", map[string]interface{}{
+			renderTemplate(w, "register", "base", map[string]interface{}{
 				"title":          "Register",
 				"containerClass": "form-page",
 				"error":          errorMessage,
-			}, false)
+			})
 			return nil
 		}
 		user = User{
@@ -247,10 +247,10 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) *appError {
 }
 
 var AccountHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "account", map[string]interface{}{
+	renderTemplate(w, "account", "base", map[string]interface{}{
 		"title":          "Account",
 		"containerClass": "form-page",
-	}, false)
+	})
 })
 
 func AccountSettingsHandler(w http.ResponseWriter, r *http.Request) *appError {
@@ -291,7 +291,7 @@ func AccountSettingsHandler(w http.ResponseWriter, r *http.Request) *appError {
 }
 
 var UploadHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "upload", nil, false)
+	renderTemplate(w, "upload", "base", nil)
 })
 
 func NewTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
@@ -454,7 +454,7 @@ var ImagesHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 	}
 	m := make(map[string]interface{})
 	m["images"] = images
-	renderTemplate(w, "images", m, false)
+	renderTemplate(w, "images", "base", m)
 })
 
 func ImageGetHandler(w http.ResponseWriter, r *http.Request) *appError {
@@ -478,7 +478,7 @@ func ImageGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	m := make(map[string]interface{})
 	m["image"] = image
-	renderTemplate(w, "image", m, false)
+	renderTemplate(w, "image", "base", m)
 	return nil
 }
 
@@ -597,8 +597,8 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
-	fmt.Println("Tags Handler")
+func TagsListHandler(w http.ResponseWriter, r *http.Request) *appError {
+	fmt.Println("Tags List Handler")
 	q := r.URL.Query()
 	if len(q["query"]) > 0 {
 		query := q["query"][0]
@@ -648,14 +648,14 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 			return nil
 		}
 		p := paginater.New(c, pageCount, pageNum, 3)
-		renderTemplate(w, "tags", map[string]interface{}{
+		renderTemplate(w, "tags_list", "base", map[string]interface{}{
 			"title":          "Tags",
 			"containerClass": "form-page",
 			"tags":           tags,
 			"Page":           p,
-			"baseUrl":        "/tags",
+			"baseUrl":        "/tags/list",
 			"sort":           sort,
-		}, false)
+		})
 	}
 	return nil
 }
