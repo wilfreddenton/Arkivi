@@ -170,8 +170,43 @@
     return images;
   }
   // components
+  var ViewSelector = React.createClass({
+    propTypes: {
+      view: React.PropTypes.string
+    },
+    selectHandler: function (e) {
+      this.props.selectHandler(e.target.value);
+    },
+    render: function () {
+      return (
+        React.DOM.div({ className: 'row' },
+                      React.DOM.div({ className: 'col-xs-6' },
+                                    React.DOM.span({ className: 'info-header' }, 'view:')),
+                      React.DOM.div({ className: 'col-xs-6' },
+                                    React.DOM.span({ className: 'info' },
+                                                    React.DOM.label(null,
+                                                                    React.DOM.input({
+                                                                      type: 'radio',
+                                                                      name: "view",
+                                                                      value: "details",
+                                                                      onChange: this.selectHandler,
+                                                                      checked: "details" === this.props.view
+                                                                    }), ' == '),
+                                                    React.DOM.label(null,
+                                                                    React.DOM.input({
+                                                                      type: 'radio',
+                                                                      name: "view",
+                                                                      value: "thumbs",
+                                                                      onChange: this.selectHandler,
+                                                                      checked: "thumbs" === this.props.view
+                                                                    }), ' :: '))))
+      );
+    }
+  });
   var UploadBar = React.createClass({
     propTypes: {
+      view: React.PropTypes.string,
+      selectHandler: React.PropTypes.func,
       images: React.PropTypes.object,
       fileHandler: React.PropTypes.func
     },
@@ -205,25 +240,26 @@
                                                     accept: '.gif, .jpg, .jpeg, .png, image/gif, image/jpg, image/jpeg, image/png',
                                                     multiple: true
                                                   })),
-                                    React.DOM.br(null),
                                     React.DOM.div({ className: 'row '},
                                                   React.DOM.div({ className: 'col-xs-6' },
                                                                 React.DOM.span({ className: 'info-header' }, '# images:')),
                                                   React.DOM.div({ className: 'col-xs-6' },
-                                                                React.DOM.span({ className: 'info' }, this.props.images.size))),
-                                    React.DOM.br(null)),
+                                                                React.DOM.span({ className: 'info' }, this.props.images.size)))),
                       React.DOM.div({ className: 'col-xs-6'},
                                     React.DOM.div({ className: 'row '},
                                                   React.DOM.div({ className: 'col-xs-6' },
                                                                 React.DOM.span({ className: 'info-header' }, 'total size:')),
                                                   React.DOM.div({ className: 'col-xs-6' },
                                                                 React.DOM.span({ className: 'info' }, data.size + ' ' + data.unit))),
-                                    React.DOM.br(null),
                                     React.DOM.div({ className: 'row '},
                                                   React.DOM.div({ className: 'col-xs-6' },
                                                                 React.DOM.span({ className: 'info-header' }, 'total progress:')),
                                                   React.DOM.div({ className: 'col-xs-6' },
-                                                                React.DOM.span({ className: 'info' }, progress)))))
+                                                                React.DOM.span({ className: 'info' }, progress))),
+                                    React.createElement(ViewSelector, {
+                                      view: this.props.view,
+                                      selectHandler: this.props.selectHandler
+                                    })))
       );
     }
   });
@@ -674,23 +710,62 @@
       );
     }
   });
+  var PreviewThumb = React.createClass({
+    mixins: [React.addons.PureRenderMixin],
+    propTypes: {
+      index: React.PropTypes.number,
+      image: React.PropTypes.object,
+      token: React.PropTypes.string,
+      onloadHandler: React.PropTypes.func,
+      deleteHandler: React.PropTypes.func
+    },
+    selectHandler: function () {
+      if (this.props.image.get('selected')) {
+        ImageStore.unselect(this.props.index);
+      } else {
+        ImageStore.select(this.props.index);
+      }
+    },
+    render: function () {
+      var thumbnailStyle, name
+      var model = this.props.image.model;
+      if (model.size !== 0) {
+        name = model.get('Name');
+        thumbnailStyle = { backgroundImage: 'url(' + model.get('ThumbUrl') + ')' };
+      } else {
+        name = this.props.image.get('file').name;
+        thumbnailStyle = { border: '1px solid #ccc '};
+      }
+      var selectedStyle = this.props.image.get('selected') ? "selected" : "";
+      return (
+        React.DOM.li({
+          className: "image-thumb thumbnail " + selectedStyle,
+          onClick: this.selectHandler,
+          style: thumbnailStyle
+        })
+      );
+    }
+  });
   var Previews = React.createClass({
     propTypes: {
       token: React.PropTypes.string,
       currentPage: React.PropTypes.number,
       pageCount: React.PropTypes.number,
+      pageCountThumb: React.PropTypes.number,
       onloadHandler: React.PropTypes.func,
-      deleteHandler: React.PropTypes.func
+      deleteHandler: React.PropTypes.func,
+      view: React.PropTypes.string
     },
     render: function () {
       var previews = [];
       var numImages = this.props.images.size;
-      var start =  this.props.currentPage * this.props.pageCount;
-      var limit = Math.min(numImages, start + this.props.pageCount);
-      console.log(start, limit)
+      var count = this.props.view === "details" ? this.props.pageCount : this.props.pageCountThumb;
+      var start =  this.props.currentPage * count;
+      var limit = Math.min(numImages, start + count);
       for (var i = start; i < limit; i += 1) {
         var image = this.props.images.get(i);
-        previews.push(React.createElement(Preview, {
+        var component = this.props.view === "details" ? Preview : PreviewThumb;
+        previews.push(React.createElement(component, {
           key: image.get('file').name + i.toString(),
           index: i,
           token: this.props.token,
@@ -699,8 +774,14 @@
           deleteHandler: this.props.deleteHandler
         }));
       }
+      var params = {};
+      if (this.props.view === "details") {
+        params = { id: 'previews' };
+      } else {
+        params = { id: 'images', className: 'image-list clearfix' };
+      }
       return (
-        React.DOM.ul({ id: 'previews' }, previews)
+        React.DOM.ul(params, previews)
       );
     }
   });
@@ -761,7 +842,9 @@
         error: null,
         currentPage: 0,
         pageCount: 3,
+        pageCountThumb: 30,
         token: '',
+        view: "details",
         images: ImageStore.images
       };
     },
@@ -847,6 +930,9 @@
     pageChangeHandler: function (page) {
       this.setState({ currentPage: page });
     },
+    viewSelectHandler: function (view) {
+      this.setState({ view: view });
+    },
     componentWillMount: function () {
       ImageStore.onChange = function () {
         this.setState({ images: ImageStore.images });
@@ -867,7 +953,8 @@
       this.setState({ token: token });
     },
     render: function () {
-      var numPages = Math.ceil(this.state.images.size / this.state.pageCount);
+      var count = this.state.view === "details" ? this.state.pageCount : this.state.pageCountThumb;
+      var numPages = Math.ceil(this.state.images.size / count);
       var pager = numPages > 1 ? React.createElement(Pager, {
         total: numPages,
         current: this.state.currentPage,
@@ -881,6 +968,8 @@
                         fileHandler: this.fileHandler
                       }),
                       React.createElement(UploadBar, {
+                        view: this.state.view,
+                        selectHandler: this.viewSelectHandler,
                         images: this.state.images,
                         fileHandler: this.fileHandler
                       }),
@@ -890,8 +979,10 @@
                         images: this.state.images
                       }),
                       React.createElement(Previews, {
+                        view: this.state.view,
                         currentPage: this.state.currentPage,
                         pageCount: this.state.pageCount,
+                        pageCountThumb: this.state.pageCountThumb,
                         images: this.state.images,
                         token: this.state.token,
                         deleteHandler: this.deleteHandler
