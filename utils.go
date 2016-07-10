@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -115,4 +116,24 @@ func pagination(count int, pageCount int, page string) (pageNum int, offset int,
 	}
 	offset = (pageNum - 1) * pageCount
 	return
+}
+
+func updateTags(ts []TagJson) []Tag {
+	var tags []Tag
+	r := regexp.MustCompile(`^\s+$`)
+	for _, t := range ts {
+		var tag Tag
+		name := strings.ToLower(t.Name)
+		if name == "" || r.MatchString(name) {
+			fmt.Println(name)
+			continue
+		}
+		DB.Where("name = ?", name).First(&tag)
+		if name != tag.Name {
+			tag = Tag{Name: name}
+			DB.Create(&tag)
+		}
+		tags = append(tags, tag)
+	}
+	return tags
 }

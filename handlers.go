@@ -517,16 +517,7 @@ func ImagePutHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if err != nil {
 		takenAt = nil
 	}
-	var tags []Tag
-	for _, t := range updatedImg.Tags {
-		var tag Tag
-		DB.Where("name = ?", t.Name).First(&tag)
-		if t.Name != tag.Name {
-			tag = Tag{Name: t.Name}
-			DB.Create(&tag)
-		}
-		tags = append(tags, tag)
-	}
+	tags := updateTags(updatedImg.Tags)
 	DB.Model(&img).Updates(map[string]interface{}{
 		"Title":       updatedImg.Title,
 		"TakenAt":     takenAt,
@@ -599,17 +590,80 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 
 func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Tags Handler")
-	filter := r.URL.Query().Get("filter")
-	// var images []Image
+	q := r.URL.Query()
+	filter := q.Get("filter")
+	var names []string
 	if filter != "" {
-		var tags []string
+		filter = strings.ToLower(filter)
 		r := regexp.MustCompile(`(\w+)(,\s*\d+)*`)
-		tags = r.FindAllString(filter, -1)
-		fmt.Println(tags)
+		names = r.FindAllString(filter, -1)
+	}
+	op := q.Get("operator")
+	if op != "" {
+		op = strings.ToLower(op)
+		if op != "and" {
+			op = "or"
+		}
+	}
+	var images []Image
+	var tms []TagMini
+	var ids []int
+	var query string
+	pageCount := 12
+	if filter != "" && op != "" {
+		if op == "or" {
+			query = `SELECT DISTINCT image_id from image_tags
+								 WHERE tag_id IN
+									 (SELECT id FROM tags WHERE name IN (?))`
+			DB.Raw(query, names).Scan(&tms)
+		} else {
+			query = `SELECT image_id FROM image_tags
+								 WHERE tag_id in
+								  	(SELECT id FROM tags
+								  	 Where name in (?))
+                 GROUP BY image_id
+                 HAVING COUNT(*) = ?`
+			DB.Raw(query, names, len(names)).Scan(&tms)
+		}
+	}
+	for _, tm := range tms {
+		ids = append(ids, tm.ImageID)
+	}
+	c := len(ids)
+	fmt.Println(ids)
+	page := q.Get("page")
+	pageNum := 1
+	pageNum, offset, appErr := pagination(c, pageCount, page)
+	if appErr != nil {
+		return appErr
+	}
+	if filter != "" && op != "" {
+		if op == "or" {
+			DB.Raw(`SELECT * FROM images
+							WHERE id IN (?)
+							LIMIT ?
+							OFFSET ?`, ids, pageCount, offset).Scan(&images)
+		} else {
+			DB.Raw(`SELECT * FROM images
+              WHERE id IN (?)
+							LIMIT ?
+							OFFSET ?`, ids, pageCount, offset).Scan(&images)
+		}
+	}
+	p := paginater.New(c, pageCount, pageNum, 3)
+	var params []UrlParam
+	if filter != "" {
+		params = append(params, UrlParam{Name: "filter", Value: filter, IsFirst: true})
+	}
+	if op != "" {
+		params = append(params, UrlParam{Name: "param", Value: op, IsLast: true})
 	}
 	renderTemplate(w, "tags", "base", map[string]interface{}{
 		"title":          "Search by Tags",
+		"images":         images,
 		"containerClass": "image-list",
+		"Page":           p,
+		"Params":         params,
 	})
 	return nil
 }
@@ -665,12 +719,17 @@ func TagsListHandler(w http.ResponseWriter, r *http.Request) *appError {
 			return nil
 		}
 		p := paginater.New(c, pageCount, pageNum, 3)
+		var params []UrlParam
+		if sort != "" {
+			params = []UrlParam{UrlParam{Name: "sort", Value: sort, IsFirst: true, IsLast: true}}
+		}
 		renderTemplate(w, "tags_list", "base", map[string]interface{}{
 			"title":          "Tags",
 			"containerClass": "form-page",
 			"tags":           tags,
 			"Page":           p,
 			"baseUrl":        "/tags/list",
+			"Params":         params,
 			"sort":           sort,
 		})
 	}
@@ -690,7 +749,13 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	fmt.Println(name)
 	var action Action
-	err := json.NewDecoder(r.Body).Decode(&action)
+	var at ActionTags
+	var err error
+	if name == "tags" {
+		err = json.NewDecoder(r.Body).Decode(&at)
+	} else {
+		err = json.NewDecoder(r.Body).Decode(&action)
+	}
 	if err != nil {
 		return &appError{
 			Error:   err,
@@ -721,6 +786,13 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 				t = nil
 			}
 			imgs.Update("taken_at", t)
+		}
+	case "tags":
+		tags := updateTags(at.Value)
+		for _, id := range at.IDs {
+			var i Image
+			DB.Where("id = ?", id).First(&i)
+			DB.Model(&i).Association("Tags").Replace(&tags)
 		}
 	case "delete":
 		var paths []string

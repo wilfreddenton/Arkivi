@@ -41,21 +41,21 @@ func main() {
 	}
 	DB.AutoMigrate(&User{}, &Settings{}, &Image{}, &Tag{}, &Month{})
 	DB.LogMode(true)
-	var tags []*Tag
-	DB.Find(&tags)
-	for _, tag := range tags {
-		DB.Unscoped().Delete(tag)
-	}
-	tag1 := &Tag{Name: "nature"}
-	tag2 := &Tag{Name: "space"}
-	tag3 := &Tag{Name: "test"}
-	tag4 := &Tag{Name: "testing"}
-	tag5 := &Tag{Name: "tester"}
-	DB.Create(tag1)
-	DB.Create(tag2)
-	DB.Create(tag3)
-	DB.Create(tag4)
-	DB.Create(tag5)
+	// var tags []*Tag
+	// DB.Find(&tags)
+	// for _, tag := range tags {
+	// 	DB.Unscoped().Delete(tag)
+	// }
+	// tag1 := &Tag{Name: "nature"}
+	// tag2 := &Tag{Name: "space"}
+	// tag3 := &Tag{Name: "test"}
+	// tag4 := &Tag{Name: "testing"}
+	// tag5 := &Tag{Name: "tester"}
+	// DB.Create(tag1)
+	// DB.Create(tag2)
+	// DB.Create(tag3)
+	// DB.Create(tag4)
+	// DB.Create(tag5)
 	// initialize websocket
 	r := mux.NewRouter().StrictSlash(true)
 	h := newHub()

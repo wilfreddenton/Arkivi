@@ -106,7 +106,8 @@ type ImageJson struct {
 // Tag
 type Tag struct {
 	gorm.Model
-	Name string
+	Name   string
+	Images []*Image `gorm:"many2many:image_tags"`
 }
 
 type TagJson struct {
@@ -117,11 +118,19 @@ type TagCountJson struct {
 	Name  string
 	Count int
 }
+type TagMini struct {
+	ImageID int
+}
 
 // Action
 type Action struct {
 	IDs   []int
 	Value interface{}
+}
+
+type ActionTags struct {
+	IDs   []int
+	Value []TagJson
 }
 
 // Month
@@ -141,4 +150,11 @@ type Year struct {
 // misc
 type count struct {
 	Count int
+}
+
+type UrlParam struct {
+	Name    string
+	Value   string
+	IsFirst bool
+	IsLast  bool
 }

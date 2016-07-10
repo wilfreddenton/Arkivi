@@ -71,7 +71,7 @@
       }
     },
     getSuggestions: function (query) {
-      if (query !== '' && !/\s+/.test(query)) {
+      if (query !== '' && !/^\s+$/.test(query)) {
         var success = function (xhr) {
           var suggestions = JSON.parse(xhr.responseText);
           suggestions.sort(function (a, b) {
@@ -104,7 +104,7 @@
       var prevValue = e.target.dataset.value;
       if (value.slice(-1) === ',') {
         if (prevValue.length < value.length) {
-          value = value.slice(0, -1) + this.state.delim;
+          value = value.slice(0, -1).trim() + this.state.delim;
         } else {
           value = value.slice(0, -1);
         }
@@ -117,7 +117,7 @@
       }
       e.target.dataset.value = value;
       var tags = value.split(this.state.delim).map(function (name) {
-        return { Name: name };
+        return { Name: name.toLowerCase() };
       });
       this.getSuggestionsDebounced(tags[tags.length - 1].Name);
       this.props.editHandler({ name: 'Tags', value: tags });
