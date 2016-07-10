@@ -1003,16 +1003,4 @@
     React.createElement(Uploader),
     document.getElementById('content')
   );
-  // websocket
-  // conn = new WebSocket('ws://' + window.location.host + '/ws?token=' + state.token);
-  // conn.onclose = function(e) {
-  //   if (e.code === 3333) {
-  //     console.log('websocket connection closed');
-  //   } else {
-  //     window.location.href = '/login';
-  //   }
-  // }
-  // conn.onmessage = function(e) {
-  //   console.log(e.data);
-  // }
 })(window);

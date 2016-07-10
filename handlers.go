@@ -637,18 +637,23 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if appErr != nil {
 		return appErr
 	}
+	sort := q.Get("sort")
+	switch sort {
+	case "earliest":
+		sort = "created_at ASC"
+	case "alpha-asc":
+		sort = "title ASC"
+	case "alpha-desc":
+		sort = "title DESC"
+	default:
+		sort = "created_at DESC"
+	}
 	if filter != "" && op != "" {
-		if op == "or" {
-			DB.Raw(`SELECT * FROM images
-							WHERE id IN (?)
-							LIMIT ?
-							OFFSET ?`, ids, pageCount, offset).Scan(&images)
-		} else {
-			DB.Raw(`SELECT * FROM images
-              WHERE id IN (?)
-							LIMIT ?
-							OFFSET ?`, ids, pageCount, offset).Scan(&images)
-		}
+		DB.Raw(`SELECT * FROM images
+						WHERE id IN (?)
+						ORDER BY `+sort+`
+						LIMIT ?
+						OFFSET ?`, ids, pageCount, offset).Scan(&images)
 	}
 	p := paginater.New(c, pageCount, pageNum, 3)
 	var params []UrlParam
@@ -656,7 +661,10 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 		params = append(params, UrlParam{Name: "filter", Value: filter, IsFirst: true})
 	}
 	if op != "" {
-		params = append(params, UrlParam{Name: "param", Value: op, IsLast: true})
+		params = append(params, UrlParam{Name: "param", Value: op, IsFirst: len(params) == 0, IsLast: sort == ""})
+	}
+	if sort != "" {
+		params = append(params, UrlParam{Name: "sort", Value: sort, IsFirst: len(params) == 0, IsLast: true})
 	}
 	renderTemplate(w, "tags", "base", map[string]interface{}{
 		"title":          "Search by Tags",

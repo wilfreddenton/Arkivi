@@ -58,8 +58,6 @@ func main() {
 	// DB.Create(tag5)
 	// initialize websocket
 	r := mux.NewRouter().StrictSlash(true)
-	h := newHub()
-	go h.run()
 	// handlers
 	r.Handle("/", appHandler(ChronologyHandler)).Methods("GET")
 	r.Handle("/chronology/{year}/", appHandler(ChronologyYearHandler)).Methods("GET")
@@ -81,7 +79,6 @@ func main() {
 	r.Handle("/tags/", appHandler(TagsHandler)).Methods("GET")
 	r.Handle("/tags/list", appHandler(TagsListHandler)).Methods("GET")
 	r.Handle("/users/token", appHandler(TokenUserHandler)).Methods("GET")
-	r.Handle("/ws", wsHandler{h: h})
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("assets/"))))
 	http.ListenAndServe(":6969", handlers.LoggingHandler(os.Stdout, r))
 }

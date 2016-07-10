@@ -3,7 +3,14 @@
     getInitialState: function () {
       return {
         tags: [],
-        operator: 'and'
+        operator: 'and',
+        sort: 'latest',
+        options: [
+          { name: 'Latest', value: 'latest' },
+          { name: 'Earliest', value: 'earliest' },
+          { name: 'A - Z', value: 'alpha-asc' },
+          { name: 'Z - A', value: 'alpha-desc' }
+        ]
       };
     },
     getUrlParams: function (name) {
@@ -12,6 +19,9 @@
     },
     editHandler: function (data) {
       this.setState({ tags: data.value });
+    },
+    selectHandler: function (e) {
+      this.setState({ sort: e.target.value });
     },
     radioHandler: function (e) {
       this.setState({ operator: e.target.value });
@@ -24,7 +34,7 @@
         return tag.Name;
       }).join(',');
       if (tags !== "")
-        window.location = window.location.pathname + "?filter=" + tags + '&operator=' + this.state.operator;
+        window.location = window.location.pathname + "?filter=" + tags + '&operator=' + this.state.operator + '&sort=' + this.state.sort;
     },
     componentDidMount: function () {
       var tags = this.getUrlParams('filter')
@@ -41,36 +51,60 @@
           this.setState({ operator: op });
         }
       }
+      var selected = "latest";
+      var values = this.state.options.map(function (option) {
+        return option.value;
+      });
+      var sort = this.getUrlParams('sort');
+      if (values.indexOf(sort) > -1)
+        this.setState({ sort: sort });
     },
     render: function () {
+      var options = this.state.options.map(function (option, i) {
+        return React.DOM.option({
+          key: i,
+          value: option.value
+        }, option.name);
+      });
       return (
         React.DOM.form({ onSubmit: this.submitHandler },
+                       React.DOM.a({ id: 'tags-list-link', href: '/tags/list', target: '_blank' }, 'Tags List'),
                        React.DOM.div({ className: 'row' },
-                                     React.DOM.div({ className: 'col-xs-6' },
-                                                   React.createElement(COMPONENTS.TagsInput, {
-                                                     tags: this.state.tags,
-                                                     editHandler: this.editHandler,
-                                                     bottom: true
-                                                   })),
-                                     React.DOM.div({ className: 'col-xs-2'},
-                                                   React.DOM.input({
-                                                     type: 'radio',
-                                                     name: 'operator',
-                                                     value: 'and',
-                                                     onChange: this.radioHandler,
-                                                     checked: 'and' === this.state.operator
-                                                   }),
-                                                   React.DOM.span(null, ' And '),
-                                                   React.DOM.input({
-                                                     type: 'radio',
-                                                     name: 'operator',
-                                                     value: 'or',
-                                                     onChange: this.radioHandler,
-                                                     checked: 'or' === this.state.operator
-                                                   }),
-                                                   React.DOM.span(null, ' Or ')),
-                                     React.DOM.div({ className: 'col-xs-4' },
-                                                   React.DOM.input({ type: 'submit', value: 'filter' }))))
+                                     React.DOM.div({ id: "tags-form-input", className: 'col-xs-8 tags-form-container' },
+                                                   React.DOM.div({ className: 'row '},
+                                                                 React.DOM.div({ className: 'col-xs-7 nested-col-left' },
+                                                                               React.createElement(COMPONENTS.TagsInput, {
+                                                                                 tags: this.state.tags,
+                                                                                 editHandler: this.editHandler,
+                                                                                 bottom: true
+                                                                               })),
+                                                                 React.DOM.div({ className: 'col-xs-5 nested-col-right'},
+                                                                               React.DOM.label(null,
+                                                                                               React.DOM.input({
+                                                                                                 type: 'radio',
+                                                                                                 name: 'operator',
+                                                                                                 value: 'and',
+                                                                                                 onChange: this.radioHandler,
+                                                                                                 checked: 'and' === this.state.operator
+                                                                                               }), ' And '),
+                                                                               React.DOM.label(null,
+                                                                                               React.DOM.input({
+                                                                                                 type: 'radio',
+                                                                                                 name: 'operator',
+                                                                                                 value: 'or',
+                                                                                                 onChange: this.radioHandler,
+                                                                                                 checked: 'or' === this.state.operator
+                                                                                               }), ' Or ')))),
+                                     React.DOM.div({ id: "tags-form-misc", className: 'col-xs-4 tags-form-container' },
+                                                   React.DOM.div({ className: 'row' },
+                                                                 React.DOM.div({ className: 'col-xs-7 nested-col-left' },
+                                                                               React.DOM.select({
+                                                                                 name: "sort",
+                                                                                 value: this.state.sort,
+                                                                                 onChange: this.selectHandler
+                                                                               }, options)),
+                                                                 React.DOM.div({ className: 'col-xs-5 nested-col-right' },
+                                                                               React.DOM.input({ type: 'submit', value: 'filter' }))))))
       );
     }
   });
