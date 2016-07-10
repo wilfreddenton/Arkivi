@@ -638,20 +638,22 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 		return appErr
 	}
 	sort := q.Get("sort")
+	var s string
 	switch sort {
 	case "earliest":
-		sort = "created_at ASC"
+		s = "created_at ASC"
 	case "alpha-asc":
-		sort = "title ASC"
+		s = "title ASC"
 	case "alpha-desc":
-		sort = "title DESC"
+		s = "title DESC"
 	default:
-		sort = "created_at DESC"
+		sort = "latest"
+		s = "created_at DESC"
 	}
 	if filter != "" && op != "" {
 		DB.Raw(`SELECT * FROM images
 						WHERE id IN (?)
-						ORDER BY `+sort+`
+						ORDER BY `+s+`
 						LIMIT ?
 						OFFSET ?`, ids, pageCount, offset).Scan(&images)
 	}
@@ -661,7 +663,7 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 		params = append(params, UrlParam{Name: "filter", Value: filter, IsFirst: true})
 	}
 	if op != "" {
-		params = append(params, UrlParam{Name: "param", Value: op, IsFirst: len(params) == 0, IsLast: sort == ""})
+		params = append(params, UrlParam{Name: "operator", Value: op, IsFirst: len(params) == 0, IsLast: sort == ""})
 	}
 	if sort != "" {
 		params = append(params, UrlParam{Name: "sort", Value: sort, IsFirst: len(params) == 0, IsLast: true})
