@@ -180,6 +180,7 @@ ul li {
   position: absolute;
   bottom: 30px;
   width: 100%;
+  z-index: 9001;
 }
 .tags-input .tags-suggestions.bottom {
   top: 15px;

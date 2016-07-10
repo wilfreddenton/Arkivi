@@ -678,7 +678,7 @@ func TagsListHandler(w http.ResponseWriter, r *http.Request) *appError {
 			currentTags = strings.Split(q["currentTags"][0], ",")
 		}
 		var tags []*Tag
-		DB.Where("name LIKE ?", "%"+query+"%").Not("name", currentTags).Find(&tags)
+		DB.Where("name LIKE ?", query+"%").Not("name", currentTags).Find(&tags)
 		if len(q["json"]) > 0 && q["json"][0] == "true" {
 			w.Header().Set("Content-Type", "application/javascript")
 			json.NewEncoder(w).Encode(tags)
