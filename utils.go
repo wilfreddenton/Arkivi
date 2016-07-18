@@ -34,6 +34,9 @@ func verifyToken(t string) bool {
 func randomString(strlen int) string {
 	rand.Seed(time.Now().UTC().UnixNano())
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP0123456789"
+	if strlen <= 0 {
+		return ""
+	}
 	result := make([]byte, strlen)
 	for i := 0; i < strlen; i++ {
 		result[i] = chars[rand.Intn(len(chars))]
@@ -98,6 +101,9 @@ func getClaimsFromRequestToken(r *http.Request) (jwt.MapClaims, error) {
 
 func pagination(count int, pageCount int, page string) (pageNum int, offset int, appErr *appError) {
 	pageNum = 1
+	if pageCount == 0 {
+		pageCount = 1
+	}
 	numPages := int(math.Ceil(float64(count) / float64(pageCount)))
 	if numPages == 0 {
 		numPages = 1
