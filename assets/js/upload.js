@@ -963,6 +963,7 @@
       }) : null;
       return (
         React.DOM.div({ id: 'uploader' },
+                      React.DOM.h1(null, "Upload"),
                       React.createElement(Error, null),
                       React.createElement(Dropzone, {
                         fileHandler: this.fileHandler

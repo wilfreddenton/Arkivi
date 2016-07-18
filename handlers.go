@@ -291,7 +291,10 @@ func AccountSettingsHandler(w http.ResponseWriter, r *http.Request) *appError {
 }
 
 var UploadHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "upload", "base", nil)
+	renderTemplate(w, "upload", "base", map[string]interface{}{
+		"title":          "Upload",
+		"containerClass": "bound",
+	})
 })
 
 func NewTokenHandler(w http.ResponseWriter, r *http.Request) *appError {

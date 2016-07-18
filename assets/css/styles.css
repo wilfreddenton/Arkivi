@@ -2,7 +2,9 @@
   box-sizing: border-box;
 }
 body, input {
-  font-family: Inconsolata, monospace;
+  /* font-family: Inconsolata, monospace; */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font-size: 14px;
   color: #2B3046;
   margin: 0;
 }
@@ -26,11 +28,15 @@ nav ul {
 nav ul li {
   display: inline-block;
   margin: 0 15px;
-  font-size: 16px;
+  font-size: 14px;
   padding: 15px 0;
 }
 nav {
   text-align: center;
+  margin-bottom: 40px;
+}
+h3 {
+  font-size: 14px;
 }
 .pagination {
   display: inline-block;
@@ -61,15 +67,19 @@ a:hover {
   color: #007CFF;
 }
 select {
-  font-size: 15px;
   -webkit-appearance: menulist-button;
+  outline: none;
+  height: 24px;
+  margin-top: -2px;
+  border: 1px solid #2B3046;
+  color: #2B3046;
+  background: white;
+  width: 100%;
 }
 input[type="submit"] {
   outline: none;
   border: 0;
   background-color: transparent;
-  font-size: 16px;
-  font-weight: bold;
   padding: 0;
   text-decoration: underline;
 }
@@ -84,8 +94,9 @@ input[type="date"],
 input[type="checkbox"] {
   outline: none;
   width: 100%;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: bold;
+  height: 24px;
   border-left: 0;
   max-width: 100%;
   border-right: 0;
@@ -101,16 +112,14 @@ textarea {
   border: 1px solid #ccc;
   max-width: 100%;
   padding: 5px 7px;
-  font-size: 15px;
+  font-size: 14px;
 }
 label {
-  font-size: 16px;
   display: block;
   margin-bottom: 20px;
 }
 ul {
   list-style-type: none;
-  font-size: 16px;
   padding-left: 0px;
 }
 ul li {
@@ -124,11 +133,11 @@ ul li {
   max-width: 400px;
   padding: 0 15px;
 }
-.image-list {
+.image-list, .bound {
   margin: 0 auto;
   max-width: 780px;
 }
-.image-list h1 {
+.image-list h1, .bound h1 {
   padding: 0 15px;
 }
 .row {
@@ -183,7 +192,7 @@ ul li {
 }
 .tags-input .tags-suggestions {
   position: absolute;
-  bottom: 30px;
+  bottom: 25px;
   width: 100%;
   z-index: 9001;
 }
@@ -198,7 +207,6 @@ ul li {
   cursor: pointer;
 }
 .tags-input .tags-suggestions ul li {
-  font-size: 16px;
   padding: 5px 10px;
   border-bottom: 1px solid #ccc;
   cursor: pointer;
@@ -242,8 +250,7 @@ ul li {
   max-width: 780px;
   margin: 0 auto;
   text-align: center;
-  font-size: 16px;
-  padding: 20px 20px 30px;
+  padding: 0px 20px 30px;
 }
 /* #upload-bar div:first-child { */
 /*   text-align: left; */
@@ -275,7 +282,7 @@ ul li {
 #action-bar {
   max-width: 780px;
   padding: 10px 0;
-  margin: 0 auto;
+  margin: 0 auto 20px;
   padding: 0 15px;
   position: relative;
 }
@@ -302,27 +309,16 @@ ul li {
 #action-bar input[type="text"], #action-bar input[type="date"] {
   outline: none;
   font-size: 15px;
+  margin-top: -2px;
   padding: 0 5px;
   border: 1px solid #2B3046;
 }
 #action-bar .action-bar-checkbox-container {
   text-align: left;
 }
-#action-bar .action-bar-selected {
-  font-size: 16px;
-}
 #action-bar .action-bar-primary,
 #action-bar .action-bar-secondary {
   padding: 0 10px;
-}
-#action-bar .action-bar-primary select,
-#action-bar .action-bar-secondary input {
-  outline: none;
-  height: 24px;
-  border: 1px solid #2B3046;
-  color: #2B3046;
-  background: white;
-  width: 100%;
 }
 #action-bar .tags-input .tags-suggestions {
   bottom: 20px;
@@ -334,7 +330,6 @@ ul li {
   margin: 0;
 }
 #action-bar .action-bar-submit {
-  font-size: 18px;
   color: #007CFF;
   padding-right: 0;
 }
@@ -363,14 +358,9 @@ ul li {
   background-color: #eee;
   transition: width 300ms;
 }
-#placeholder.slide-away {
-  margin-top: -101px;
-  border-bottom: 0;
-  border-top: 0;
-}
 #placeholder span {
-  font-size: 18px;
-  padding: 38px;
+  font-size: 16px;
+  padding: 26px;
   display: inline-block;
 }
 #previews {
@@ -382,8 +372,8 @@ ul li {
   padding: 0;
 }
 #previews .more-buttons {
+  padding: 35px;
   text-align: center;
-  padding: 60px;
 }
 #previews .more-buttons div {
   padding: 0;
@@ -406,6 +396,8 @@ ul li {
   margin-bottom: 15px;
 }
 .preview .preview-img {
+  height: 75px;
+  width: 75px;
   overflow: hidden;
   position: absolute;
   z-index: 100;
@@ -425,19 +417,18 @@ ul li {
   padding: 26px;
 }
 .preview .preview-description {
-  padding-left: 130px;
-  padding-top: 12px;
-  padding-bottom: 8px;
+  padding-top: 6px;
+  padding-left: 90px;
+  padding-bottom: 7px;
 }
 .preview .preview-name {
-  font-size: 18px;
+  font-size: 16px;
   padding: 0px;
 }
 .preview .preview-name * {
   text-overflow: ellipsis;
   max-width: 100%;
   padding-right: 20px;
-  font-weight: bold;
   display: inline-block;
   white-space: nowrap;
   overflow: hidden;
@@ -451,9 +442,9 @@ ul li {
   text-decoration: underline;
 }
 .preview .preview-ext, .preview .preview-dim {
+  font-size: 14px;
+  margin-top: 5px;
   display: inline-block;
-  font-size: 18px;
-  margin-top: 7px;
   width: 100%;
   text-align: left;
 }
@@ -461,9 +452,9 @@ ul li {
   text-transform: uppercase;
 }
 .preview .preview-size {
-  font-size: 25px;
   display: inline-block;
   position: relative;
+  font-size: 20px;
 }
 .preview .preview-size-unit {
   display: inline-block;
@@ -472,14 +463,14 @@ ul li {
   font-size: 16px;
 }
 .preview .preview-upload-progress {
-  font-size: 23px;
+  font-size: 18px;
   width: 100%;
   margin-top: 2px;
   text-align: right;
   display: inline-block;
 }
 .preview .preview-edit {
-  font-size: 18px;
+  font-size: 15px;
   float: right;
   margin-right: 0;
   margin-top: 2px;
@@ -493,7 +484,7 @@ ul li {
   color: #9482E8;
 }
 .preview .preview-details {
-  margin-top: 20px;
+  margin-top: 12px;
 }
 .preview .preview-details div {
   padding: 0;
@@ -543,6 +534,9 @@ ul li {
 }
 .years .year a {
   
+}
+.years .year h3 {
+  margin-top: 30px;
 }
 .months .month span {
 }
@@ -605,57 +599,6 @@ ul li {
   }
   textarea {
     font-size: 12px;
-  }
-  .preview {
-  }
-  .preview .preview-details {
-    margin-top: 12px;
-  }
-  .preview .preview-name {
-    font-size: 16px;
-  }
-  .preview .preview-description {
-    padding-top: 6px;
-    padding-left: 90px;
-    padding-bottom: 7px;
-  }
-  .preview .preview-size {
-    font-size: 20px;
-  }
-  .preview .preview-img {
-    height: 75px;
-    width: 75px;
-  }
-  .preview .preview-progress-bar {
-    padding-left: 75px;
-  }
-  .preview .preview-upload-progress {
-    font-size: 18px;
-  }
-  .preview .preview-edit {
-    font-size: 15px;
-  }
-  #placeholder.slide-away {
-    margin-top: -76px;
-  }
-  #placeholder span {
-    font-size: 16px;
-    padding: 26px;
-  }
-  #previews .more-buttons {
-    padding: 35px;
-  }
-  #previews .more-buttons .more-button {
-    font-size: 16px;
-  }
-  .preview .preview-ext, .preview .preview-dim {
-    font-size: 14px;
-    margin-top: 5px
-  }
-  .preview .preview-img .dot-spinner {
-    display: inline-block;
-    font-size: 30px;
-    padding: 16px;
   }
 }
 @media (max-width: 650px) {
