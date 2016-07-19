@@ -132,7 +132,7 @@ func ChronologyMonthHandler(w http.ResponseWriter, r *http.Request) *appError {
 		Code:    http.StatusNotFound,
 		Render:  true,
 	}
-	month := NewMonth(y, m)
+	month := FindMonth(y, m)
 	if month == (Month{}) {
 		return noImgErr
 	}
@@ -188,11 +188,11 @@ func RegisterPostHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if password != confirm {
 		errorMessage = "The passwords do not match."
 	}
-	if user := GetUserByUsername(username); user != (User{}) {
+	if user := FindUserByUsername(username); user != (User{}) {
 		errorMessage = "The username " + username + " is already in use."
 	}
 	admin := false
-	if user := GetAdminUser(); user == (User{}) {
+	if user := FindAdminUser(); user == (User{}) {
 		admin = true
 	}
 
@@ -214,7 +214,7 @@ func RegisterPostHandler(w http.ResponseWriter, r *http.Request) *appError {
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) *appError {
-	if s, err := GetAdminUserSettings(); err == nil {
+	if s, err := FindAdminUserSettings(); err == nil {
 		if !s.Registration {
 			return &appError{
 				Error:   errors.New("An attempt at registering has failed because the current admin has turned off registration."),
@@ -258,7 +258,7 @@ func AccountSettingsHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusInternalServerError,
 		}
 	}
-	user := GetUserByID(s.UserID)
+	user := FindUserByID(s.UserID)
 	if user == (User{}) {
 		return &appError{
 			Error:   errors.New("A user attempted to change a nonexistent user's settings."),
@@ -286,8 +286,8 @@ var UploadHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 })
 
 func NewTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
-	var u UserJson
-	err := json.NewDecoder(r.Body).Decode(&u)
+	var uj UserJson
+	err := json.NewDecoder(r.Body).Decode(&uj)
 	if err != nil {
 		return &appError{
 			Error:   err,
@@ -295,16 +295,15 @@ func NewTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusBadRequest,
 		}
 	}
-	var user User
-	DB.Where("username = ?", u.Username).First(&user)
-	if user == (User{}) {
+	u := FindUserByUsername(uj.Username)
+	if u == (User{}) {
 		return &appError{
 			Error:   err,
 			Message: "The username was not found.",
 			Code:    http.StatusNotFound,
 		}
 	}
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(u.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(uj.Password))
 	if err != nil {
 		return &appError{
 			Error:   err,
@@ -312,8 +311,8 @@ func NewTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusUnauthorized,
 		}
 	}
-	tokenString := newToken(user.Username, user.Admin)
-	w.Write([]byte(tokenString))
+	t := newToken(u.Username, u.Admin)
+	w.Write([]byte(t))
 	return nil
 }
 
@@ -337,7 +336,15 @@ func PingTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
 
 func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 	// index := r.FormValue("index")
-	title := strings.Split(r.FormValue("filename"), ".")[0]
+	s := strings.Split(r.FormValue("filename"), ".")
+	if len(s) < 2 {
+		return &appError{
+			Error:   errors.New("The filename is invalid."),
+			Message: "Could not parse the filename from form data.",
+			Code:    http.StatusBadRequest,
+		}
+	}
+	title := s[0]
 	src, hdr, err := r.FormFile("img")
 	if err != nil {
 		return &appError{
@@ -347,7 +354,7 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	defer src.Close()
-	contentType := hdr.Header["Content-Type"][0]
+	contentType := hdr.Header.Get("Content-Type")
 	if !isAllowedContentType(contentType) {
 		return &appError{
 			Error:   err,
@@ -394,21 +401,20 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusInternalServerError,
 		}
 	}
-	var user User
-	var settings Settings
-	DB.Where("username = ?", claims["username"]).First(&user)
-	DB.Model(&user).Related(&settings)
+	var u User
+	DB.Where("username = ?", claims["username"]).First(&u)
+	u.GetSettings()
 	imgModel := &Image{
-		UserID:    user.ID,
+		UserID:    u.ID,
 		Title:     title,
 		Name:      name,
 		Ext:       ext,
 		Width:     b.Dx(),
 		Height:    b.Dy(),
 		TakenAt:   nil,
-		Camera:    settings.Camera,
-		Film:      settings.Film,
-		Published: settings.Public,
+		Camera:    u.Settings.Camera,
+		Film:      u.Settings.Film,
+		Published: u.Settings.Public,
 	}
 	p := &ImageProcessor{imgModel, img, gifImg}
 	p.CreateResizes()
@@ -416,8 +422,7 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 	mi := int(t.Month())
 	ms := t.Month().String()
 	y := t.Year()
-	var month Month
-	DB.Where("int = ? AND year = ?", mi, y).First(&month)
+	month := FindMonth(y, mi)
 	if month == (Month{}) {
 		month = Month{
 			String:    ms,
@@ -427,7 +432,7 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 		DB.Create(&month)
 	} else {
-		DB.Model(&month).Update("num_images", month.NumImages+1)
+		month.IncNumImages()
 	}
 	p.ImageModel.MonthID = month.ID
 	p.ImageModel.Save()
@@ -461,10 +466,18 @@ func ImageGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusNotFound,
 		}
 	}
-	var image Image
-	DB.Where("name = ?", name).First(&image)
 	q := r.URL.Query()
-	if len(q["json"]) > 0 && q["json"][0] == "true" {
+	sendJson := len(q["json"]) > 0 && q["json"][0] == "true"
+	image := FindImageByName(name)
+	if image.Name != name {
+		return &appError{
+			Error:   errors.New("No image found with the specified name."),
+			Message: "There are no images with the name you provided.",
+			Code:    http.StatusNotFound,
+			Render:  !sendJson,
+		}
+	}
+	if sendJson {
 		w.Header().Set("Content-Type", "application/javascript")
 		json.NewEncoder(w).Encode(image)
 		return nil
@@ -486,8 +499,7 @@ func ImagePutHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusBadRequest,
 		}
 	}
-	var img Image
-	DB.Where("id = ?", updatedImg.ID).First(&img)
+	img := FindImageByID(updatedImg.ID)
 	claims, err := getClaimsFromRequestToken(r)
 	if err != nil {
 		return &appError{
@@ -496,8 +508,7 @@ func ImagePutHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusInternalServerError,
 		}
 	}
-	var user User
-	DB.Where("id = ?", img.UserID).First(&user)
+	user := FindUserByID(img.UserID)
 	if user.Username != claims["username"] {
 		return &appError{
 			Error:   errors.New("A user attempted to change another user's photo."),
@@ -511,14 +522,7 @@ func ImagePutHandler(w http.ResponseWriter, r *http.Request) *appError {
 		takenAt = nil
 	}
 	tags := updateTags(updatedImg.Tags)
-	DB.Model(&img).Updates(map[string]interface{}{
-		"Title":       updatedImg.Title,
-		"TakenAt":     takenAt,
-		"Description": updatedImg.Description,
-		"Camera":      updatedImg.Camera,
-		"Film":        updatedImg.Film,
-		"Published":   updatedImg.Published,
-	}).Association("Tags").Replace(&tags)
+	img.Update(updatedImg, takenAt, tags)
 	w.Write([]byte("success"))
 	return nil
 }

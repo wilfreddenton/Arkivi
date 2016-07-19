@@ -16,27 +16,31 @@ type User struct {
 	Settings Settings
 }
 
-func GetUserByID(id uint) User {
+func (u *User) GetSettings() {
+	DB.Model(&u).Related(&u.Settings)
+}
+
+func FindUserByID(id uint) User {
 	var u User
 	DB.Where("id = ?", id).First(&u)
 	return u
 }
 
-func GetUserByUsername(username string) User {
+func FindUserByUsername(username string) User {
 	var u User
 	DB.Where("username = ?", username).First(&u)
 	return u
 }
 
-func GetAdminUser() User {
+func FindAdminUser() User {
 	var a User
 	DB.Where("admin = 1").First(&a)
 	return a
 }
 
-func GetAdminUserSettings() (Settings, error) {
+func FindAdminUserSettings() (Settings, error) {
 	var s Settings
-	a := GetAdminUser()
+	a := FindAdminUser()
 	if a != (User{}) {
 		DB.Model(&a).Related(&s)
 		return s, nil
@@ -139,6 +143,29 @@ func (i *Image) GetPaths() []string {
 	return paths
 }
 
+func (i *Image) Update(updatedImg ImageJson, takenAt interface{}, tags []Tag) {
+	DB.Model(&i).Updates(map[string]interface{}{
+		"Title":       updatedImg.Title,
+		"TakenAt":     takenAt,
+		"Description": updatedImg.Description,
+		"Camera":      updatedImg.Camera,
+		"Film":        updatedImg.Film,
+		"Published":   updatedImg.Published,
+	}).Association("Tags").Replace(&tags)
+}
+
+func FindImageByID(id int) Image {
+	var i Image
+	DB.Where("id = ?", id).First(&i)
+	return i
+}
+
+func FindImageByName(name string) Image {
+	var i Image
+	DB.Where("name = ?", name).First(&i)
+	return i
+}
+
 type ImageMini struct {
 	ID int
 }
@@ -193,13 +220,17 @@ type Month struct {
 	NumImages int
 }
 
+func (m *Month) IncNumImages() {
+	DB.Model(&m).Update("num_images", m.NumImages+1)
+}
+
 func (m *Month) FindImages(offset, pageCount int) []Image {
 	var is []Image
 	DB.Where("month_id = ?", m.ID).Offset(offset).Limit(pageCount).Find(&is)
 	return is
 }
 
-func NewMonth(year, i int) Month {
+func FindMonth(year, i int) Month {
 	var m Month
 	DB.Where("year = ? AND int = ?", year, i).Find(&m)
 	return m
