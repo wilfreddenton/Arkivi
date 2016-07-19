@@ -44,6 +44,7 @@
     camera.value = user.Settings.Camera;
     film.value = user.Settings.Film;
     public.checked = user.Settings.Public;
+    registration.checked = user.Settings.Registration;
   }
   var success = function (xhr) {
     setup(JSON.parse(xhr.responseText));

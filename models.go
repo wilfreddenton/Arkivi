@@ -16,6 +16,12 @@ type User struct {
 	Settings Settings
 }
 
+func GetUserByID(id uint) User {
+	var u User
+	DB.Where("id = ?", id).First(&u)
+	return u
+}
+
 func GetUserByUsername(username string) User {
 	var u User
 	DB.Where("username = ?", username).First(&u)
@@ -72,6 +78,15 @@ type Settings struct {
 	Film         string
 	Public       bool
 	Registration bool // admin only setting
+}
+
+func (s *Settings) Update() {
+	DB.Table("settings").Where("id = ?", s.ID).Updates(map[string]interface{}{
+		"Camera":       s.Camera,
+		"Film":         s.Film,
+		"Public":       s.Public,
+		"Registration": s.Registration,
+	})
 }
 
 // Image

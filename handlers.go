@@ -241,8 +241,8 @@ var AccountHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 })
 
 func AccountSettingsHandler(w http.ResponseWriter, r *http.Request) *appError {
-	var settings Settings
-	err := json.NewDecoder(r.Body).Decode(&settings)
+	var s Settings
+	err := json.NewDecoder(r.Body).Decode(&s)
 	if err != nil {
 		return &appError{
 			Error:   err,
@@ -258,21 +258,22 @@ func AccountSettingsHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusInternalServerError,
 		}
 	}
-	var user User
-	DB.Where("id = ?", settings.UserID).First(&user)
-	if user.Username != claims["username"] {
+	user := GetUserByID(s.UserID)
+	if user == (User{}) {
+		return &appError{
+			Error:   errors.New("A user attempted to change a nonexistent user's settings."),
+			Message: "The user who's settings you tried to change does not exist.",
+			Code:    http.StatusNotFound,
+		}
+	}
+	if user.Username != claims["username"] || s.UserID != user.ID {
 		return &appError{
 			Error:   errors.New("A user attempted to change another user's settings."),
 			Message: "You are not authorized to make changes to another user's settings.",
 			Code:    http.StatusUnauthorized,
 		}
 	}
-	DB.Table("settings").Where("id = ?", settings.ID).Updates(map[string]interface{}{
-		"Camera":       settings.Camera,
-		"Film":         settings.Film,
-		"Public":       settings.Public,
-		"Registration": settings.Registration,
-	})
+	s.Update()
 	w.Write([]byte("success"))
 	return nil
 }
