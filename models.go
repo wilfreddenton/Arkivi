@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"github.com/jinzhu/gorm"
 	"strings"
 	"time"
@@ -13,6 +14,41 @@ type User struct {
 	Password string `json:"-"`
 	Admin    bool
 	Settings Settings
+}
+
+func GetUserByUsername(username string) User {
+	var u User
+	DB.Where("username = ?", username).First(&u)
+	return u
+}
+
+func GetAdminUser() User {
+	var a User
+	DB.Where("admin = 1").First(&a)
+	return a
+}
+
+func GetAdminUserSettings() (Settings, error) {
+	var s Settings
+	a := GetAdminUser()
+	if a != (User{}) {
+		DB.Model(&a).Related(&s)
+		return s, nil
+	}
+	return s, errors.New("There is currently no admin user.")
+}
+
+func CreateAndSaveUser(username string, hash []byte, admin bool) {
+	user := User{
+		Username: username,
+		Password: string(hash),
+		Admin:    admin,
+	}
+	DB.Create(&user)
+	settings := Settings{
+		UserID: user.ID,
+	}
+	DB.Create(&settings)
 }
 
 type UserJson struct {
@@ -136,15 +172,56 @@ type ActionTags struct {
 // Month
 type Month struct {
 	gorm.Model
-	Month     string
+	String    string
+	Int       int
 	Year      int
 	NumImages int
+}
+
+func (m *Month) FindImages(offset, pageCount int) []Image {
+	var is []Image
+	DB.Where("month_id = ?", m.ID).Offset(offset).Limit(pageCount).Find(&is)
+	return is
+}
+
+func NewMonth(year, i int) Month {
+	var m Month
+	DB.Where("year = ? AND int = ?", year, i).Find(&m)
+	return m
+}
+
+func NumMonths() int {
+	var c int
+	DB.Model(Month{}).Count(&c)
+	return c
 }
 
 // Year
 type Year struct {
 	Year   int
 	Months []Month
+}
+
+func (y *Year) GetMonths() {
+	DB.Where("year = ?", y.Year).Find(&y.Months)
+}
+
+func BuildChronology(offset, pageCount int) []*Year {
+	var months []Month
+	DB.Order("id desc").Offset(offset).Limit(pageCount).Find(&months)
+	var years []*Year
+	if len(months) > 0 {
+		prevYear := &Year{}
+		for _, m := range months {
+			if m.Year != prevYear.Year {
+				prevYear = &Year{m.Year, []Month{m}}
+				years = append(years, prevYear)
+			} else {
+				prevYear.Months = append(prevYear.Months, m)
+			}
+		}
+	}
+	return years
 }
 
 // misc

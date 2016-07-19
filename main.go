@@ -61,7 +61,7 @@ func main() {
 	// handlers
 	r.Handle("/", appHandler(ChronologyHandler)).Methods("GET")
 	r.Handle("/chronology/{year}/", appHandler(ChronologyYearHandler)).Methods("GET")
-	r.Handle("/chronology/{year}/{month}", appHandler(ChronologyMonthHandler)).Methods("GET")
+	r.Handle("/chronology/{year}/{month}/", appHandler(ChronologyMonthHandler)).Methods("GET")
 	r.Handle("/tokens/new", appHandler(NewTokenHandler)).Methods("POST")
 	r.Handle("/tokens/verify", jwtMiddleware.Handler(VerifyTokenHandler)).Methods("GET")
 	r.Handle("/tokens/ping", jwtMiddleware.Handler(appHandler(PingTokenHandler))).Methods("GET")
@@ -69,7 +69,7 @@ func main() {
 	r.Handle("/register", appHandler(RegisterHandler)).Methods("GET", "POST")
 	r.Handle("/account", AccountHandler).Methods("GET")
 	r.Handle("/account/settings", appHandler(AccountSettingsHandler)).Methods("PUT")
-	r.Handle("/upload/", UploadHandler).Methods("GET")
+	r.Handle("/upload", UploadHandler).Methods("GET")
 	r.Handle("/upload/image", jwtMiddleware.Handler(appHandler(UploadImageHandler))).Methods("POST")
 	r.Handle("/images/", ImagesHandler).Methods("GET")
 	r.Handle("/images/{name}", appHandler(ImageGetHandler)).Methods("GET")

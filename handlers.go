@@ -51,28 +51,14 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // pages
 func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
-	var c int
-	DB.Model(Month{}).Count(&c)
+	c := NumMonths()
 	pageCount := 3
 	page := r.URL.Query().Get("page")
 	pageNum, offset, appErr := pagination(c, pageCount, page)
 	if appErr != nil {
 		return appErr
 	}
-	var months []Month
-	DB.Order("id desc").Offset(offset).Limit(pageCount).Find(&months)
-	var years []*Year
-	if len(months) > 0 {
-		prevYear := &Year{}
-		for _, m := range months {
-			if m.Year != prevYear.Year {
-				prevYear = &Year{m.Year, []Month{m}}
-				years = append(years, prevYear)
-			} else {
-				prevYear.Months = append(prevYear.Months, m)
-			}
-		}
-	}
+	years := BuildChronology(offset, pageCount)
 	p := paginater.New(c, pageCount, pageNum, 3)
 	renderTemplate(w, "chronology", "base", map[string]interface{}{
 		"years":          years,
@@ -87,7 +73,7 @@ func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
 func ChronologyYearHandler(w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
 	year := vars["year"]
-	y, err := strconv.Atoi(year)
+	yearNum, err := strconv.Atoi(year)
 	if err != nil {
 		return &appError{
 			Error:   errors.New("An invalid year was entered."),
@@ -96,9 +82,9 @@ func ChronologyYearHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Render:  true,
 		}
 	}
-	var months []Month
-	DB.Where("year = ?", y).Find(&months)
-	if len(months) == 0 {
+	y := Year{Year: yearNum}
+	y.GetMonths()
+	if len(y.Months) == 0 {
 		return &appError{
 			Error:   errors.New("A user tried to acccess a year with no images."),
 			Message: "No images were uploaded this year.",
@@ -107,7 +93,7 @@ func ChronologyYearHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	renderTemplate(w, "chronology_year", "base", map[string]interface{}{
-		"months":         months,
+		"months":         y.Months,
 		"title":          year,
 		"containerClass": "form-page",
 	})
@@ -116,56 +102,56 @@ func ChronologyYearHandler(w http.ResponseWriter, r *http.Request) *appError {
 
 func ChronologyMonthHandler(w http.ResponseWriter, r *http.Request) *appError {
 	vars := mux.Vars(r)
-	year := vars["year"]
-	y, err := strconv.Atoi(year)
+	yv := vars["year"]
+	y, err := strconv.Atoi(yv)
 	if err != nil {
 		return &appError{
 			Error:   errors.New("An invalid year was entered."),
-			Message: year + " is not a valid year.",
+			Message: yv + " is not a valid year.",
 			Code:    http.StatusNotFound,
 			Render:  true,
 		}
 	}
-	m := vars["month"]
-	if _, err = time.Parse("January", m); err != nil {
-		return &appError{
-			Error:   errors.New("An invalid month was entered."),
-			Message: m + " is not a valid month.",
-			Code:    http.StatusNotFound,
-			Render:  true,
-		}
+	mv := vars["month"]
+	m, err := strconv.Atoi(mv)
+	monthErr := appError{
+		Error:   errors.New("An invalid month was entered."),
+		Message: yv + " is not a valid month.",
+		Code:    http.StatusNotFound,
+		Render:  true,
 	}
-	var month Month
-	DB.Where("year = ? AND month = ?", y, m).Find(&month)
+	if err != nil {
+		return &monthErr
+	}
+	if _, err = time.Parse("1", mv); err != nil {
+		return &monthErr
+	}
 	noImgErr := &appError{
 		Error:   errors.New("A user tried to acccess a month with no images."),
 		Message: "No images were uploaded this month.",
 		Code:    http.StatusNotFound,
 		Render:  true,
 	}
+	month := NewMonth(y, m)
 	if month == (Month{}) {
 		return noImgErr
 	}
 	pageCount := 12
 	page := r.URL.Query().Get("page")
-	var c int
-	DB.Model(Image{}).Where("month_id = ?", month.ID).Count(&c)
-	pageNum, offset, appErr := pagination(c, pageCount, page)
+	pageNum, offset, appErr := pagination(month.NumImages, pageCount, page)
 	if appErr != nil {
 		return appErr
 	}
-	var images []Image
-	DB.Where("month_id = ?", month.ID).Offset(offset).Limit(pageCount).Find(&images)
+	images := month.FindImages(offset, pageCount)
 	if len(images) == 0 {
 		return noImgErr
 	}
-	p := paginater.New(c, pageCount, pageNum, 3)
-	yearStr := strconv.Itoa(month.Year)
+	p := paginater.New(month.NumImages, pageCount, pageNum, 3)
 	renderTemplate(w, "chronology_month", "base", map[string]interface{}{
 		"images":         images,
-		"title":          month.Month + " " + yearStr,
+		"title":          month.String + " " + yv,
 		"Page":           p,
-		"baseUrl":        "/chronology/" + yearStr + "/" + month.Month,
+		"baseUrl":        "/chronology/" + yv + "/" + mv,
 		"containerClass": "image-list",
 	})
 	return nil
@@ -178,70 +164,71 @@ var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request)
 	})
 })
 
+func RegisterGetHandler(w http.ResponseWriter) {
+	renderTemplate(w, "register", "base", map[string]interface{}{
+		"title":          "Register",
+		"containerClass": "form-page",
+	})
+}
+
+func RegisterPostHandler(w http.ResponseWriter, r *http.Request) *appError {
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+	confirm := r.FormValue("confirm")
+	errorMessage := ""
+	if username == "" || password == "" || confirm == "" {
+		errorMessage = "All fields are required."
+	}
+	if len(username) > 20 {
+		errorMessage = "The username you entered is greater than 20 characters long. Please enter a shorter password."
+	}
+	if len(password) > 36 {
+		errorMessage = "The password you entered is greater than 36 characters long. Please enter a shorter password."
+	}
+	if password != confirm {
+		errorMessage = "The passwords do not match."
+	}
+	if user := GetUserByUsername(username); user != (User{}) {
+		errorMessage = "The username " + username + " is already in use."
+	}
+	admin := false
+	if user := GetAdminUser(); user == (User{}) {
+		admin = true
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		errorMessage = "The password you entered contains invalid characters."
+	}
+	if errorMessage != "" {
+		renderTemplate(w, "register", "base", map[string]interface{}{
+			"title":          "Register",
+			"containerClass": "form-page",
+			"error":          errorMessage,
+		})
+		return nil
+	}
+	CreateAndSaveUser(username, hash, admin)
+	http.Redirect(w, r, "/login", http.StatusMovedPermanently)
+	return nil
+}
+
 func RegisterHandler(w http.ResponseWriter, r *http.Request) *appError {
-	var admin User
-	DB.Where("admin = 1").First(&admin)
-	if admin != (User{}) {
-		var settings Settings
-		DB.Model(&admin).Related(&settings)
-		if !settings.Registration {
+	if s, err := GetAdminUserSettings(); err == nil {
+		if !s.Registration {
 			return &appError{
 				Error:   errors.New("An attempt at registering has failed because the current admin has turned off registration."),
 				Message: "The current admin has turned off registration.",
 				Code:    http.StatusUnauthorized,
+				Render:  true,
 			}
 		}
 	}
 	switch r.Method {
 	case "GET":
-		renderTemplate(w, "register", "base", map[string]interface{}{
-			"title":          "Register",
-			"containerClass": "form-page",
-		})
+		RegisterGetHandler(w)
 	case "POST":
-		username := r.FormValue("username")
-		password := r.FormValue("password")
-		confirm := r.FormValue("confirm")
-		errorMessage := ""
-		if username == "" || password == "" || confirm == "" {
-			errorMessage = "All fields are required."
-		}
-		if password != confirm {
-			errorMessage = "The passwords do not match."
-		}
-		var user User
-		DB.Where("username = ?", username).First(&user)
-		if user != (User{}) {
-			errorMessage = "The username " + username + " is already in use."
-		}
-		admin := false
-		DB.Where("admin = 1").First(&user)
-		if user == (User{}) {
-			admin = true
-		}
-		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		if err != nil {
-			errorMessage = "The password you entered contains invalid characters."
-		}
-		if errorMessage != "" {
-			renderTemplate(w, "register", "base", map[string]interface{}{
-				"title":          "Register",
-				"containerClass": "form-page",
-				"error":          errorMessage,
-			})
-			return nil
-		}
-		user = User{
-			Username: username,
-			Password: string(hash),
-			Admin:    admin,
-		}
-		DB.Create(&user)
-		settings := Settings{
-			UserID: user.ID,
-		}
-		DB.Create(&settings)
-		http.Redirect(w, r, "/login", http.StatusMovedPermanently)
+		return RegisterPostHandler(w, r)
 	}
 	return nil
 }
@@ -425,13 +412,15 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
 	p := &ImageProcessor{imgModel, img, gifImg}
 	p.CreateResizes()
 	t := time.Now()
-	m := t.Month().String()
+	mi := int(t.Month())
+	ms := t.Month().String()
 	y := t.Year()
 	var month Month
-	DB.Where("month = ? AND year = ?", m, y).First(&month)
+	DB.Where("int = ? AND year = ?", mi, y).First(&month)
 	if month == (Month{}) {
 		month = Month{
-			Month:     m,
+			String:    ms,
+			Int:       mi,
 			Year:      y,
 			NumImages: 1,
 		}
@@ -567,7 +556,7 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 	var m Month
 	DB.Where("id = ?", img.MonthID).First(&m)
 	if m.NumImages-1 < 1 {
-		if m.Month == currentMonth {
+		if m.String == currentMonth {
 			DB.Model(&m).Update("num_images", 0)
 		} else {
 			DB.Delete(&m)
@@ -818,7 +807,7 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 			var m Month
 			currentMonth := time.Now().Month().String()
 			DB.Where("id = ?", model.MonthID).Find(&m)
-			if m.NumImages-1 < 1 && m.Month != currentMonth {
+			if m.NumImages-1 < 1 && m.String != currentMonth {
 				DB.Delete(&m)
 			}
 			num := m.NumImages - 1
