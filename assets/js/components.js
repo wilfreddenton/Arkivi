@@ -92,7 +92,7 @@
         }).join(',');
         UTILS.request({
           method: 'GET',
-          path: '/tags/list?json=true&query=' + query + '&currentTags=' + currentTags,
+          path: '/tags/suggestions?query=' + query + '&currentTags=' + currentTags,
           success: success
         });
       } else {

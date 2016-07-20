@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/jinzhu/gorm"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -60,6 +61,12 @@ func CreateAndSaveUser(username string, hash []byte, admin bool) {
 		UserID: user.ID,
 	}
 	DB.Create(&settings)
+}
+
+func FindUserNumImages(id uint) int {
+	var is []ImageMini
+	DB.Raw("SELECT id FROM images WHERE user_id = ? AND deleted_at IS NULL", id).Scan(&is)
+	return len(is)
 }
 
 type UserJson struct {
@@ -171,6 +178,10 @@ func (i *Image) Update(updatedImg ImageJson, takenAt interface{}, tags []Tag) {
 	}).Association("Tags").Replace(&tags)
 }
 
+func (i *Image) ReplaceTags(tags []Tag) {
+	DB.Model(&i).Association("Tags").Replace(&tags)
+}
+
 func FindImageByID(id int) Image {
 	var i Image
 	DB.Where("id = ?", id).First(&i)
@@ -234,6 +245,20 @@ func FindImagesByIDsAndSort(ids []int, sort string, pageCount, offset int) ([]Im
 	return images, sort
 }
 
+func FindImagesByIDs(ids []int) []Image {
+	var is []Image
+	DB.Where("id IN (?)", ids).Find(&is)
+	return is
+}
+
+func SelectImagesByIDs(ids []int) *gorm.DB {
+	return DB.Table("images").Where("id IN (?)", ids)
+}
+
+func UpdateImagesWithIDs(ids []int, key string, value interface{}) {
+	DB.Table("images").Where("id IN (?)", ids).Update(key, value)
+}
+
 type ImageMini struct {
 	ID int
 }
@@ -254,6 +279,39 @@ type Tag struct {
 	gorm.Model
 	Name   string
 	Images []*Image `gorm:"many2many:image_tags"`
+}
+
+func NumTags() int {
+	var c int
+	DB.Model(Tag{}).Count(&c)
+	return c
+}
+
+func FindSuggestedTags(query string, currentTags []string) []Tag {
+	var tags []Tag
+	DB.Where("name LIKE ?", query+"%").Not("name", currentTags).Find(&tags)
+	return tags
+}
+
+func FindTagsAndCounts(sort string, pageCount, offset int) []TagCountJson {
+	col := "name"
+	d := "ASC"
+	if b, err := regexp.Match("(alpha|count)-(asc|desc)", []byte(sort)); b && err == nil {
+		a := strings.Split(sort, "-")
+		if a[0] == "count" {
+			col = "count"
+		}
+		d = a[1]
+	}
+	var tags []TagCountJson
+	DB.Raw(`SELECT * FROM
+						(SELECT name, COUNT(image_tags.image_id) as count FROM tags
+						LEFT JOIN image_tags ON tags.id = image_tags.tag_id
+						GROUP BY tags.id)
+					ORDER BY `+col+` `+d+`
+					LIMIT ?
+					OFFSET ?`, pageCount, offset).Scan(&tags)
+	return tags
 }
 
 type TagJson struct {
@@ -289,6 +347,10 @@ type Month struct {
 	NumImages int
 }
 
+func (m *Month) Delete() {
+	DB.Delete(&m)
+}
+
 func (m *Month) IncNumImages() {
 	DB.Model(&m).Update("num_images", m.NumImages+1)
 }
@@ -299,7 +361,7 @@ func (m *Month) DecNumImages() {
 		if m.String == currentMonth {
 			DB.Model(&m).Update("num_images", 0)
 		} else {
-			DB.Delete(&m)
+			m.Delete()
 		}
 	} else {
 		DB.Model(&m).Update("num_images", m.NumImages-1)

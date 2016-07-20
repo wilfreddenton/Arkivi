@@ -16,7 +16,6 @@ import (
 	"image/png"
 	// "io"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -285,7 +284,7 @@ var UploadHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 	})
 })
 
-func NewTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
+func TokenNewHandler(w http.ResponseWriter, r *http.Request) *appError {
 	var uj UserJson
 	err := json.NewDecoder(r.Body).Decode(&uj)
 	if err != nil {
@@ -316,11 +315,11 @@ func NewTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-var VerifyTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+var TokenVerifyHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("authorized"))
 })
 
-func PingTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
+func TokenPingHandler(w http.ResponseWriter, r *http.Request) *appError {
 	claims, err := getClaimsFromRequestToken(r)
 	if err != nil {
 		return &appError{
@@ -334,7 +333,30 @@ func PingTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-func UploadImageHandler(w http.ResponseWriter, r *http.Request) *appError {
+func UsersTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
+	claims, err := getClaimsFromRequestToken(r)
+	if err != nil {
+		return &appError{
+			Error:   err,
+			Message: "Token could not be parsed.",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+	user := FindUserByUsername(claims["username"].(string))
+	user.GetSettings()
+	n := FindUserNumImages(user.ID)
+	u := UserSendJson{
+		CreatedAt: user.CreatedAt,
+		Username:  user.Username,
+		Admin:     user.Admin,
+		NumImages: n,
+		Settings:  user.Settings,
+	}
+	json.NewEncoder(w).Encode(u)
+	return nil
+}
+
+func ImageUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 	// index := r.FormValue("index")
 	s := strings.Split(r.FormValue("filename"), ".")
 	if len(s) < 2 {
@@ -617,71 +639,50 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
+func TagsSuggestionHandler(w http.ResponseWriter, r *http.Request) *appError {
+	q := r.URL.Query()
+	query := q.Get("query")
+	tagNames := q.Get("currentTags")
+	if query == "" || tagNames == "" {
+		return &appError{
+			Error:   errors.New("The necessary parameters were not provided."),
+			Message: "You did not pass the necessary parameters.",
+			Code:    http.StatusBadRequest,
+		}
+	}
+	currentTags := strings.Split(tagNames, ",")
+	tags := FindSuggestedTags(query, currentTags)
+	w.Header().Set("Content-Type", "application/javascript")
+	json.NewEncoder(w).Encode(tags)
+	return nil
+}
+
 func TagsListHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Tags List Handler")
 	q := r.URL.Query()
-	if len(q["query"]) > 0 {
-		query := q["query"][0]
-		currentTags := []string{""}
-		if len(q["currentTags"]) > 0 {
-			currentTags = strings.Split(q["currentTags"][0], ",")
-		}
-		var tags []*Tag
-		DB.Where("name LIKE ?", query+"%").Not("name", currentTags).Find(&tags)
-		if len(q["json"]) > 0 && q["json"][0] == "true" {
-			w.Header().Set("Content-Type", "application/javascript")
-			json.NewEncoder(w).Encode(tags)
-			return nil
-		}
-	} else {
-		page := q.Get("page")
-		pageCount := 2
-		var c int
-		DB.Model(Tag{}).Count(&c)
-		pageNum, offset, appErr := pagination(c, pageCount, page)
-		if appErr != nil {
-			return appErr
-		}
-		col := "name"
-		d := "ASC"
-		sort := ""
-		sortq := q.Get("sort")
-		if b, err := regexp.Match("(alpha|count)-(asc|desc)", []byte(sortq)); b && err == nil {
-			sort = sortq
-			a := strings.Split(sortq, "-")
-			if a[0] == "count" {
-				col = "count"
-			}
-			d = a[1]
-		}
-		var tags []TagCountJson
-		DB.Raw(`SELECT * FROM
-							(SELECT name, COUNT(image_tags.image_id) as count FROM tags
-							LEFT JOIN image_tags ON tags.id = image_tags.tag_id
-							GROUP BY tags.id)
-            ORDER BY `+col+` `+d+`
-            LIMIT ?
-            OFFSET ?`, pageCount, offset).Scan(&tags)
-		if len(q["json"]) > 0 && q["json"][0] == "true" {
-			w.Header().Set("Content-Type", "application/javascript")
-			json.NewEncoder(w).Encode(tags)
-			return nil
-		}
-		p := paginater.New(c, pageCount, pageNum, 3)
-		var params []UrlParam
-		if sort != "" {
-			params = []UrlParam{UrlParam{Name: "sort", Value: sort, IsFirst: true, IsLast: true}}
-		}
-		renderTemplate(w, "tags_list", "base", map[string]interface{}{
-			"title":          "Tags",
-			"containerClass": "form-page",
-			"tags":           tags,
-			"Page":           p,
-			"baseUrl":        "/tags/list",
-			"Params":         params,
-			"sort":           sort,
-		})
+	page := q.Get("page")
+	pageCount := 2
+	c := NumTags()
+	pageNum, offset, appErr := pagination(c, pageCount, page)
+	if appErr != nil {
+		return appErr
 	}
+	sort := q.Get("sort")
+	tags := FindTagsAndCounts(sort, pageCount, offset)
+	p := paginater.New(c, pageCount, pageNum, 3)
+	var params []UrlParam
+	if sort != "" {
+		params = []UrlParam{UrlParam{Name: "sort", Value: sort, IsFirst: true, IsLast: true}}
+	}
+	renderTemplate(w, "tags_list", "base", map[string]interface{}{
+		"title":          "Tags",
+		"containerClass": "form-page",
+		"tags":           tags,
+		"Page":           p,
+		"baseUrl":        "/tags/list",
+		"Params":         params,
+		"sort":           sort,
+	})
 	return nil
 }
 
@@ -696,7 +697,6 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusNotFound,
 		}
 	}
-	fmt.Println(name)
 	var action Action
 	var at ActionTags
 	var err error
@@ -712,19 +712,19 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusBadRequest,
 		}
 	}
-	imgs := DB.Table("images").Where("id IN (?)", action.IDs)
+	ids := action.IDs
 	switch name {
 	case "publish":
-		imgs.Update("published", true)
+		UpdateImagesWithIDs(ids, "published", true)
 	case "unpublish":
-		imgs.Update("published", false)
+		UpdateImagesWithIDs(ids, "published", false)
 	case "camera":
 		if s, ok := action.Value.(string); ok {
-			imgs.Update("camera", s)
+			UpdateImagesWithIDs(ids, "camera", s)
 		}
 	case "film":
 		if s, ok := action.Value.(string); ok {
-			imgs.Update("film", s)
+			UpdateImagesWithIDs(ids, "film", s)
 		}
 	case "takenat":
 		if s, ok := action.Value.(string); ok {
@@ -734,71 +734,29 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 			if err != nil {
 				t = nil
 			}
-			imgs.Update("taken_at", t)
+			UpdateImagesWithIDs(ids, "taken_at", t)
 		}
 	case "tags":
 		tags := updateTags(at.Value)
 		for _, id := range at.IDs {
-			var i Image
-			DB.Where("id = ?", id).First(&i)
-			DB.Model(&i).Association("Tags").Replace(&tags)
+			i := FindImageByID(id)
+			i.ReplaceTags(tags)
 		}
 	case "delete":
-		var paths []string
-		var models []Image
-		DB.Where("id IN (?)", action.IDs).Find(&models)
-		for _, model := range models {
-			// get paths
-			paths = append(paths, model.GetPaths()...)
-			// process month
-			var m Month
-			currentMonth := time.Now().Month().String()
-			DB.Where("id = ?", model.MonthID).Find(&m)
-			if m.NumImages-1 < 1 && m.String != currentMonth {
-				DB.Delete(&m)
-			}
-			num := m.NumImages - 1
-			if num < 0 {
-				num = 0
-			}
-			DB.Model(&m).Update("num_images", num)
+		images := FindImagesByIDs(ids)
+		var err error
+		for _, i := range images {
+			err = i.Delete()
+			m := FindMonthByID(i.MonthID)
+			m.DecNumImages()
 		}
-		DB.Where("id IN (?)", action.IDs).Delete(Image{})
-		for _, path := range paths {
-			err := os.Remove(path)
-			if err != nil {
-				return &appError{
-					Error:   err,
-					Message: "The server was unable to remove the associated files",
-					Code:    http.StatusInternalServerError,
-				}
+		if err != nil {
+			return &appError{
+				Error:   err,
+				Message: "There was a problem removing the associated files.",
+				Code:    http.StatusInternalServerError,
 			}
 		}
 	}
-	return nil
-}
-
-func TokenUserHandler(w http.ResponseWriter, r *http.Request) *appError {
-	claims, err := getClaimsFromRequestToken(r)
-	if err != nil {
-		return &appError{
-			Error:   err,
-			Message: "Token could not be parsed.",
-			Code:    http.StatusInternalServerError,
-		}
-	}
-	var user User
-	var images []ImageMini
-	DB.Where("username = ?", claims["username"]).First(&user)
-	DB.Model(&user).Related(&(user.Settings))
-	DB.Raw("SELECT id FROM images WHERE user_id = ? AND deleted_at IS NULL", user.ID).Scan(&images)
-	u := UserSendJson{
-		CreatedAt: user.CreatedAt,
-		Username:  user.Username,
-		Admin:     user.Admin,
-		NumImages: len(images),
-		Settings:  user.Settings,
-	}
-	json.NewEncoder(w).Encode(u)
 	return nil
 }

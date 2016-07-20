@@ -549,6 +549,9 @@ ul li {
 .tags-sort input {
   padding: 0;
 }
+.tags-sort select {
+  width: auto;
+}
 #tags .tags-count {
   text-align: right;
 }
