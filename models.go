@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"github.com/jinzhu/gorm"
+	"os"
 	"strings"
 	"time"
 )
@@ -121,6 +122,11 @@ func (i *Image) Save() {
 	DB.Create(i)
 }
 
+func (i *Image) Delete() error {
+	DB.Delete(i)
+	return i.RemoveFiles()
+}
+
 func (i *Image) GetPaths() []string {
 	var paths []string
 	old := "/static/"
@@ -141,6 +147,17 @@ func (i *Image) GetPaths() []string {
 		paths = append(paths, strings.Replace(i.Url, old, new, 1))
 	}
 	return paths
+}
+
+func (i *Image) RemoveFiles() error {
+	paths := i.GetPaths()
+	for _, path := range paths {
+		err := os.Remove(path)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (i *Image) Update(updatedImg ImageJson, takenAt interface{}, tags []Tag) {
@@ -164,6 +181,57 @@ func FindImageByName(name string) Image {
 	var i Image
 	DB.Where("name = ?", name).First(&i)
 	return i
+}
+
+func FindImageIDsByTagNames(names []string, op string) []int {
+	var tms []TagMini
+	var ids []int
+	n := len(names)
+	if n == 0 && op == "" {
+		return ids
+	}
+	if op == "or" {
+		query := `SELECT DISTINCT image_id from image_tags
+								WHERE tag_id IN
+									(SELECT id FROM tags WHERE name IN (?))`
+		DB.Raw(query, names).Scan(&tms)
+	} else {
+		query := `SELECT image_id FROM image_tags
+								WHERE tag_id in
+									(SELECT id FROM tags
+										Where name in (?))
+								GROUP BY image_id
+								HAVING COUNT(*) = ?`
+		DB.Raw(query, names, n).Scan(&tms)
+	}
+	for _, tm := range tms {
+		ids = append(ids, tm.ImageID)
+	}
+	return ids
+}
+
+func FindImagesByIDsAndSort(ids []int, sort string, pageCount, offset int) ([]Image, string) {
+	var images []Image
+	var s string
+	switch sort {
+	case "earliest":
+		s = "created_at ASC"
+	case "alpha-asc":
+		s = "title ASC"
+	case "alpha-desc":
+		s = "title DESC"
+	default:
+		sort = "latest"
+		s = "created_at DESC"
+	}
+	if len(ids) > 0 {
+		DB.Raw(`SELECT * FROM images
+						WHERE id IN (?)
+						ORDER BY `+s+`
+						LIMIT ?
+						OFFSET ?`, ids, pageCount, offset).Scan(&images)
+	}
+	return images, sort
 }
 
 type ImageMini struct {
@@ -196,6 +264,7 @@ type TagCountJson struct {
 	Name  string
 	Count int
 }
+
 type TagMini struct {
 	ImageID int
 }
@@ -224,10 +293,29 @@ func (m *Month) IncNumImages() {
 	DB.Model(&m).Update("num_images", m.NumImages+1)
 }
 
+func (m *Month) DecNumImages() {
+	currentMonth := time.Now().Month().String()
+	if m.NumImages-1 < 1 {
+		if m.String == currentMonth {
+			DB.Model(&m).Update("num_images", 0)
+		} else {
+			DB.Delete(&m)
+		}
+	} else {
+		DB.Model(&m).Update("num_images", m.NumImages-1)
+	}
+}
+
 func (m *Month) FindImages(offset, pageCount int) []Image {
 	var is []Image
 	DB.Where("month_id = ?", m.ID).Offset(offset).Limit(pageCount).Find(&is)
 	return is
+}
+
+func FindMonthByID(id uint) Month {
+	var m Month
+	DB.Where("id = ?", id).First(&m)
+	return m
 }
 
 func FindMonth(year, i int) Month {

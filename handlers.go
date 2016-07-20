@@ -538,8 +538,7 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusNotFound,
 		}
 	}
-	var img Image
-	DB.Where("name = ?", name).First(&img)
+	img := FindImageByName(name)
 	claims, err := getClaimsFromRequestToken(r)
 	if err != nil {
 		return &appError{
@@ -548,8 +547,7 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusInternalServerError,
 		}
 	}
-	var user User
-	DB.Where("id = ?", img.UserID).First(&user)
+	user := FindUserByID(img.UserID)
 	if user.Username != claims["username"] {
 		return &appError{
 			Error:   errors.New("A user attempted to delete another user's photo."),
@@ -557,28 +555,13 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusUnauthorized,
 		}
 	}
-	currentMonth := time.Now().Month().String()
-	var m Month
-	DB.Where("id = ?", img.MonthID).First(&m)
-	if m.NumImages-1 < 1 {
-		if m.String == currentMonth {
-			DB.Model(&m).Update("num_images", 0)
-		} else {
-			DB.Delete(&m)
-		}
-	} else {
-		DB.Model(&m).Update("num_images", m.NumImages-1)
-	}
-	paths := img.GetPaths()
-	DB.Delete(&img)
-	for _, path := range paths {
-		err := os.Remove(path)
-		if err != nil {
-			return &appError{
-				Error:   err,
-				Message: "The server was unable to remove the associated files",
-				Code:    http.StatusInternalServerError,
-			}
+	m := FindMonthByID(img.MonthID)
+	m.DecNumImages()
+	if err := img.Delete(); err != nil {
+		return &appError{
+			Error:   err,
+			Message: "The server was unable to remove the associated files",
+			Code:    http.StatusInternalServerError,
 		}
 	}
 	w.Write([]byte("success"))
@@ -602,32 +585,9 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 			op = "or"
 		}
 	}
-	var images []Image
-	var tms []TagMini
-	var ids []int
-	var query string
 	pageCount := 12
-	if filter != "" && op != "" {
-		if op == "or" {
-			query = `SELECT DISTINCT image_id from image_tags
-								 WHERE tag_id IN
-									 (SELECT id FROM tags WHERE name IN (?))`
-			DB.Raw(query, names).Scan(&tms)
-		} else {
-			query = `SELECT image_id FROM image_tags
-								 WHERE tag_id in
-								  	(SELECT id FROM tags
-								  	 Where name in (?))
-                 GROUP BY image_id
-                 HAVING COUNT(*) = ?`
-			DB.Raw(query, names, len(names)).Scan(&tms)
-		}
-	}
-	for _, tm := range tms {
-		ids = append(ids, tm.ImageID)
-	}
+	ids := FindImageIDsByTagNames(names, op)
 	c := len(ids)
-	fmt.Println(ids)
 	page := q.Get("page")
 	pageNum := 1
 	pageNum, offset, appErr := pagination(c, pageCount, page)
@@ -635,25 +595,7 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 		return appErr
 	}
 	sort := q.Get("sort")
-	var s string
-	switch sort {
-	case "earliest":
-		s = "created_at ASC"
-	case "alpha-asc":
-		s = "title ASC"
-	case "alpha-desc":
-		s = "title DESC"
-	default:
-		sort = "latest"
-		s = "created_at DESC"
-	}
-	if filter != "" && op != "" {
-		DB.Raw(`SELECT * FROM images
-						WHERE id IN (?)
-						ORDER BY `+s+`
-						LIMIT ?
-						OFFSET ?`, ids, pageCount, offset).Scan(&images)
-	}
+	images, sort := FindImagesByIDsAndSort(ids, sort, pageCount, offset)
 	p := paginater.New(c, pageCount, pageNum, 3)
 	var params []UrlParam
 	if filter != "" {
