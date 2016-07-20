@@ -4,24 +4,12 @@ import (
 	"bufio"
 	// "fmt"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"image"
 	"net/http"
 	"os"
 	"regexp"
 	"testing"
 )
-
-func initDB(t *testing.T) *gorm.DB {
-	var err error
-	DB, err = gorm.Open("sqlite3", "arkivi.db")
-	if err != nil {
-		t.Fatal(err)
-	}
-	DB.AutoMigrate(&User{}, &Settings{}, &Image{}, &Tag{}, &Month{})
-	return DB
-}
 
 func TestKeyLookupFunc(t *testing.T) {
 	token := jwt.New(jwt.SigningMethodHS256)
@@ -109,7 +97,6 @@ func TestImageToPaletted(t *testing.T) {
 }
 
 func TestIsNameUnique(t *testing.T) {
-	DB = initDB(t)
 	name := "testing-image-arkivi"
 	DB.Create(&Image{Name: name})
 	defer DB.Where("name = ?", name).Unscoped().Delete(&Image{})
@@ -213,7 +200,6 @@ func TestUpdateTags(t *testing.T) {
 		{tags: []string{"test-tag-1"}, newTags: []string{"test-tag-2"}},
 		{tags: []string{"test-tag-1"}, newTags: []string{"test-tag-2", "test-tag-3"}},
 	}
-	DB := initDB(t)
 	for i, e := range examples {
 		for _, name := range e.tags {
 			DB.Create(&Tag{Name: name})

@@ -22,7 +22,6 @@ import (
 	"time"
 )
 
-// types
 type appError struct {
 	Error   error
 	Message string
@@ -48,7 +47,6 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// pages
 func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
 	c := NumMonths()
 	pageCount := 3
