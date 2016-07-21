@@ -205,7 +205,7 @@ func RegisterPostHandler(w http.ResponseWriter, r *http.Request) *appError {
 		})
 		return nil
 	}
-	CreateAndSaveUser(username, hash, admin)
+	CreateAndSaveUser(username, string(hash), admin)
 	http.Redirect(w, r, "/login", http.StatusMovedPermanently)
 	return nil
 }

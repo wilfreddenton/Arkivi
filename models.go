@@ -18,6 +18,12 @@ type User struct {
 	Settings Settings
 }
 
+func (u *User) Delete() {
+	u.GetSettings()
+	DB.Delete(&u.Settings)
+	DB.Delete(&u)
+}
+
 func (u *User) GetSettings() {
 	DB.Model(&u).Related(&u.Settings)
 }
@@ -40,20 +46,10 @@ func FindAdminUser() User {
 	return a
 }
 
-func FindAdminUserSettings() (Settings, error) {
-	var s Settings
-	a := FindAdminUser()
-	if a != (User{}) {
-		DB.Model(&a).Related(&s)
-		return s, nil
-	}
-	return s, errors.New("There is currently no admin user.")
-}
-
-func CreateAndSaveUser(username string, hash []byte, admin bool) {
+func CreateAndSaveUser(username, password string, admin bool) {
 	user := User{
 		Username: username,
-		Password: string(hash),
+		Password: password,
 		Admin:    admin,
 	}
 	DB.Create(&user)
@@ -61,6 +57,19 @@ func CreateAndSaveUser(username string, hash []byte, admin bool) {
 		UserID: user.ID,
 	}
 	DB.Create(&settings)
+}
+
+func FindAdminUserSettings() (Settings, error) {
+	var s Settings
+	a := FindAdminUser()
+	if a != (User{}) {
+		DB.Model(&a).Related(&s)
+		if s == (Settings{}) {
+			return s, errors.New("There are no settings associated with the admin user.")
+		}
+		return s, nil
+	}
+	return s, errors.New("There is currently no admin user.")
 }
 
 func FindUserNumImages(id uint) int {
@@ -130,6 +139,7 @@ func (i *Image) Save() {
 }
 
 func (i *Image) Delete() error {
+	i.RemoveTags()
 	DB.Delete(i)
 	return i.RemoveFiles()
 }
@@ -158,13 +168,18 @@ func (i *Image) GetPaths() []string {
 
 func (i *Image) RemoveFiles() error {
 	paths := i.GetPaths()
+	var err error
 	for _, path := range paths {
-		err := os.Remove(path)
-		if err != nil {
-			return err
-		}
+		err = os.Remove(path)
+	}
+	if err != nil {
+		return err
 	}
 	return nil
+}
+
+func (i *Image) RemoveTags() {
+	DB.Model(&i).Association("Tags").Clear()
 }
 
 func (i *Image) Update(updatedImg ImageJson, takenAt interface{}, tags []Tag) {
@@ -198,7 +213,7 @@ func FindImageIDsByTagNames(names []string, op string) []int {
 	var tms []TagMini
 	var ids []int
 	n := len(names)
-	if n == 0 && op == "" {
+	if n == 0 || op == "" {
 		return ids
 	}
 	if op == "or" {
