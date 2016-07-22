@@ -417,9 +417,13 @@ func (y *Year) GetMonths() {
 	DB.Where("year = ?", y.Year).Find(&y.Months)
 }
 
-func BuildChronology(offset, pageCount int) []*Year {
+func BuildChronology(pageCount, offset int) []*Year {
 	var months []Month
-	DB.Order("id desc").Offset(offset).Limit(pageCount).Find(&months)
+	// DB.Order("id desc").Limit(pageCount).Offset(offset).Find(&months)
+	DB.Raw(`SELECT * FROM months
+					ORDER BY id DESC
+					LIMIT ?
+					OFFSET ?`, pageCount, offset).Scan(&months)
 	var years []*Year
 	if len(months) > 0 {
 		prevYear := &Year{}

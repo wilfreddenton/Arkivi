@@ -83,6 +83,7 @@ func stringInSlice(a string, list []string) bool {
 }
 
 func TestFindImageIDsByTagNames(t *testing.T) {
+	tagNames := []string{"nature", "space", "ocean", "anime"}
 	images := []struct {
 		name     string
 		tagNames []string
@@ -110,12 +111,19 @@ func TestFindImageIDsByTagNames(t *testing.T) {
 		{[]string{"ocean", "anime"}, "or", []string{"img4", "img5", "img6"}},
 		{[]string{"ocean", "anime"}, "and", []string{}},
 	}
+	for _, name := range tagNames {
+		tag := Tag{Name: name}
+		DB.Create(&tag)
+		defer DB.Unscoped().Delete(&tag)
+	}
 	for _, i := range images {
 		image := Image{Name: i.name}
 		DB.Create(&image)
 		var tags []Tag
 		for _, n := range i.tagNames {
-			tags = append(tags, Tag{Name: n})
+			var tag Tag
+			DB.Where("name = ?", n).First(&tag)
+			tags = append(tags, tag)
 		}
 		DB.Model(&image).Association("Tags").Replace(&tags)
 		defer DB.Unscoped().Delete(&image)
@@ -129,24 +137,182 @@ func TestFindImageIDsByTagNames(t *testing.T) {
 		}
 		for _, img := range is {
 			if b := stringInSlice(img.Name, test.out); !b {
-				t.Errorf("The test at index %v failed to return %v", i, img.Name)
+				t.Errorf("The test at index %v returned an unwanted image: %v", i, img.Name)
 			}
 		}
 	}
 }
 
 func TestFindImagesByIDsAndSort(t *testing.T) {
-
+	titles := []string{"alpha", "beta", "tango", "foxtrot", "delta"}
+	tests := []struct {
+		sort      string
+		pageCount int
+		offset    int
+		out       []string
+	}{
+		{"", 0, 0, []string{}},
+		{"asdf", 3, 0, []string{"delta", "foxtrot", "tango"}},
+		{"latest", 3, 0, []string{"delta", "foxtrot", "tango"}},
+		{"earliest", 3, 2, []string{"tango", "foxtrot", "delta"}},
+		{"alpha-asc", 3, 0, []string{"alpha", "beta", "delta"}},
+		{"alpha-asc", 3, 3, []string{"foxtrot", "tango"}},
+		{"alpha-desc", 10, 0, []string{"tango", "foxtrot", "delta", "beta", "alpha"}},
+		{"alpha-desc", 10, 10, []string{}},
+	}
+	var ids []int
+	for _, title := range titles {
+		i := Image{Title: title}
+		DB.Create(&i)
+		ids = append(ids, int(i.ID))
+		defer DB.Unscoped().Delete(&i)
+	}
+	for i, test := range tests {
+		imgs, _ := FindImagesByIDsAndSort(ids, test.sort, test.pageCount, test.offset)
+		numImgs := len(imgs)
+		numOut := len(test.out)
+		if numImgs != numOut {
+			t.Errorf("The test at index %v return %v images; want %v", i, numImgs, numOut)
+		}
+		for _, img := range imgs {
+			if b := stringInSlice(img.Title, test.out); !b {
+				t.Errorf("The test at index %v returned an unwanted image: %v", i, img.Title)
+			}
+		}
+	}
 }
 
 func TestFindTagsAndCounts(t *testing.T) {
-
+	tagNames := []string{"nature", "space", "ocean", "anime"}
+	tagCounts := map[string]int{"nature": 5, "space": 3, "ocean": 2, "anime": 1}
+	images := []struct {
+		name     string
+		tagNames []string
+	}{
+		{"img1", []string{"nature"}},
+		{"img2", []string{"nature", "space"}},
+		{"img3", []string{"nature", "space"}},
+		{"img4", []string{"nature", "space", "ocean"}},
+		{"img5", []string{"nature", "ocean"}},
+		{"img6", []string{"anime"}},
+	}
+	tests := []struct {
+		sort      string
+		pageCount int
+		offset    int
+		out       []string // expected tag names
+	}{
+		{"", 0, 0, []string{}},
+		{"test", 0, 0, []string{}},
+		{"test", 3, 0, []string{"anime", "nature", "ocean"}},
+		{"alpha-asc", 3, 0, []string{"anime", "nature", "ocean"}},
+		{"alpha-desc", 3, 1, []string{"ocean", "nature", "anime"}},
+		{"count-asc", 10, 0, []string{"anime", "ocean", "space", "nature"}},
+		{"count-desc", 1, 0, []string{"nature"}},
+	}
+	for _, name := range tagNames {
+		tag := Tag{Name: name}
+		DB.Create(&tag)
+		defer DB.Unscoped().Delete(&tag)
+	}
+	for _, i := range images {
+		image := Image{Name: i.name}
+		DB.Create(&image)
+		var tags []Tag
+		for _, n := range i.tagNames {
+			var tag Tag
+			DB.Where("name = ?", n).First(&tag)
+			tags = append(tags, tag)
+		}
+		DB.Model(&image).Association("Tags").Replace(&tags)
+		defer DB.Unscoped().Delete(&image)
+		defer DB.Model(&image).Association("Tags").Clear()
+	}
+	for i, test := range tests {
+		tcjs := FindTagsAndCounts(test.sort, test.pageCount, test.offset)
+		numTags := len(tcjs)
+		numOut := len(test.out)
+		if numTags != numOut {
+			t.Errorf("The test at index %v did not return the correct amount of tags. Got %v; want %v.", i, numTags, numOut)
+		}
+		for _, tcj := range tcjs {
+			if b := stringInSlice(tcj.Name, tagNames); !b {
+				t.Errorf("The test at index %v did not include tag: %v", i, tcj.Name)
+			}
+			c := tagCounts[tcj.Name]
+			if tcj.Count != c {
+				t.Errorf("The test at index %v said that tag: %v has a count of %v; want %v.", i, tcj.Name, tcj.Count, c)
+			}
+		}
+	}
 }
 
-func TestDecNumImages(t *testing.T) {
-
+func intInSlice(e int, s []int) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 func TestBuildChronology(t *testing.T) {
-
+	ms := []struct {
+		name string
+		num  int
+		year int
+	}{
+		{"March", 3, 2014},
+		{"August", 8, 2015},
+		{"December", 12, 2015},
+		{"January", 1, 2016},
+		{"April", 6, 2016},
+		{"July", 7, 2016},
+	}
+	type months []int
+	type year struct {
+		num    int
+		months months
+	}
+	type timeline []year
+	tests := []struct {
+		pageCount int
+		offset    int
+		out       timeline
+	}{
+		{0, 0, timeline{}},
+		{0, 2, timeline{}},
+		{3, 0, timeline{year{2016, months{7, 6, 1}}}},
+		{3, 2, timeline{year{2016, months{1}}, year{2015, months{12, 8}}}},
+		{10, 4, timeline{year{2015, months{8}}, year{2014, months{3}}}},
+	}
+	for _, m := range ms {
+		month := Month{String: m.name, Int: m.num, Year: m.year}
+		DB.Create(&month)
+		defer DB.Unscoped().Delete(&month)
+	}
+	for i, test := range tests {
+		years := BuildChronology(test.pageCount, test.offset)
+		numYears := len(years)
+		numOut := len(test.out)
+		if numYears != numOut {
+			t.Errorf("The test at index %v returned %v years; want %v.", i, numYears, numOut)
+		}
+		for j, year := range years {
+			testYear := test.out[j]
+			if testYear.num != year.Year {
+				t.Errorf("The test at index %v did not include the correct year. Got %v; want %v.", i, testYear.num, year.Year)
+			}
+			numOutMonths := len(testYear.months)
+			numMonths := len(year.Months)
+			if numOutMonths != numMonths {
+				t.Errorf("The test at index %v did not include the correct number of months for year: %v. Got %v, want %v", i, year.Year, numMonths, numOutMonths)
+			}
+			for _, month := range year.Months {
+				if b := intInSlice(month.Int, testYear.months); !b {
+					t.Errorf("The test at index %v did not include the month: %v in year %v.", i, month.Int, year.Year)
+				}
+			}
+		}
+	}
 }
