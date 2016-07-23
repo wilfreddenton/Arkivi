@@ -59,8 +59,8 @@
       this.onChange();
     },
     failImage: function (index) {
-      console.log('image filed to upload', index);
-      this.onChange();
+      console.log('image failed to upload', index);
+      this.removeImage(index)
     },
     updateModel: function (index, model) {
       this.images = this.images.update(index, function (image) {

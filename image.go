@@ -2,13 +2,13 @@ package main
 
 import (
 	// "fmt"
+	"errors"
 	"github.com/nfnt/resize"
 	"image"
 	"image/draw"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
-	"log"
 	"os"
 	"sync"
 )
@@ -21,16 +21,18 @@ type ImageProcessor struct {
 	ImageModel *Image
 	Image      image.Image
 	GifImage   *gif.GIF
+	Error      error
 }
 
 func (p *ImageProcessor) SaveOriginal(wg *sync.WaitGroup) {
 	defer wg.Done()
 	url := "arkivi/" + p.ImageModel.Name + "." + p.ImageModel.Ext
 	out, err := os.Create("assets/" + url)
-	if err != nil {
-		log.Fatal(err)
-	}
 	defer out.Close()
+	if err != nil {
+		p.Error = err
+		return
+	}
 	switch p.ImageModel.Ext {
 	case "jpg":
 		jpeg.Encode(out, p.Image, nil)
@@ -46,7 +48,12 @@ func (p *ImageProcessor) Resize(size int, suffix string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	width := 0
 	height := 0
-	// ensure that thumbnail dims are both above 200px
+	ext := p.ImageModel.Ext
+	if ext != "jpg" && ext != "png" {
+		p.Error = errors.New("An attempt to resize an image other than a jpg or png was made.")
+		return
+	}
+	// ensures that thumbnail dims are both above 200px
 	if suffix == "_thumb" {
 		if p.ImageModel.Width > p.ImageModel.Height {
 			height = size
@@ -63,11 +70,12 @@ func (p *ImageProcessor) Resize(size int, suffix string, wg *sync.WaitGroup) {
 	img := resize.Resize(uint(width), uint(height), p.Image, resize.Bilinear)
 	url := "arkivi/" + p.ImageModel.Name + suffix + "." + p.ImageModel.Ext
 	out, err := os.Create("assets/" + url)
-	if err != nil {
-		log.Fatal(err)
-	}
 	defer out.Close()
-	if p.ImageModel.Ext == "png" {
+	if err != nil {
+		p.Error = err
+		return
+	}
+	if ext == "png" {
 		png.Encode(out, img)
 	} else {
 		jpeg.Encode(out, img, nil)
@@ -111,10 +119,11 @@ func (p *ImageProcessor) ResizeGif(wg *sync.WaitGroup) {
 	}
 	url := "arkivi/" + p.ImageModel.Name + sizeNames[3] + "." + p.ImageModel.Ext
 	out, err := os.Create("assets/" + url)
-	if err != nil {
-		log.Fatal(err)
-	}
 	defer out.Close()
+	if err != nil {
+		p.Error = err
+		return
+	}
 	gif.EncodeAll(out, resizedGif)
 	p.ImageModel.ThumbUrl = StaticDir + url
 }

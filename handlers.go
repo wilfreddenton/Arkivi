@@ -55,7 +55,7 @@ func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if appErr != nil {
 		return appErr
 	}
-	years := BuildChronology(offset, pageCount)
+	years := BuildChronology(pageCount, offset)
 	p := paginater.New(c, pageCount, pageNum, 3)
 	renderTemplate(w, "chronology", "base", map[string]interface{}{
 		"years":          years,
@@ -436,8 +436,16 @@ func ImageUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 		Film:      u.Settings.Film,
 		Published: u.Settings.Public,
 	}
-	p := &ImageProcessor{imgModel, img, gifImg}
+	p := &ImageProcessor{imgModel, img, gifImg, nil}
 	p.CreateResizes()
+	if p.Error != nil {
+		p.ImageModel.RemoveFiles()
+		return &appError{
+			Error:   p.Error,
+			Message: "There was a problem processing the image",
+			Code:    http.StatusInternalServerError,
+		}
+	}
 	t := time.Now()
 	mi := int(t.Month())
 	ms := t.Month().String()
