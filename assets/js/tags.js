@@ -68,7 +68,7 @@
       });
       return (
         React.DOM.form({ onSubmit: this.submitHandler },
-                       React.DOM.a({ id: 'tags-list-link', href: '/tags/list', target: '_blank' }, 'Tags List'),
+                       React.DOM.a({ id: 'tags-list-link', href: '/tags/list' }, 'Tags List'),
                        React.DOM.div({ className: 'row' },
                                      React.DOM.div({ id: "tags-form-input", className: 'col-xs-8 tags-form-container' },
                                                    React.DOM.div({ className: 'row '},

@@ -8,7 +8,10 @@
   <link rel="stylesheet" type="text/css" href="/static/css/styles.css">
 </head>
 <body>
-  {{ template "nav" . }}
+  {{ template "image_frame" . }}
+  {{ if not .bottomNav }}
+    {{ template "nav" . }}
+  {{ end }}
   <div id="content" class="{{ .containerClass | }}">
     {{ if .title }}
       <h1>{{ .title }}</h1>
@@ -19,12 +22,16 @@
     {{ template "content" . }}
     {{ template "pager" . }}
   </div>
+  {{ if .bottomNav }}
+    {{ template "nav" . }}
+  {{ end }}
   {{ template "scripts" . }}
 </body>
 </html>
 {{ end }}
 // We define empty blocks for optional content so we don't have to
 // define a block in child templates that don't need them
+{{ define "image_frame" }}{{ end }}
 {{ define "nav" }}{{ end }}
 {{ define "pager" }}{{ end }}
 {{ define "scripts" }}{{ end }}

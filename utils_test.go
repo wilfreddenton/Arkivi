@@ -231,3 +231,23 @@ func TestUpdateTags(t *testing.T) {
 		DB.Where("name IN (?)", []string{"test-tag-1", "test-tag-2", "test-tag-3", "", " ", "\t", "\n"}).Unscoped().Delete(Tag{})
 	}
 }
+
+func TestNumBytesToSize(t *testing.T) {
+	tests := []struct {
+		numBytes int
+		out      string
+	}{
+		{0, "0 bs"},
+		{33, "33 bs"},
+		{1000, "1.00 Kbs"},
+		{33333, "33.33 Kbs"},
+		{1000000, "1.00 Mbs"},
+		{31500000, "31.50 Mbs"},
+	}
+	for i, test := range tests {
+		s := NumBytesToSize(test.numBytes)
+		if s != test.out {
+			t.Errorf("The test at index %v returned %v; want %v.", i, s, test.out)
+		}
+	}
+}

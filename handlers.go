@@ -16,7 +16,6 @@ import (
 	"image/png"
 	// "io"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -366,6 +365,7 @@ func ImageUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	title := s[0]
 	src, hdr, err := r.FormFile("img")
+	defer src.Close()
 	if err != nil {
 		return &appError{
 			Error:   err,
@@ -373,7 +373,6 @@ func ImageUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Code:    http.StatusBadRequest,
 		}
 	}
-	defer src.Close()
 	contentType := hdr.Header.Get("Content-Type")
 	if !isAllowedContentType(contentType) {
 		return &appError{
@@ -389,6 +388,14 @@ func ImageUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 	name := randomString(9)
 	for !IsNameUnique(name) {
 		name = randomString(9)
+	}
+	size, err := strconv.Atoi(r.Header.Get("Content-Length"))
+	if err != nil {
+		return &appError{
+			Error:   err,
+			Message: "The file was sent with and invalid Content-Length header.",
+			Code:    http.StatusBadRequest,
+		}
 	}
 	var img image.Image
 	var gifImg *gif.GIF
@@ -431,12 +438,13 @@ func ImageUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 		Ext:       ext,
 		Width:     b.Dx(),
 		Height:    b.Dy(),
+		Size:      size,
 		TakenAt:   nil,
 		Camera:    u.Settings.Camera,
 		Film:      u.Settings.Film,
 		Published: u.Settings.Public,
 	}
-	p := &ImageProcessor{imgModel, img, gifImg, nil}
+	p := NewImageProcessor(imgModel, &img, gifImg)
 	p.CreateResizes()
 	if p.Error != nil {
 		p.ImageModel.RemoveFiles()
@@ -505,14 +513,18 @@ func ImageGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Render:  !sendJson,
 		}
 	}
+	image.GetTags()
 	if sendJson {
 		w.Header().Set("Content-Type", "application/javascript")
 		json.NewEncoder(w).Encode(image)
 		return nil
 	}
-	m := make(map[string]interface{})
-	m["image"] = image
-	renderTemplate(w, "image", "base", m)
+	renderTemplate(w, "image", "base", map[string]interface{}{
+		"title":          image.Title,
+		"bottomNav":      true,
+		"containerClass": "bound",
+		"image":          image,
+	})
 	return nil
 }
 
@@ -603,8 +615,7 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 	var names []string
 	if filter != "" {
 		filter = strings.ToLower(filter)
-		r := regexp.MustCompile(`(\w+)(,\s*\d+)*`)
-		names = r.FindAllString(filter, -1)
+		names = strings.Split(filter, ",")
 	}
 	op := q.Get("operator")
 	if op != "" {
@@ -612,6 +623,8 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 		if op != "and" {
 			op = "or"
 		}
+	} else {
+		op = "and"
 	}
 	pageCount := 12
 	ids := FindImageIDsByTagNames(names, op)

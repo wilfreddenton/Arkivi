@@ -1,8 +1,8 @@
 package main
 
 import (
-	// "fmt"
 	"errors"
+	"fmt"
 	"github.com/nfnt/resize"
 	"image"
 	"image/draw"
@@ -19,9 +19,14 @@ var sizeNames = []string{"_large", "_medium", "_small", "_thumb"}
 
 type ImageProcessor struct {
 	ImageModel *Image
-	Image      image.Image
+	Image      *image.Image
 	GifImage   *gif.GIF
+	ErrorMutex sync.Mutex
 	Error      error
+}
+
+func NewImageProcessor(m *Image, i *image.Image, g *gif.GIF) *ImageProcessor {
+	return &ImageProcessor{m, i, g, sync.Mutex{}, nil}
 }
 
 func (p *ImageProcessor) SaveOriginal(wg *sync.WaitGroup) {
@@ -35,9 +40,9 @@ func (p *ImageProcessor) SaveOriginal(wg *sync.WaitGroup) {
 	}
 	switch p.ImageModel.Ext {
 	case "jpg":
-		jpeg.Encode(out, p.Image, nil)
+		jpeg.Encode(out, *p.Image, nil)
 	case "png":
-		png.Encode(out, p.Image)
+		png.Encode(out, *p.Image)
 	case "gif":
 		gif.EncodeAll(out, p.GifImage)
 	}
@@ -67,7 +72,7 @@ func (p *ImageProcessor) Resize(size int, suffix string, wg *sync.WaitGroup) {
 			height = size
 		}
 	}
-	img := resize.Resize(uint(width), uint(height), p.Image, resize.Bilinear)
+	img := resize.Resize(uint(width), uint(height), *p.Image, resize.Bilinear)
 	url := "arkivi/" + p.ImageModel.Name + suffix + "." + p.ImageModel.Ext
 	out, err := os.Create("assets/" + url)
 	defer out.Close()
@@ -105,6 +110,7 @@ func (p *ImageProcessor) ResizeFrame(frame image.Image) image.Image {
 }
 
 func (p *ImageProcessor) ResizeGif(wg *sync.WaitGroup) {
+	fmt.Println("resize gif")
 	defer wg.Done()
 	resizedGif := &gif.GIF{
 		Delay: p.GifImage.Delay,

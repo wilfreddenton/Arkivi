@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 )
 
 var (
@@ -26,6 +27,10 @@ func createTemplate(t Template) *template.Template {
 	ext := ".tmpl"
 	layout := "base"
 	views := t.Views
+	funcMap := template.FuncMap{
+		"ToUpper":        strings.ToUpper,
+		"NumBytesToSize": NumBytesToSize,
+	}
 	if t.Layout != "" {
 		layout = t.Layout
 	}
@@ -40,7 +45,7 @@ func createTemplate(t Template) *template.Template {
 		views = append(views, viewsDir+"nav"+ext)
 	}
 	views = append(views, layoutsDir+layout+ext)
-	return template.Must(template.ParseFiles(views...))
+	return template.Must(template.New(t.Name).Funcs(funcMap).ParseFiles(views...))
 }
 
 func createTemplates(ts []Template) {
@@ -52,7 +57,7 @@ func createTemplates(ts []Template) {
 func initTemplates() {
 	bufpool = bpool.NewBufferPool(64)
 	ts := []Template{
-		Template{Name: "image"},
+		Template{Name: "image", Views: []string{"image", "image_frame"}},
 		Template{Name: "images", Views: []string{"image_thumb", "image_list", "images"}},
 		Template{Name: "tags", Views: []string{"image_thumb", "image_list", "tags", "pager"}},
 		Template{Name: "tags_list", Views: []string{"tags_list", "pager"}},

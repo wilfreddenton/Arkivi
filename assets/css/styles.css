@@ -16,7 +16,6 @@ body.dragover {
   background-color: #ccc;
 }
 nav .container {
-  border-bottom: 1px solid #ccc;
   max-width: 800px;
   text-align: center;
 }
@@ -33,7 +32,14 @@ nav ul li {
 }
 nav {
   text-align: center;
+}
+nav.topbar {
   margin-bottom: 40px;
+  border-bottom: 1px solid #ccc;
+}
+nav.bottombar {
+  margin-top: 40px;
+  border-top: 1px solid #ccc;
 }
 h3 {
   font-size: 14px;
@@ -513,6 +519,7 @@ ul li {
   background-color: black;
   width: 100%;
   position: relative;
+  margin-bottom: 40px;
 }
 #image-frame img {
   display: block;
@@ -520,6 +527,19 @@ ul li {
   width: auto;
   max-width: 100%;
   max-height: 100vh;
+}
+#image-details .col-sm-4 {
+  padding: 0;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+#image-info {
+}
+#image-tags {
+}
+#image-tags .image-tag {
+  display: inline;
+  margin-right: 15px;
 }
 
 .account-info {

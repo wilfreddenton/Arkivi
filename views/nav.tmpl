@@ -1,5 +1,5 @@
 {{ define "nav" }}
-<nav class="topbar">
+<nav class="{{ if .bottomNav }}bottombar{{ else }}topbar{{ end }}">
   <div class="container">
     <ul>
       <li><a href="/" title="time">chronology</a></li>

@@ -126,6 +126,7 @@ type Image struct {
 	Ext         string
 	Width       int
 	Height      int
+	Size        int
 	ThumbUrl    string
 	SmallUrl    string
 	MediumUrl   string
@@ -191,6 +192,12 @@ func (i *Image) Update(updatedImg ImageJson, takenAt interface{}, tags []Tag) {
 		"Film":        updatedImg.Film,
 		"Published":   updatedImg.Published,
 	}).Association("Tags").Replace(&tags)
+}
+
+func (i *Image) GetTags() {
+	var tags []Tag
+	DB.Model(&i).Association("Tags").Find(&tags)
+	i.Tags = tags
 }
 
 func (i *Image) ReplaceTags(tags []Tag) {

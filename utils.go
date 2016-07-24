@@ -143,3 +143,19 @@ func updateTags(ts []TagJson) []Tag {
 	}
 	return tags
 }
+
+func NumBytesToSize(bs int) string {
+	var unit string
+	var size string
+	if bs >= 1e6 {
+		size = fmt.Sprintf("%.2f", float64(bs)/1e6)
+		unit = "Mbs"
+	} else if bs >= 1e3 {
+		size = fmt.Sprintf("%.2f", float64(bs)/1e3)
+		unit = "Kbs"
+	} else {
+		size = strconv.Itoa(bs)
+		unit = "bs"
+	}
+	return size + " " + unit
+}

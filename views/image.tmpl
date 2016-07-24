@@ -1,6 +1,36 @@
 {{ define "title" }}<title>Arkivi | {{ .image.Title }}</title>{{ end }}
 {{ define "content" }}
-  <div id="image-frame">
-    <img src="{{ .image.Url }}" />
+<div id="image-details">
+  <div class="row">
+    <div class="col-sm-12">
+      <div class="row">
+        <div class="col-sm-4">
+          <span><strong>Size:</strong> {{ .image.Size | NumBytesToSize }}</span>
+        </div>
+        <div class="col-sm-4">
+          <span><strong>Type: </strong> {{ .image.Ext | ToUpper }}</span>
+        </div>
+        <div class="col-sm-4">
+          <span><strong>Dimensions:</strong> {{ .image.Width }}x{{ .image.Height }}</span>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
+<div id="image-info">
+  <div class="row">
+    <div class="col-sm-6">
+      <h2>Description</h2>
+      <p>{{ .image.Description }}<p>
+    </div>
+    <div class="col-sm-6">
+      <h2>Tags</h2>
+      <ul id="image-tags">
+        {{ range $i, $tag := .image.Tags }}
+          <li class="image-tag">+<a href="/tags/?filter={{ $tag.Name }}" title="{{ $tag.Name }}">{{ $tag.Name }}</a></li>
+        {{ end }}
+      </ul>
+    </div>
+  </div>
+</div>
 {{ end }}
