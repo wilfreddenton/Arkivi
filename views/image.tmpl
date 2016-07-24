@@ -10,13 +10,15 @@
     </div>
   </div>
 </div>
-<div id="image-description">
-  <div class="row">
-    <div class="col-sm-12">
-      <p>{{ .image.Description }}<p>
+{{ if not (eq .image.Description "") }}
+  <div id="image-description">
+    <div class="row">
+      <div class="col-sm-12">
+        <p>{{ .image.Description }}<p>
+      </div>
     </div>
   </div>
-</div>
+{{ end }}
 <div id="image-info">
   <div class="row">
     <div class="col-sm-6">
@@ -31,12 +33,16 @@
         <li class="image-stat">
           <span><strong>Dimensions:</strong> {{ .image.Width }}x{{ .image.Height }}</span>
         </li>
-        <li class="image-stat">
-          <span><strong>Camera Model:</strong> {{ .image.Camera }}</span>
-        </li>
-        <li class="image-stat">
-          <span><strong>Film:</strong> {{ .image.Film }}</span>
-        </li>
+        {{ if not (eq .image.Camera "") }}
+          <li class="image-stat">
+            <span><strong>Camera:</strong> {{ .image.Camera }}</span>
+          </li>
+        {{ end }}
+        {{ if not (eq .image.Film "") }}
+          <li class="image-stat">
+            <span><strong>Film:</strong> {{ .image.Film }}</span>
+          </li>
+        {{ end }}
       </ul>
     </div>
     <div class="col-sm-6">
