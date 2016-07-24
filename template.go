@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 var (
@@ -30,6 +31,12 @@ func createTemplate(t Template) *template.Template {
 	funcMap := template.FuncMap{
 		"ToUpper":        strings.ToUpper,
 		"NumBytesToSize": NumBytesToSize,
+		"DerefDate": func(t *time.Time) time.Time {
+			return *t
+		},
+		"FormatDate": func(t time.Time) string {
+			return t.Format("01/02/2006")
+		},
 	}
 	if t.Layout != "" {
 		layout = t.Layout

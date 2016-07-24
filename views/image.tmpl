@@ -1,27 +1,43 @@
 {{ define "title" }}<title>Arkivi | {{ .image.Title }}</title>{{ end }}
 {{ define "content" }}
-<div id="image-details">
+<div id="image-dates">
   <div class="row">
     <div class="col-sm-12">
-      <div class="row">
-        <div class="col-sm-4">
-          <span><strong>Size:</strong> {{ .image.Size | NumBytesToSize }}</span>
-        </div>
-        <div class="col-sm-4">
-          <span><strong>Type: </strong> {{ .image.Ext | ToUpper }}</span>
-        </div>
-        <div class="col-sm-4">
-          <span><strong>Dimensions:</strong> {{ .image.Width }}x{{ .image.Height }}</span>
-        </div>
-      </div>
+      <span>Uploaded <i>{{ .image.CreatedAt | FormatDate }}</i></span>
+      {{ if .image.TakenAt }}
+        <span> and taken on <i>{{ .image.TakenAt | DerefDate | FormatDate }}</i></span>
+      {{ end }}
+    </div>
+  </div>
+</div>
+<div id="image-description">
+  <div class="row">
+    <div class="col-sm-12">
+      <p>{{ .image.Description }}<p>
     </div>
   </div>
 </div>
 <div id="image-info">
   <div class="row">
     <div class="col-sm-6">
-      <h2>Description</h2>
-      <p>{{ .image.Description }}<p>
+      <h2>Stats</h2>
+      <ul class="image-stats">
+        <li class="image-stat">
+          <span><strong>Size:</strong> {{ .image.Size | NumBytesToSize }}</span>
+        </li>
+        <li class="image-stat">
+          <span><strong>Type: </strong> {{ .image.Ext | ToUpper }}</span>
+        </li>
+        <li class="image-stat">
+          <span><strong>Dimensions:</strong> {{ .image.Width }}x{{ .image.Height }}</span>
+        </li>
+        <li class="image-stat">
+          <span><strong>Camera Model:</strong> {{ .image.Camera }}</span>
+        </li>
+        <li class="image-stat">
+          <span><strong>Film:</strong> {{ .image.Film }}</span>
+        </li>
+      </ul>
     </div>
     <div class="col-sm-6">
       <h2>Tags</h2>
