@@ -198,17 +198,23 @@ func TestFindTagsAndCounts(t *testing.T) {
 	}
 	tests := []struct {
 		sort      string
+		query     string
 		pageCount int
 		offset    int
 		out       []string // expected tag names
 	}{
-		{"", 0, 0, []string{}},
-		{"test", 0, 0, []string{}},
-		{"test", 3, 0, []string{"anime", "nature", "ocean"}},
-		{"alpha-asc", 3, 0, []string{"anime", "nature", "ocean"}},
-		{"alpha-desc", 3, 1, []string{"ocean", "nature", "anime"}},
-		{"count-asc", 10, 0, []string{"anime", "ocean", "space", "nature"}},
-		{"count-desc", 1, 0, []string{"nature"}},
+		{"", "", 0, 0, []string{}},
+		{"test", "", 0, 0, []string{}},
+		{"test", "", 3, 0, []string{"anime", "nature", "ocean"}},
+		{"alpha-asc", "", 3, 0, []string{"anime", "nature", "ocean"}},
+		{"alpha-desc", "", 3, 1, []string{"ocean", "nature", "anime"}},
+		{"count-asc", "", 10, 0, []string{"anime", "ocean", "space", "nature"}},
+		{"count-desc", "", 1, 0, []string{"nature"}},
+		{"", "a", 0, 0, []string{}},
+		{"test", "a", 3, 0, []string{"anime", "nature", "ocean"}},
+		{"alpha-asc", "n", 3, 0, []string{"anime", "nature", "ocean"}},
+		{"count-asc", "e", 10, 0, []string{"anime", "ocean", "space", "nature"}},
+		{"count-desc", "nature", 1, 0, []string{"nature"}},
 	}
 	for _, name := range tagNames {
 		tag := Tag{Name: name}
@@ -229,7 +235,7 @@ func TestFindTagsAndCounts(t *testing.T) {
 		defer DB.Model(&image).Association("Tags").Clear()
 	}
 	for i, test := range tests {
-		tcjs := FindTagsAndCounts(test.sort, test.pageCount, test.offset)
+		tcjs := FindTagsAndCounts(test.sort, test.query, test.pageCount, test.offset)
 		numTags := len(tcjs)
 		numOut := len(test.out)
 		if numTags != numOut {

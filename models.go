@@ -309,13 +309,19 @@ func NumTags() int {
 	return c
 }
 
+func NumQueriedTags(query string) int {
+	var c int
+	DB.Model(Tag{}).Where("name like ?", "%"+query+"%").Count(&c)
+	return c
+}
+
 func FindSuggestedTags(query string, currentTags []string) []Tag {
 	var tags []Tag
 	DB.Where("name LIKE ?", query+"%").Not("name", currentTags).Find(&tags)
 	return tags
 }
 
-func FindTagsAndCounts(sort string, pageCount, offset int) []TagCountJson {
+func FindTagsAndCounts(sort, query string, pageCount, offset int) []TagCountJson {
 	col := "name"
 	d := "ASC"
 	if b, err := regexp.Match("(alpha|count)-(asc|desc)", []byte(sort)); b && err == nil {
@@ -328,11 +334,12 @@ func FindTagsAndCounts(sort string, pageCount, offset int) []TagCountJson {
 	var tags []TagCountJson
 	DB.Raw(`SELECT * FROM
 						(SELECT name, COUNT(image_tags.image_id) as count FROM tags
-						LEFT JOIN image_tags ON tags.id = image_tags.tag_id
-						GROUP BY tags.id)
+						 LEFT JOIN image_tags ON tags.id = image_tags.tag_id
+             WHERE name LIKE ?
+						 GROUP BY tags.id)
 					ORDER BY `+col+` `+d+`
 					LIMIT ?
-					OFFSET ?`, pageCount, offset).Scan(&tags)
+					OFFSET ?`, "%"+query+"%", pageCount, offset).Scan(&tags)
 	return tags
 }
 

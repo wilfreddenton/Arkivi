@@ -615,7 +615,7 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
+func ImageSearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Tags Handler")
 	q := r.URL.Query()
 	filter := q.Get("filter")
@@ -683,29 +683,39 @@ func TagsSuggestionHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-func TagsListHandler(w http.ResponseWriter, r *http.Request) *appError {
-	fmt.Println("Tags List Handler")
+func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
+	fmt.Println("Tags Handler")
 	q := r.URL.Query()
-	page := q.Get("page")
 	pageCount := 2
-	c := NumTags()
+	page := q.Get("page")
+	sort := q.Get("sort")
+	query := q.Get("query")
+	var c int
+	var tags []TagCountJson
+	if query == "" {
+		c = NumTags()
+	} else {
+		c = NumQueriedTags(query)
+	}
 	pageNum, offset, appErr := pagination(c, pageCount, page)
 	if appErr != nil {
 		return appErr
 	}
-	sort := q.Get("sort")
-	tags := FindTagsAndCounts(sort, pageCount, offset)
+	tags = FindTagsAndCounts(sort, query, pageCount, offset)
 	p := paginater.New(c, pageCount, pageNum, 3)
 	var params []UrlParam
 	if sort != "" {
-		params = []UrlParam{UrlParam{Name: "sort", Value: sort, IsFirst: true, IsLast: true}}
+		params = append(params, UrlParam{Name: "sort", Value: sort, IsFirst: true, IsLast: query == ""})
+	}
+	if query != "" {
+		params = append(params, UrlParam{Name: "query", Value: query, IsFirst: sort == "", IsLast: true})
 	}
 	renderTemplate(w, "tags_list", "base", map[string]interface{}{
 		"title":          "Tags",
 		"containerClass": "form-page",
 		"tags":           tags,
 		"Page":           p,
-		"baseUrl":        "/tags/list",
+		"baseUrl":        "/tags/",
 		"Params":         params,
 		"sort":           sort,
 	})

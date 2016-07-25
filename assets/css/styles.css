@@ -569,21 +569,27 @@ ul li {
 .tags-sort label {
   margin: 0;
 }
+.tags-sort .tags-sort-query {
+  margin-bottom: 15px;
+}
 .tags-sort input {
   padding: 0;
 }
-.tags-sort select {
+.tags-sort select, .tags-sort input[type="text"] {
+  margin-left: 10px;
   width: auto;
+}
+.tags-sort input[type="submit"] {
+  float: right;
+}
+.tags-sort > .row > div, #tags .row > div {
+  padding: 0;
 }
 #tags .tags-count {
   text-align: right;
 }
 #tags-form label {
   display: inline;
-}
-#tags-form #tags-form-input {
-}
-#tags-form #tags-form-misc {
 }
 #tags-form .nested-col-left, #tags-form .nested-col-right {
   padding-left: 0;
