@@ -5,6 +5,8 @@ import (
 	"github.com/jinzhu/gorm"
 	"os"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -303,6 +305,12 @@ type Tag struct {
 	Images []*Image `gorm:"many2many:image_tags"`
 }
 
+func FindTagByName(name string) Tag {
+	var t Tag
+	DB.Where("name = ?", name).First(&t)
+	return t
+}
+
 func NumTags() int {
 	var c int
 	DB.Model(Tag{}).Count(&c)
@@ -342,6 +350,84 @@ func FindTagsAndCounts(sort, query string, pageCount, offset int) []TagCountJson
 					OFFSET ?`, "%"+query+"%", pageCount, offset).Scan(&tags)
 	return tags
 }
+
+func (t *Tag) FindTagCombinations(s bool) []*TagCombination {
+	// s true for counts up false for down
+	var tcs []*TagCombination
+	var imgIDs []int
+	rows, err := DB.Raw(`SELECT image_id FROM image_tags
+                  WHERE tag_id = ?`, t.ID).Rows()
+	if err != nil {
+		return tcs
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id int
+		rows.Scan(&id)
+		imgIDs = append(imgIDs, id)
+	}
+	tcsMap := make(map[string]*TagCombination)
+	for _, imgID := range imgIDs {
+		var tagIDs []int
+		rows, err = DB.Raw(`SELECT tag_id from image_tags
+                        WHERE image_id = ?`, imgID).Rows()
+		defer rows.Close()
+		if err != nil {
+			return tcs
+		}
+		for rows.Next() {
+			var id int
+			rows.Scan(&id)
+			tagIDs = append(tagIDs, id)
+		}
+		sort.Ints(tagIDs)
+		var id string
+		n := len(tagIDs)
+		for i, tagID := range tagIDs {
+			id += strconv.Itoa(tagID)
+			if i != n-1 {
+				id += "-"
+			}
+		}
+		if tc, ok := tcsMap[id]; ok {
+			tc.Count += 1
+		} else {
+			var names []string
+			rows, err = DB.Raw(`SELECT name FROM tags
+                         WHERE id IN (?)
+                         ORDER BY name ASC`, tagIDs).Rows()
+			defer rows.Close()
+			if err != nil {
+				return tcs
+			}
+			for rows.Next() {
+				var name string
+				rows.Scan(&name)
+				names = append(names, name)
+			}
+			newTc := &TagCombination{Names: names, Count: 1}
+			tcsMap[id] = newTc
+			tcs = append(tcs, newTc)
+		}
+	}
+	if s {
+		sort.Sort(TagCombinationsByCount(tcs))
+	} else {
+		sort.Sort(sort.Reverse(TagCombinationsByCount(tcs)))
+	}
+	return tcs
+}
+
+type TagCombination struct {
+	Names []string
+	Count int
+}
+
+type TagCombinationsByCount []*TagCombination
+
+func (t TagCombinationsByCount) Len() int           { return len(t) }
+func (t TagCombinationsByCount) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
+func (t TagCombinationsByCount) Less(i, j int) bool { return t[i].Count < t[j].Count }
 
 type TagJson struct {
 	Name string

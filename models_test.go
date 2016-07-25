@@ -253,6 +253,91 @@ func TestFindTagsAndCounts(t *testing.T) {
 	}
 }
 
+func TestFindTagCombinations(t *testing.T) {
+	tagNames := []string{"nature", "space", "ocean", "anime"}
+	combos := map[string]TagCombination{
+		"nature":             TagCombination{Names: []string{"nature"}, Count: 1},
+		"nature-space":       TagCombination{Names: []string{"nature", "space"}, Count: 2},
+		"nature-ocean":       TagCombination{Names: []string{"nature", "ocean"}, Count: 1},
+		"nature-ocean-space": TagCombination{Names: []string{"nature", "ocean", "space"}, Count: 1},
+	}
+	images := []struct {
+		name     string
+		tagNames []string
+	}{
+		{"img1", []string{"nature"}},
+		{"img2", []string{"nature", "space"}},
+		{"img3", []string{"nature", "space"}},
+		{"img4", []string{"nature", "ocean", "space"}},
+		{"img5", []string{"nature", "ocean"}},
+	}
+	tests := []struct {
+		name string
+		sort bool
+		out  map[string]TagCombination
+	}{
+		{"nature", true, combos},
+		{"nature", false, combos},
+	}
+	for _, name := range tagNames {
+		tag := Tag{Name: name}
+		DB.Create(&tag)
+		defer DB.Unscoped().Delete(&tag)
+	}
+	for _, i := range images {
+		image := Image{Name: i.name}
+		DB.Create(&image)
+		var tags []Tag
+		for _, n := range i.tagNames {
+			var tag Tag
+			DB.Where("name = ?", n).First(&tag)
+			tags = append(tags, tag)
+		}
+		DB.Model(&image).Association("Tags").Replace(&tags)
+		defer DB.Unscoped().Delete(&image)
+		defer DB.Model(&image).Association("Tags").Clear()
+	}
+	for i, test := range tests {
+		var tag Tag
+		DB.Where("name = ?", test.name).First(&tag)
+		tcs := tag.FindTagCombinations(test.sort)
+		numTags := len(tcs)
+		numOut := len(test.out)
+		if numTags != numOut {
+			t.Errorf("The test at index %v did not return the correct amount of tags. Got %v; want %v.", i, numTags, numOut)
+		}
+		prev := tcs[0].Count
+		for _, tc := range tcs {
+			if test.sort {
+				if tc.Count < prev {
+					t.Errorf("The test at index %v is not in the proper order", i)
+				}
+			} else {
+				if tc.Count > prev {
+					t.Errorf("The test at index %v is not in the proper order", i)
+				}
+			}
+			var id string
+			n := len(tc.Names)
+			for k, name := range tc.Names {
+				id += name
+				if k != n-1 {
+					id += "-"
+				}
+			}
+			if tcOut, ok := combos[id]; !ok {
+				t.Errorf("The test at index %v did not return the combination %v", i, id)
+			} else {
+				numTcNames := len(tc.Names)
+				numTcOutNames := len(tcOut.Names)
+				if numTcOutNames != numTcNames {
+					t.Errorf("The test at index %v did not return the correct number of names. Got %v; want %v.", i, numTcNames, numTcOutNames)
+				}
+			}
+		}
+	}
+}
+
 func intInSlice(e int, s []int) bool {
 	for _, a := range s {
 		if a == e {

@@ -131,7 +131,6 @@ func updateTags(ts []TagJson) []Tag {
 		var tag Tag
 		name := strings.ToLower(t.Name)
 		if name == "" || r.MatchString(name) {
-			fmt.Println(name)
 			continue
 		}
 		DB.Where("name = ?", name).First(&tag)

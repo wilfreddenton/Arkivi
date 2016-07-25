@@ -1,0 +1,17 @@
+{{ define "title" }}<title>Arkivi | {{ .title }}</title>{{ end }}
+{{ define "content" }}
+  <ul id="tags">
+    {{ range .combos }}
+      <li>
+        <div class="row">
+          <div class="col-xs-8">
+            <a href="/tags/" title="images tagged with ">
+              {{ .Names | CommaList }}
+            </a>
+          </div>
+          <div class="col-xs-4 tags-count"><span>{{ .Count }} {{ if eq .Count 1 }}image{{ else }}images{{ end }}</span></div>
+        </div>
+      </li>
+    {{ end }}
+  </ul>
+{{ end }}

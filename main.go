@@ -80,6 +80,7 @@ func main() {
 	// r.Handle("/tags/", appHandler(TagsHandler)).Methods("GET")
 	r.Handle("/tags/", appHandler(TagsHandler)).Methods("GET")
 	r.Handle("/tags/suggestions", appHandler(TagsSuggestionHandler)).Methods("GET")
+	r.Handle("/tags/{name}", appHandler(TagHandler)).Methods("GET")
 	r.Handle("/users/token", appHandler(UsersTokenHandler)).Methods("GET")
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("assets/"))))
 	http.ListenAndServe(":6969", handlers.LoggingHandler(os.Stdout, r))
