@@ -69,7 +69,7 @@
       return (
         React.DOM.form({ onSubmit: this.submitHandler },
                        React.DOM.div({ className: 'row' },
-                                     React.DOM.div({ id: "tags-form-input", className: 'col-xs-8 tags-form-container' },
+                                     React.DOM.div({ className: 'col-xs-8 search-form-container' },
                                                    React.DOM.div({ className: 'row '},
                                                                  React.DOM.div({ className: 'col-xs-7 nested-col-left' },
                                                                                React.createElement(COMPONENTS.TagsInput, {
@@ -94,7 +94,7 @@
                                                                                                  onChange: this.radioHandler,
                                                                                                  checked: 'or' === this.state.operator
                                                                                                }), ' Or ')))),
-                                     React.DOM.div({ id: "tags-form-misc", className: 'col-xs-4 tags-form-container' },
+                                     React.DOM.div({ className: 'col-xs-4 tags-form-container' },
                                                    React.DOM.div({ className: 'row' },
                                                                  React.DOM.div({ className: 'col-xs-7 nested-col-left' },
                                                                                React.DOM.select({
@@ -109,6 +109,6 @@
   });
   ReactDOM.render(
     React.createElement(TagsForm),
-    document.getElementById('tags-form')
+    document.getElementById('search-form')
   );
 })(window);

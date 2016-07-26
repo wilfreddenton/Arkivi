@@ -382,16 +382,19 @@ func TestFindRelatedTags(t *testing.T) {
 		{"img5", []string{"nature", "ocean"}},
 	}
 	tests := []struct {
-		name string
-		sort string
-		out  []RelatedTag
+		name  string
+		sort  string
+		query string
+		out   []RelatedTag
 	}{
-		{"", "", []RelatedTag{}},
-		{"test", "", []RelatedTag{}},
-		{"nature", "alpha-asc", []RelatedTag{RelatedTag{"ocean", 2}, RelatedTag{"space", 3}}},
-		{"nature", "alpha-desc", []RelatedTag{RelatedTag{"space", 3}, RelatedTag{"ocean", 2}}},
-		{"nature", "count-asc", []RelatedTag{RelatedTag{"ocean", 2}, RelatedTag{"space", 3}}},
-		{"nature", "count-desc", []RelatedTag{RelatedTag{"space", 3}, RelatedTag{"ocean", 2}}},
+		{"", "", "", []RelatedTag{}},
+		{"test", "", "", []RelatedTag{}},
+		{"nature", "alpha-asc", "", []RelatedTag{RelatedTag{"ocean", 2}, RelatedTag{"space", 3}}},
+		{"nature", "alpha-desc", "", []RelatedTag{RelatedTag{"space", 3}, RelatedTag{"ocean", 2}}},
+		{"nature", "count-asc", "", []RelatedTag{RelatedTag{"ocean", 2}, RelatedTag{"space", 3}}},
+		{"nature", "count-desc", "", []RelatedTag{RelatedTag{"space", 3}, RelatedTag{"ocean", 2}}},
+		{"nature", "count-desc", "p", []RelatedTag{RelatedTag{"space", 3}}},
+		{"nature", "alpha-asc", " ocEAn ", []RelatedTag{RelatedTag{"ocean", 2}}},
 	}
 	for _, name := range tagNames {
 		tag := Tag{Name: name}
@@ -412,7 +415,7 @@ func TestFindRelatedTags(t *testing.T) {
 		defer DB.Model(&image).Association("Tags").Clear()
 	}
 	for i, test := range tests {
-		rts := FindRelatedTags([]string{test.name}, test.sort, 5, 0)
+		rts := FindRelatedTags([]string{test.name}, test.sort, test.query)
 		numRts := len(rts)
 		numOutsRts := len(test.out)
 		if numRts != numOutsRts {

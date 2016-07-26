@@ -1,0 +1,12 @@
+{{ define "title" }}<title>Arkivi | search</title>{{ end }}
+{{ define "content" }}
+  <div id="search-form"></div>
+  {{ template "image_list" . }}
+{{ end }}
+{{ define "scripts" }}
+  <script src="/static/js/react.js"></script>
+  <script src="/static/js/react-dom.js"></script>
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/components.js"></script>
+  <script src="/static/js/search.js"></script>
+{{ end }}

@@ -1,6 +1,8 @@
 {{ define "title" }}<title>Arkivi | {{ .title }}</title>{{ end }}
 {{ define "content" }}
-  <h2>Combinations</h2>
+  <a href="/search/?tags={{ .namesStr }}" title="images tagged {{ .title }}">{{ .numImgs }} Images</a>
+  <h2>Related Tags</h2>
+  {{ template "tags_form" . }}
   <ul id="tags">
     {{ range .relTags }}
       <li>

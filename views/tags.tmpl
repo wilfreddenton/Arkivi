@@ -1,12 +1,18 @@
-{{ define "title" }}<title>Arkivi | tags</title>{{ end }}
+{{ define "title" }}<title>Arkivi | tags list</title>{{ end }}
 {{ define "content" }}
-  <div id="tags-form"></div>
-  {{ template "image_list" . }}
-{{ end }}
-{{ define "scripts" }}
-  <script src="/static/js/react.js"></script>
-  <script src="/static/js/react-dom.js"></script>
-  <script src="/static/js/utils.js"></script>
-  <script src="/static/js/components.js"></script>
-  <script src="/static/js/tags.js"></script>
+  {{ template "tags_form" . }}
+  <ul id="tags">
+    {{ range .tags }}
+      <li>
+        <div class="row">
+          <div class="col-xs-8">
+            <a href="/tags/{{ .Name }}" title="images tagged with {{ .Name }}">
+              {{ .Name }}
+            </a>
+          </div>
+          <div class="col-xs-4 tags-count"><span>{{ .Count }} {{ if eq .Count 1 }}image{{ else }}images{{ end }}</span></div>
+        </div>
+      </li>
+    {{ end }}
+  </ul>
 {{ end }}

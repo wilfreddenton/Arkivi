@@ -615,14 +615,14 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-func ImageSearchHandler(w http.ResponseWriter, r *http.Request) *appError {
-	fmt.Println("Tags Handler")
+func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
+	fmt.Println("Search Handler")
 	q := r.URL.Query()
-	filter := q.Get("filter")
+	tags := q.Get("tags")
 	var names []string
-	if filter != "" {
-		filter = strings.ToLower(filter)
-		names = strings.Split(filter, ",")
+	if tags != "" {
+		tags = strings.ToLower(tags)
+		names = strings.Split(tags, ",")
 	}
 	op := q.Get("operator")
 	if op != "" {
@@ -646,8 +646,8 @@ func ImageSearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	images, sort := FindImagesByIDsAndSort(ids, sort, pageCount, offset)
 	p := paginater.New(c, pageCount, pageNum, 3)
 	var params []UrlParam
-	if filter != "" {
-		params = append(params, UrlParam{Name: "filter", Value: filter, IsFirst: true})
+	if tags != "" {
+		params = append(params, UrlParam{Name: "tags", Value: tags, IsFirst: true})
 	}
 	if op != "" {
 		params = append(params, UrlParam{Name: "operator", Value: op, IsFirst: len(params) == 0, IsLast: sort == ""})
@@ -655,8 +655,8 @@ func ImageSearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if sort != "" {
 		params = append(params, UrlParam{Name: "sort", Value: sort, IsFirst: len(params) == 0, IsLast: true})
 	}
-	renderTemplate(w, "tags", "base", map[string]interface{}{
-		"title":          "Search by Tags",
+	renderTemplate(w, "search", "base", map[string]interface{}{
+		"title":          "Search",
 		"images":         images,
 		"containerClass": "image-list",
 		"Page":           p,
@@ -687,16 +687,22 @@ func TagHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Tag Handler")
 	vars := mux.Vars(r)
 	namesStr := vars["name"]
+	q := r.URL.Query()
+	sort := q.Get("sort")
+	query := q.Get("query")
 	names := strings.Split(namesStr, ",")
 	title := strings.Join(names, ", ")
-	pageCount := 25
-	offset := 0
-	rts := FindRelatedTags(names, "count-desc", pageCount, offset)
+	numImgs := len(FindImageIDsByTagNames(names, "and"))
+	rts := FindRelatedTags(names, sort, query)
 	renderTemplate(w, "tag", "base", map[string]interface{}{
 		"title":          title,
 		"namesStr":       namesStr,
+		"numImgs":        numImgs,
 		"relTags":        rts,
 		"containerClass": "form-page",
+		"baseUrl":        "?",
+		"sort":           sort,
+		"query":          query,
 	})
 	return nil
 }
@@ -728,7 +734,7 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if query != "" {
 		params = append(params, UrlParam{Name: "query", Value: query, IsFirst: sort == "", IsLast: true})
 	}
-	renderTemplate(w, "tags_list", "base", map[string]interface{}{
+	renderTemplate(w, "tags", "base", map[string]interface{}{
 		"title":          "Tags",
 		"containerClass": "form-page",
 		"tags":           tags,
@@ -736,6 +742,7 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 		"baseUrl":        "/tags/",
 		"Params":         params,
 		"sort":           sort,
+		"query":          query,
 	})
 	return nil
 }

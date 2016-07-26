@@ -1,0 +1,26 @@
+{{ define "tags_form" }}
+<form class="tags-form" action="{{ .baseUrl }}" method="GET">
+  <div class="row">
+    <div class="col-xs-12 tags-form-query">
+      <label>Search: 
+        <input type="text" name="query" placeholder="tag" value="{{ .query }}">
+      </label>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-xs-9">
+      <label>Sort by: 
+        <select name="sort">
+          <option value="count-desc" {{ if eq .sort "count-desc" }}selected{{ end }}>Popular</option>
+          <option value="count-asc" {{ if eq .sort "count-asc" }}selected{{ end }}>Unpopular</option>
+          <option value="alpha-asc" {{ if eq .sort "alpha-asc" }}selected{{ end }}>A - Z</option>
+          <option value="alpha-desc" {{ if eq .sort "alpha-desc" }}selected{{ end }}>Z - A</option>
+        </select>
+      </label>
+    </div>
+    <div class="col-xs-3">
+      <input type="submit" value="submit">
+    </div>
+  </div>
+</form>
+{{ end }}

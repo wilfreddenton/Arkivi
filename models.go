@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"github.com/jinzhu/gorm"
-	"math"
+	// "math"
 	"os"
 	"regexp"
 	"sort"
@@ -346,12 +346,12 @@ func FindSuggestedTags(query string, currentTags []string) []Tag {
 }
 
 func validateAlphaCountSort(sort string) (string, string) {
-	col := "name"
-	d := "ASC"
+	col := "count"
+	d := "DESC"
 	if b, err := regexp.Match("(alpha|count)-(asc|desc)", []byte(sort)); b && err == nil {
 		a := strings.Split(sort, "-")
-		if a[0] == "count" {
-			col = "count"
+		if a[0] == "alpha" {
+			col = "name"
 		}
 		d = strings.ToUpper(a[1])
 	}
@@ -387,14 +387,15 @@ type RelatedTagsByName []*RelatedTag
 
 func (t RelatedTagsByName) Len() int           { return len(t) }
 func (t RelatedTagsByName) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
-func (t RelatedTagsByName) Less(i, j int) bool { return t[i].Count < t[j].Count }
+func (t RelatedTagsByName) Less(i, j int) bool { return t[i].Name < t[j].Name }
 
-func FindRelatedTags(names []string, sortStr string, pageCount, offset int) []*RelatedTag {
+func FindRelatedTags(names []string, sortStr, query string) []*RelatedTag {
 	var rts []*RelatedTag
 	rtsMap := make(map[string]*RelatedTag)
 	imageIDs := FindImageIDsByTagNames(names, "and")
 	tagIDs := FindTagIDsByNames(names)
 	col, d := validateAlphaCountSort(sortStr)
+	query = strings.ToLower(strings.TrimSpace(query))
 	rows, err := DB.Raw(`
     SELECT name FROM tags JOIN
       (SELECT tag_id FROM image_tags
@@ -409,6 +410,9 @@ func FindRelatedTags(names []string, sortStr string, pageCount, offset int) []*R
 	for rows.Next() {
 		var name string
 		rows.Scan(&name)
+		if query != "" && !strings.Contains(name, query) {
+			continue
+		}
 		if rt, ok := rtsMap[name]; ok {
 			rt.Count += 1
 		} else {
@@ -433,9 +437,10 @@ func FindRelatedTags(names []string, sortStr string, pageCount, offset int) []*R
 			sort.Sort(sort.Reverse(RelatedTagsByName(rts)))
 		}
 	}
-	start := int(math.Min(float64(len(rts)-1), float64(offset)))
-	end := int(math.Min(float64(len(rts)), float64(pageCount)))
-	return rts[start:end]
+	return rts
+	// start := int(math.Min(float64(len(rts)-1), float64(offset)))
+	// end := int(math.Min(float64(len(rts)), float64(pageCount)))
+	// return rts[start:end], n
 }
 
 func (t *Tag) FindTagCombinations(s bool) []*TagCombination {

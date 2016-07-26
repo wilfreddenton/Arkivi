@@ -566,35 +566,35 @@ ul li {
 .months .month .month-num-images {
   text-align: right;
 }
-.tags-sort label {
+.tags-form label {
   margin: 0;
 }
-.tags-sort .tags-sort-query {
+.tags-form .tags-form-query {
   margin-bottom: 15px;
 }
-.tags-sort input {
+.tags-form input {
   padding: 0;
 }
-.tags-sort select, .tags-sort input[type="text"] {
+.tags-form select, .tags-form input[type="text"] {
   margin-left: 10px;
   width: auto;
 }
-.tags-sort input[type="submit"] {
+.tags-form input[type="submit"] {
   float: right;
 }
-.tags-sort > .row > div, #tags .row > div {
+.tags-form > .row > div, #tags .row > div {
   padding: 0;
 }
 #tags .tags-count {
   text-align: right;
 }
-#tags-form label {
+#search-form label {
   display: inline;
 }
-#tags-form .nested-col-left, #tags-form .nested-col-right {
+#search-form .nested-col-left, #search-form .nested-col-right {
   padding-left: 0;
 }
-#tags-form #tags-list-link {
+#search-form #tags-list-link {
   display: inline-block;
   padding-left: 15px;
   font-size: 16px;
@@ -656,11 +656,11 @@ ul li {
   .image-list {
     max-width: 390px;
   }
-  #tags-form .tags-form-container {
+  #search-form .search-form-container {
     width: 100%;
     margin-bottom: 15px;
   }
-  #tags-form .nested-col-right {
+  #search-form .nested-col-right {
     padding-right: 0px;
     padding-left: 15px;
   }
