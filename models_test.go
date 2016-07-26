@@ -182,6 +182,37 @@ func TestFindImagesByIDsAndSort(t *testing.T) {
 	}
 }
 
+func intInSlice(e int, s []int) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+func TestFindTagIDsByNames(t *testing.T) {
+	tagNames := []string{"nature", "space", "ocean", "anime"}
+	tagIDs := make([]int, len(tagNames))
+	for i, name := range tagNames {
+		tag := Tag{Name: name}
+		DB.Create(&tag)
+		tagIDs[i] = int(tag.ID)
+		defer DB.Unscoped().Delete(&tag)
+	}
+	ids := FindTagIDsByNames(tagNames)
+	numIDs := len(ids)
+	numTagIDs := len(tagIDs)
+	if numIDs != numTagIDs {
+		t.Errorf("Got %v IDs; want %v", numIDs, numTagIDs)
+	}
+	for _, id := range ids {
+		if !intInSlice(id, tagIDs) {
+			t.Errorf("The ids do not include %v.", id)
+		}
+	}
+}
+
 func TestFindTagsAndCounts(t *testing.T) {
 	tagNames := []string{"nature", "space", "ocean", "anime"}
 	tagCounts := map[string]int{"nature": 5, "space": 3, "ocean": 2, "anime": 1}
@@ -338,13 +369,65 @@ func TestFindTagCombinations(t *testing.T) {
 	}
 }
 
-func intInSlice(e int, s []int) bool {
-	for _, a := range s {
-		if a == e {
-			return true
+func TestFindRelatedTags(t *testing.T) {
+	tagNames := []string{"nature", "space", "ocean", "anime"}
+	images := []struct {
+		name     string
+		tagNames []string
+	}{
+		{"img1", []string{"nature"}},
+		{"img2", []string{"nature", "space"}},
+		{"img3", []string{"nature", "space"}},
+		{"img4", []string{"nature", "ocean", "space"}},
+		{"img5", []string{"nature", "ocean"}},
+	}
+	tests := []struct {
+		name string
+		sort string
+		out  []RelatedTag
+	}{
+		{"", "", []RelatedTag{}},
+		{"test", "", []RelatedTag{}},
+		{"nature", "alpha-asc", []RelatedTag{RelatedTag{"ocean", 2}, RelatedTag{"space", 3}}},
+		{"nature", "alpha-desc", []RelatedTag{RelatedTag{"space", 3}, RelatedTag{"ocean", 2}}},
+		{"nature", "count-asc", []RelatedTag{RelatedTag{"ocean", 2}, RelatedTag{"space", 3}}},
+		{"nature", "count-desc", []RelatedTag{RelatedTag{"space", 3}, RelatedTag{"ocean", 2}}},
+	}
+	for _, name := range tagNames {
+		tag := Tag{Name: name}
+		DB.Create(&tag)
+		defer DB.Unscoped().Delete(&tag)
+	}
+	for _, i := range images {
+		image := Image{Name: i.name}
+		DB.Create(&image)
+		var tags []Tag
+		for _, n := range i.tagNames {
+			var tag Tag
+			DB.Where("name = ?", n).First(&tag)
+			tags = append(tags, tag)
+		}
+		DB.Model(&image).Association("Tags").Replace(&tags)
+		defer DB.Unscoped().Delete(&image)
+		defer DB.Model(&image).Association("Tags").Clear()
+	}
+	for i, test := range tests {
+		rts := FindRelatedTags([]string{test.name}, test.sort, 5, 0)
+		numRts := len(rts)
+		numOutsRts := len(test.out)
+		if numRts != numOutsRts {
+			t.Errorf("The test at index %v returned %v related tags; want %v", i, numRts, numOutsRts)
+		}
+		for j, rt := range rts {
+			rtOut := test.out[j]
+			if rt.Name != rtOut.Name {
+				t.Errorf("The test at index %v returned %v; want %v", i, rt.Name, rtOut.Name)
+			}
+			if rt.Count != rtOut.Count {
+				t.Errorf("The test at index %v return %v; want %v", i, rt.Count, rtOut.Count)
+			}
 		}
 	}
-	return false
 }
 
 func TestBuildChronology(t *testing.T) {

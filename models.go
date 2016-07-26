@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"github.com/jinzhu/gorm"
+	"math"
 	"os"
 	"regexp"
 	"sort"
@@ -311,6 +312,21 @@ func FindTagByName(name string) Tag {
 	return t
 }
 
+func FindTagIDsByNames(names []string) []int {
+	var ids []int
+	rows, err := DB.Table("tags").Select("id").Where("name IN (?)", names).Rows()
+	defer rows.Close()
+	if err != nil {
+		return ids
+	}
+	for rows.Next() {
+		var id int
+		rows.Scan(&id)
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 func NumTags() int {
 	var c int
 	DB.Model(Tag{}).Count(&c)
@@ -329,7 +345,7 @@ func FindSuggestedTags(query string, currentTags []string) []Tag {
 	return tags
 }
 
-func FindTagsAndCounts(sort, query string, pageCount, offset int) []TagCountJson {
+func validateAlphaCountSort(sort string) (string, string) {
 	col := "name"
 	d := "ASC"
 	if b, err := regexp.Match("(alpha|count)-(asc|desc)", []byte(sort)); b && err == nil {
@@ -337,8 +353,13 @@ func FindTagsAndCounts(sort, query string, pageCount, offset int) []TagCountJson
 		if a[0] == "count" {
 			col = "count"
 		}
-		d = a[1]
+		d = strings.ToUpper(a[1])
 	}
+	return col, d
+}
+
+func FindTagsAndCounts(sort, query string, pageCount, offset int) []TagCountJson {
+	col, d := validateAlphaCountSort(sort)
 	var tags []TagCountJson
 	DB.Raw(`SELECT * FROM
 						(SELECT name, COUNT(image_tags.image_id) as count FROM tags
@@ -349,6 +370,72 @@ func FindTagsAndCounts(sort, query string, pageCount, offset int) []TagCountJson
 					LIMIT ?
 					OFFSET ?`, "%"+query+"%", pageCount, offset).Scan(&tags)
 	return tags
+}
+
+type RelatedTag struct {
+	Name  string
+	Count int
+}
+
+type RelatedTagsByCount []*RelatedTag
+
+func (t RelatedTagsByCount) Len() int           { return len(t) }
+func (t RelatedTagsByCount) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
+func (t RelatedTagsByCount) Less(i, j int) bool { return t[i].Count < t[j].Count }
+
+type RelatedTagsByName []*RelatedTag
+
+func (t RelatedTagsByName) Len() int           { return len(t) }
+func (t RelatedTagsByName) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
+func (t RelatedTagsByName) Less(i, j int) bool { return t[i].Count < t[j].Count }
+
+func FindRelatedTags(names []string, sortStr string, pageCount, offset int) []*RelatedTag {
+	var rts []*RelatedTag
+	rtsMap := make(map[string]*RelatedTag)
+	imageIDs := FindImageIDsByTagNames(names, "and")
+	tagIDs := FindTagIDsByNames(names)
+	col, d := validateAlphaCountSort(sortStr)
+	rows, err := DB.Raw(`
+    SELECT name FROM tags JOIN
+      (SELECT tag_id FROM image_tags
+       WHERE image_id IN (?)
+       AND tag_id NOT IN (?))
+    ON tags.id = tag_id
+  `, imageIDs, tagIDs).Rows()
+	defer rows.Close()
+	if err != nil {
+		return rts
+	}
+	for rows.Next() {
+		var name string
+		rows.Scan(&name)
+		if rt, ok := rtsMap[name]; ok {
+			rt.Count += 1
+		} else {
+			rt = &RelatedTag{Name: name, Count: 1}
+			rtsMap[name] = rt
+			rts = append(rts, rt)
+		}
+	}
+	if len(rts) == 0 {
+		return rts
+	}
+	if col == "count" {
+		if d == "ASC" {
+			sort.Sort(RelatedTagsByCount(rts))
+		} else {
+			sort.Sort(sort.Reverse(RelatedTagsByCount(rts)))
+		}
+	} else {
+		if d == "ASC" {
+			sort.Sort(RelatedTagsByName(rts))
+		} else {
+			sort.Sort(sort.Reverse(RelatedTagsByName(rts)))
+		}
+	}
+	start := int(math.Min(float64(len(rts)-1), float64(offset)))
+	end := int(math.Min(float64(len(rts)), float64(pageCount)))
+	return rts[start:end]
 }
 
 func (t *Tag) FindTagCombinations(s bool) []*TagCombination {
@@ -394,8 +481,8 @@ func (t *Tag) FindTagCombinations(s bool) []*TagCombination {
 		} else {
 			var names []string
 			rows, err = DB.Raw(`SELECT name FROM tags
-                         WHERE id IN (?)
-                         ORDER BY name ASC`, tagIDs).Rows()
+                          WHERE id IN (?)
+                          ORDER BY name ASC`, tagIDs).Rows()
 			defer rows.Close()
 			if err != nil {
 				return tcs

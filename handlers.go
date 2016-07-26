@@ -686,12 +686,16 @@ func TagsSuggestionHandler(w http.ResponseWriter, r *http.Request) *appError {
 func TagHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Tag Handler")
 	vars := mux.Vars(r)
-	name := vars["name"]
-	tag := FindTagByName(name)
-	combos := tag.FindTagCombinations(true)
+	namesStr := vars["name"]
+	names := strings.Split(namesStr, ",")
+	title := strings.Join(names, ", ")
+	pageCount := 25
+	offset := 0
+	rts := FindRelatedTags(names, "count-desc", pageCount, offset)
 	renderTemplate(w, "tag", "base", map[string]interface{}{
-		"title":          tag.Name,
-		"combos":         combos,
+		"title":          title,
+		"namesStr":       namesStr,
+		"relTags":        rts,
 		"containerClass": "form-page",
 	})
 	return nil
