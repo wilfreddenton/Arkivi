@@ -1,10 +1,23 @@
 (function (window) {
-  var TagsForm = React.createClass({
+  var SearchForm = React.createClass({
     getInitialState: function () {
       return {
+        title: '',
+        name: '',
+        camera: '',
+        film: '',
+        size: '0',
         tags: [],
         operator: 'and',
         sort: 'latest',
+        moreOptions: false,
+        sizeOptions: [
+          { name: 'all', value: '0' },
+          { name: '> 1024px', value: '1024' },
+          { name: '> 2 MP (1600px)', value: '1600' },
+          { name: '> 4 MP (2240px)', value: '2240' },
+          { name: '> 8 MP (3264px)', value: '3264' },
+        ],
         options: [
           { name: 'Latest', value: 'latest' },
           { name: 'Earliest', value: 'earliest' },
@@ -33,31 +46,72 @@
       }).map(function (tag) {
         return tag.Name;
       }).join(',');
-      if (tags !== "")
-        window.location = window.location.pathname + "?tags=" + tags + '&operator=' + this.state.operator + '&sort=' + this.state.sort;
+      window.location = window.location.pathname + "?tags=" + tags + '&operator=' + this.state.operator + '&sort=' + this.state.sort;
+    },
+    inputHandler: function (e) {
+      var name = e.target.name;
+      var value = e.target.value;
+      var obj = {};
+      obj[name] = value;
+      console.log(obj)
+      this.setState(obj);
+    },
+    moreOptionsHandler: function (e) {
+      this.setState({ moreOptions: !this.state.moreOptions });
     },
     componentDidMount: function () {
-      var tags = this.getUrlParams('tags')
+      // title, name, camera, film
+      var strParams = ['title', 'name', 'camera', 'film'];
+      var obj = {}
+      var moreOptions = false;
+      strParams.forEach(function (name) {
+        var value = this.getUrlParams(name);
+        if (value !== null) {
+          moreOptions = true;
+          obj[name] = value;
+        }
+      }.bind(this));
+      // taken
+      var taken = this.getUrlParams('taken');
+      if (taken !== null && !isNaN((new Date(taken)).getTime())) {
+        moreOptions = true;
+        obj.taken = taken;
+      }
+      // size
+      var selected = '0';
+      var values = this.state.sizeOptions.map(function (option) {
+        return option.value;
+      });
+      var size = this.getUrlParams('size');
+      if (values.indexOf(size) > -1)
+        obj.size = size;
+      moreOptions = true;
+      // tags
+      var tags = this.getUrlParams('tags');
       if (tags !== null) {
         tags = tags.split(',').map(function (name) {
           return { Name: name };
         });
-        this.setState({ tags: tags });
+        obj.tags = tags;
       }
+      // op
       var op = this.getUrlParams('operator');
       if (op !== null) {
         op = op.toLowerCase();
         if (op === 'and' || op === 'or') {
-          this.setState({ operator: op });
+          obj.operator = op;
         }
       }
-      var selected = "latest";
-      var values = this.state.options.map(function (option) {
+      // sort
+      selected = "latest";
+      values = this.state.options.map(function (option) {
         return option.value;
       });
       var sort = this.getUrlParams('sort');
       if (values.indexOf(sort) > -1)
-        this.setState({ sort: sort });
+        obj.sort = sort;
+      obj.moreOptions = moreOptions;
+      this.setState(obj);
     },
     render: function () {
       var options = this.state.options.map(function (option, i) {
@@ -66,9 +120,78 @@
           value: option.value
         }, option.name);
       });
+      var sizeOptions = this.state.sizeOptions.map(function (option, i) {
+        return React.DOM.option({
+          key: i,
+          value: option.value
+        }, option.name);
+      });
+      var style = { display: this.state.moreOptions ? 'block' : 'none' };
       return (
         React.DOM.form({ onSubmit: this.submitHandler },
                        React.DOM.div({ className: 'row' },
+                                     React.DOM.div({ className: 'col-xs-12' },
+                                                   React.DOM.a({
+                                                     className: 'more-options',
+                                                     onClick: this.moreOptionsHandler
+                                                   }, (this.state.moreOptions ? "Less" : "More") + " Options"))),
+                       React.DOM.span({ style: style },
+                       React.DOM.div({ className: 'row' },
+                                     React.DOM.div({ className: 'col-xs-6' },
+                                                   React.DOM.label(null, 'Title',
+                                                                   React.DOM.input({
+                                                                     type: 'text',
+                                                                     name: 'title',
+                                                                     placeholder: 'Pearlescent Sunset',
+                                                                     value: this.state.title,
+                                                                     onChange: this.inputHandler
+                                                                   }))),
+                                     React.DOM.div({ className: 'col-xs-6'},
+                                                   React.DOM.label(null, 'Name',
+                                                                   React.DOM.input({
+                                                                     type: 'text',
+                                                                     name: 'name',
+                                                                     value: this.state.name,
+                                                                     onChange: this.inputHandler,
+                                                                     placeholder: 'Dm3wt3FmK'
+                                                                   })))),
+                       React.DOM.div({ className: 'row' },
+                                     React.DOM.div({ className: 'col-xs-6' },
+                                                   React.DOM.label(null, 'Camera',
+                                                                   React.DOM.input({
+                                                                     type: 'text',
+                                                                     name: 'camera',
+                                                                     value: this.state.camera,
+                                                                     onChange: this.inputHandler,
+                                                                     placeholder: 'Hasselblad 500C'
+                                                                   }))),
+                                     React.DOM.div({ className: 'col-xs-6'},
+                                                   React.DOM.label(null, 'Film',
+                                                                   React.DOM.input({
+                                                                     type: 'text',
+                                                                     name: 'film',
+                                                                     value: this.state.film,
+                                                                     onChange: this.inputHandler,
+                                                                     placeholder: '120'
+                                                                   })))),
+                       React.DOM.div({ className: 'row' },
+                                     React.DOM.div({ className: 'col-xs-6' },
+                                                   React.DOM.label(null, 'Taken',
+                                                                   React.DOM.input({
+                                                                     type: 'date',
+                                                                     name: 'taken',
+                                                                     value: this.state.taken,
+                                                                     onChange: this.inputHandler
+                                                                   }))),
+                                     React.DOM.div({ className: 'col-xs-6'},
+                                                   React.DOM.label(null, 'Size',
+                                                                   React.DOM.select({
+                                                                     name: 'size',
+                                                                     value: this.state.size,
+                                                                     onChange: this.inputHandler
+                                                                   }, sizeOptions))))),
+                       React.DOM.div({ className: 'row' },
+                                     React.DOM.div({ className: 'col-xs-12' }, 'Tags:'),
                                      React.DOM.div({ className: 'col-xs-8 search-form-container' },
                                                    React.DOM.div({ className: 'row '},
                                                                  React.DOM.div({ className: 'col-xs-7 nested-col-left' },
@@ -94,7 +217,7 @@
                                                                                                  onChange: this.radioHandler,
                                                                                                  checked: 'or' === this.state.operator
                                                                                                }), ' Or ')))),
-                                     React.DOM.div({ className: 'col-xs-4 tags-form-container' },
+                                     React.DOM.div({ className: 'col-xs-4 search-form-container' },
                                                    React.DOM.div({ className: 'row' },
                                                                  React.DOM.div({ className: 'col-xs-7 nested-col-left' },
                                                                                React.DOM.select({
@@ -108,7 +231,7 @@
     }
   });
   ReactDOM.render(
-    React.createElement(TagsForm),
+    React.createElement(SearchForm),
     document.getElementById('search-form')
   );
 })(window);

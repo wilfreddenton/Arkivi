@@ -618,12 +618,15 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Search Handler")
 	q := r.URL.Query()
+	// params start
+	// tags
 	tags := q.Get("tags")
 	var names []string
 	if tags != "" {
 		tags = strings.ToLower(tags)
 		names = strings.Split(tags, ",")
 	}
+	// operator
 	op := q.Get("operator")
 	if op != "" {
 		op = strings.ToLower(op)
@@ -633,6 +636,13 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	} else {
 		op = "and"
 	}
+	// title
+	// name
+	// camera
+	// film
+	// taken
+	// size
+	// params done
 	pageCount := 12
 	ids := FindImageIDsByTagNames(names, op)
 	c := len(ids)

@@ -1,14 +1,14 @@
 (function (window) {
-  var TagSuggestion = React.createClass({
+  var Suggestion = React.createClass({
     propTypes: {
       index: React.PropTypes.number,
       suggestion: React.PropTypes.object,
       highlighted: React.PropTypes.bool
     },
     render: function () {
-      var className = 'tag-suggestion';
+      var className = 'suggestion';
       if (this.props.highlighted)
-        className += ' highlighted-tag';
+        className += ' highlighted';
       return (
         React.DOM.li({
           className: className,
@@ -17,7 +17,7 @@
       );
     }
   });
-  var TagsSuggestions = React.createClass({
+  var Suggestions = React.createClass({
     propTypes: {
       bottom: React.PropTypes.bool,
       suggestions: React.PropTypes.array,
@@ -28,7 +28,7 @@
         var highlighted = false;
         if (i === this.props.highlighted)
           highlighted = true;
-        return React.createElement(TagSuggestion, {
+        return React.createElement(Suggestion, {
           key: i,
           index: i,
           suggestion: suggestion,
@@ -37,7 +37,7 @@
       }.bind(this));
       var bottom = this.props.bottom ? 'bottom' : '';
       return (
-        React.DOM.div({ className: 'tags-suggestions ' + bottom },
+        React.DOM.div({ className: 'suggestions ' + bottom },
                       React.DOM.ul(null, suggestions))
       );
     }
@@ -191,7 +191,7 @@
           onClick: this.clickHandler,
           onMouseOver: this.hoverHandler
         },
-                       React.createElement(TagsSuggestions, {
+                       React.createElement(Suggestions, {
                          bottom: this.props.bottom,
                          suggestions: this.state.suggestions,
                          highlighted: this.state.highlighted
@@ -210,8 +210,8 @@
     }
   });
   window.COMPONENTS = {
-    TagSuggestion: TagSuggestion,
-    TagsSuggestion: TagsSuggestions,
+    Suggestion: Suggestion,
+    Suggestion: Suggestions,
     TagsInput: TagsInput
   }
 })(window);

@@ -196,32 +196,32 @@ ul li {
 .tags-input {
   position: relative;
 }
-.tags-input .tags-suggestions {
+.suggestions {
   position: absolute;
   bottom: 25px;
   width: 100%;
   z-index: 9001;
 }
-.tags-input .tags-suggestions.bottom {
+.suggestions.bottom {
   top: 15px;
 }
-.tags-input .tags-suggestions ul {
+.suggestions ul {
   list-style-type: none;
   padding: 0;
   background-color: white;
   box-shadow: 0 1px 3px rgba(0,0,0,0.5);
   cursor: pointer;
 }
-.tags-input .tags-suggestions ul li {
+.suggestions ul li {
   padding: 5px 10px;
   border-bottom: 1px solid #ccc;
   cursor: pointer;
   margin: 0;
 }
-.tags-input .tags-suggestions ul li:last-child {
+.suggestions ul li:last-child {
   border-bottom: 0;
 }
-.tags-input .tags-suggestions ul li.highlighted-tag {
+.suggestions ul li.highlighted {
   background-color: #eee;
 }
 .preview.editing {
@@ -326,7 +326,7 @@ ul li {
 #action-bar .action-bar-secondary {
   padding: 0 10px;
 }
-#action-bar .tags-input .tags-suggestions {
+#action-bar .tags-input .suggestions {
   bottom: 20px;
 }
 #action-bar .action-bar-selected span {
@@ -590,6 +590,18 @@ ul li {
 }
 #search-form label {
   display: inline;
+}
+#search-form .row {
+  margin-bottom: 15px;
+}
+#search-form form {
+  margin: 0;
+}
+#search-form > form > .row:last-child {
+  margin-bottom: 0;
+}
+#search-form .more-options {
+  cursor: pointer;
 }
 #search-form .nested-col-left, #search-form .nested-col-right {
   padding-left: 0;
