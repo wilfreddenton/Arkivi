@@ -6,6 +6,7 @@
         name: '',
         camera: '',
         film: '',
+        taken: '',
         size: '0',
         tags: [],
         operator: 'and',
@@ -39,14 +40,51 @@
     radioHandler: function (e) {
       this.setState({ operator: e.target.value });
     },
+    querySep: function (query) {
+      if (query.length === 0) {
+        query += '?';
+      } else {
+        query += '&';
+      }
+      return query;
+    },
     submitHandler: function (e) {
       e.preventDefault();
-      var tags = this.state.tags.filter(function (tag) {
-        return tag.Name !== "" && !/^\s+$/.test(tag.Name)
-      }).map(function (tag) {
-        return tag.Name;
-      }).join(',');
-      window.location = window.location.pathname + "?tags=" + tags + '&operator=' + this.state.operator + '&sort=' + this.state.sort;
+      // str inputs
+      var names = ['title', 'name', 'camera', 'film', 'taken', 'operator'];
+      var query = ''
+      names.forEach(function (name, i) {
+        var value = this.state[name];
+        if (value != '') {
+          query = this.querySep(query);
+          query += name + "=" + value;
+        }
+      }.bind(this));
+      // tags
+      if (this.state.tags.length > 0) {
+        var tags = this.state.tags.filter(function (tag) {
+          return tag.Name !== "" && !/^\s+$/.test(tag.Name)
+        }).map(function (tag) {
+          return tag.Name;
+        }).join(',');
+        if (query.length === 0) {
+          query += '?';
+        } else {
+          query += '&';
+        }
+        query += 'tags=' + tags;
+      }
+      // size
+      if (this.state.size != '0') {
+        query = this.querySep(query);
+        query += 'size=' + this.state.size
+      }
+      // sort
+      if (this.state.sort !== 'latest') {
+        query = this.querySep(query);
+        query += 'sort=' + this.state.sort;
+      }
+      window.location = window.location.pathname + query;
     },
     inputHandler: function (e) {
       var name = e.target.name;
