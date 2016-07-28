@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/jinzhu/gorm"
 	// "math"
+	"log"
 	"os"
 	"regexp"
 	"sort"
@@ -246,10 +247,63 @@ type ImageSearchParams struct {
 	Size     string
 	Operator string
 	TagNames []string
+	Sort     string
 }
 
 func FindImageIDsByParams(ps ImageSearchParams) []int {
 	var ids []int
+	var queryParams []interface{}
+	var clauses []string
+	query := "SELECT id FROM images WHERE "
+	if len(ps.TagNames) > 0 {
+		baseIDs := FindImageIDsByTagNames(ps.TagNames, ps.Operator)
+		clauses = append(clauses, "id IN (?)")
+		queryParams = append(queryParams, baseIDs)
+	}
+	if ps.Title != "" {
+		clauses = append(clauses, "title LIKE %?%")
+		queryParams = append(queryParams, ps.Title)
+	}
+	if ps.Name != "" {
+		clauses = append(clauses, "name LIKE %?%")
+		queryParams = append(queryParams, ps.Name)
+	}
+	if ps.Camera != "" {
+		clauses = append(clauses, "camera LIKE %?%")
+		queryParams = append(queryParams, ps.Camera)
+	}
+	if ps.Film != "" {
+		clauses = append(clauses, "film LIKE %?%")
+		queryParams = append(queryParams, ps.Film)
+	}
+	if ps.Taken != nil {
+		clauses = append(clauses, "taken_at = ?")
+		queryParams = append(queryParams, ps.Taken)
+	}
+	if ps.Size != "" {
+		if s, err := strconv.Atoi(ps.Size); err == nil {
+			clauses = append(clauses, "(width >= ? OR height >= ?)")
+			queryParams = append(queryParams, s, s)
+		}
+	}
+	if ps.Sort != "" {
+		col, d := validateAlphaTimeSort(ps.Sort)
+		clauses = append(clauses, "ORDER BY "+col+" "+d)
+	}
+	if len(clauses) > 0 {
+		query += strings.Join(clauses, " AND ")
+		rows, err := DB.Raw(query, queryParams...).Rows()
+		defer rows.Close()
+		if err != nil {
+			log.Fatal(err.Error())
+			return ids
+		}
+		for rows.Next() {
+			var id int
+			rows.Scan(&id)
+			ids = append(ids, id)
+		}
+	}
 	return ids
 }
 
@@ -379,13 +433,26 @@ func FindSuggestedTags(query string, currentTags []string) []Tag {
 	return tags
 }
 
+func validateAlphaTimeSort(s string) (string, string) {
+	col := "created_at"
+	d := "DESC"
+	if b, err := regexp.Match("alpha-(asc|desc)", []byte(s)); b && err == nil {
+		a := strings.Split(s, "-")
+		col = "title"
+		d = strings.ToUpper(a[1])
+	} else if s == "earliest" {
+		d = "ASC"
+	}
+	return col, d
+}
+
 func validateAlphaCountSort(sort string) (string, string) {
 	col := "count"
 	d := "DESC"
 	if b, err := regexp.Match("(alpha|count)-(asc|desc)", []byte(sort)); b && err == nil {
 		a := strings.Split(sort, "-")
 		if a[0] == "alpha" {
-			col = "name"
+			col = "title"
 		}
 		d = strings.ToUpper(a[1])
 	}

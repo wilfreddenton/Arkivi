@@ -728,6 +728,7 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	ps.Name = q.Get("name")
 	ps.Camera = q.Get("camera")
 	ps.Film = q.Get("film")
+	ps.Sort = q.Get("sort")
 	// taken
 	taken := q.Get("taken")
 	if len(taken) > 0 {
