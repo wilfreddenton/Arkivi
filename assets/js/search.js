@@ -121,9 +121,10 @@
         return option.value;
       });
       var size = this.getUrlParams('size');
-      if (values.indexOf(size) > -1)
+      if (values.indexOf(size) > -1) {
         obj.size = size;
-      moreOptions = true;
+        moreOptions = true;
+      }
       // tags
       var tags = this.getUrlParams('tags');
       if (tags !== null) {

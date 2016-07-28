@@ -2,23 +2,12 @@
   {{ if .Page }}
     {{ if gt .Page.TotalPages 1 }}
       <nav><ul class="pagination">{{if not .Page.IsFirst -}}
-            <li><a href="{{ .baseUrl }}
-                         {{- if .Params -}}
-                           ?
-                           {{- range .Params -}}
-                             {{- .Name }}={{ .Value -}}
-                             {{- if not .IsLast }}&{{ end -}}
-                           {{- end -}}
-                         {{- end }}" title="first">1</a></li>
+            <li><a href="{{ .baseUrl }}?{{ .Params | JoinParams }}" title="first">1</a></li>
           {{- end -}}
           {{- if .Page.HasPrevious -}}
             <li><a href="{{ .baseUrl }}?page={{ .Page.Previous }}
                          {{- if .Params -}}
-                           &
-                           {{- range .Params -}}
-                             {{- .Name }}={{ .Value -}}
-                             {{- if not .IsLast }}&{{ end -}}
-                           {{- end -}}
+                           &{{ .Params | JoinParams }}
                          {{- end }}" title="previous">«</a></li>
           {{- end -}}
           {{- range .Page.Pages -}}
@@ -28,11 +17,7 @@
               {{- else -}}
                 <a href="{{ $.baseUrl }}?page={{ .Num }}
                          {{- if $.Params -}}
-                           &
-                           {{- range $.Params -}}
-                             {{- .Name }}={{ .Value -}}
-                             {{- if not .IsLast }}&{{ end -}}
-                           {{- end -}}
+                           &{{ $.Params | JoinParams }}
                          {{- end }}" title="page {{ .Num }}">{{.Num}}</a>
               {{- end -}}
             </li>
@@ -40,21 +25,13 @@
           {{- if .Page.HasNext -}}
             <li><a href="{{ .baseUrl }}?page={{ .Page.Next }}
                          {{- if .Params -}}
-                           &
-                           {{- range .Params -}}
-                             {{- .Name }}={{ .Value -}}
-                             {{- if not .IsLast }}&{{ end -}}
-                           {{- end -}}
+                           &{{ .Params | JoinParams }}
                          {{- end }}" title="next">»</a></li>
           {{- end -}}
           {{- if not .Page.IsLast -}}
             <li><a href="{{ .baseUrl }}?page={{ .Page.TotalPages }}
                          {{- if .Params -}}
-                           &
-                           {{- range .Params -}}
-                             {{- .Name }}={{ .Value -}}
-                             {{- if not .IsLast }}&{{ end -}}
-                           {{- end -}}
+                           &{{ .Params | JoinParams }}
                          {{- end }}" title="last">{{ .Page.TotalPages }}</a></li>
           {{- end -}}
       </ul></nav>

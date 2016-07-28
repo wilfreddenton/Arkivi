@@ -40,6 +40,17 @@ func createTemplate(t Template) *template.Template {
 		"FormatDate": func(t time.Time) string {
 			return t.Format("01/02/2006")
 		},
+		"JoinParams": func(ps []UrlParam) template.URL {
+			var s string
+			for i, p := range ps {
+				sep := "&"
+				if i == 0 {
+					sep = ""
+				}
+				s += sep + p.Name + "=" + p.Value
+			}
+			return template.URL(s)
+		},
 		"BoolToString": func(b bool) string {
 			if b {
 				return "true"

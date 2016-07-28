@@ -758,14 +758,17 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	images, sort := FindImagesByIDsAndSort(ids, sort, pageCount, offset)
 	p := paginater.New(c, pageCount, pageNum, 3)
 	var params []UrlParam
+	if ps.Title != "" {
+		params = append(params, UrlParam{Name: "title", Value: ps.Title})
+	}
 	if tags != "" {
-		params = append(params, UrlParam{Name: "tags", Value: tags, IsFirst: true})
+		params = append(params, UrlParam{Name: "tags", Value: tags})
 	}
 	if op != "" {
-		params = append(params, UrlParam{Name: "operator", Value: op, IsFirst: len(params) == 0, IsLast: sort == ""})
+		params = append(params, UrlParam{Name: "operator", Value: op})
 	}
 	if sort != "" {
-		params = append(params, UrlParam{Name: "sort", Value: sort, IsFirst: len(params) == 0, IsLast: true})
+		params = append(params, UrlParam{Name: "sort", Value: sort})
 	}
 	renderTemplate(w, "search", "base", map[string]interface{}{
 		"title":          "Search",
@@ -841,10 +844,10 @@ func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
 	p := paginater.New(c, pageCount, pageNum, 3)
 	var params []UrlParam
 	if sort != "" {
-		params = append(params, UrlParam{Name: "sort", Value: sort, IsFirst: true, IsLast: query == ""})
+		params = append(params, UrlParam{Name: "sort", Value: sort})
 	}
 	if query != "" {
-		params = append(params, UrlParam{Name: "query", Value: query, IsFirst: sort == "", IsLast: true})
+		params = append(params, UrlParam{Name: "query", Value: query})
 	}
 	renderTemplate(w, "tags", "base", map[string]interface{}{
 		"title":          "Tags",
