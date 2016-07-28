@@ -761,6 +761,22 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if ps.Title != "" {
 		params = append(params, UrlParam{Name: "title", Value: ps.Title})
 	}
+	if ps.Name != "" {
+		params = append(params, UrlParam{Name: "name", Value: ps.Name})
+	}
+	if ps.Camera != "" {
+		params = append(params, UrlParam{Name: "camera", Value: ps.Camera})
+	}
+	if ps.Film != "" {
+		params = append(params, UrlParam{Name: "film", Value: ps.Film})
+	}
+	if ps.Size != "" {
+		params = append(params, UrlParam{Name: "size", Value: ps.Size})
+	}
+	if ps.Taken != nil {
+		takenStr := ps.Taken.Format("2006-01-02")
+		params = append(params, UrlParam{Name: "taken", Value: takenStr})
+	}
 	if tags != "" {
 		params = append(params, UrlParam{Name: "tags", Value: tags})
 	}
