@@ -530,16 +530,7 @@ func ImageUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 	} else {
 		b = img.Bounds()
 	}
-	claims, err := getClaimsFromRequestToken(r)
-	if err != nil {
-		return &appError{
-			Error:   err,
-			Message: "Token could not be parsed.",
-			Code:    http.StatusInternalServerError,
-		}
-	}
-	var u User
-	DB.Where("username = ?", claims["username"]).First(&u)
+	u := context.Get(r, UserKey).(User)
 	u.GetSettings()
 	imgModel := &Image{
 		UserID:    u.ID,
@@ -657,16 +648,8 @@ func ImagePutHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	img := FindImageByID(updatedImg.ID)
-	claims, err := getClaimsFromRequestToken(r)
-	if err != nil {
-		return &appError{
-			Error:   err,
-			Message: "Token could not be parsed.",
-			Code:    http.StatusInternalServerError,
-		}
-	}
-	user := FindUserByID(img.UserID)
-	if user.Username != claims["username"] {
+	user := context.Get(r, UserKey).(User)
+	if user.ID != img.UserID {
 		return &appError{
 			Error:   errors.New("A user attempted to change another user's photo."),
 			Message: "You are not authorized to make changes to another user's photo.",
@@ -696,16 +679,8 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	img := FindImageByName(name)
-	claims, err := getClaimsFromRequestToken(r)
-	if err != nil {
-		return &appError{
-			Error:   err,
-			Message: "Token could not be parsed.",
-			Code:    http.StatusInternalServerError,
-		}
-	}
-	user := FindUserByID(img.UserID)
-	if user.Username != claims["username"] {
+	user := context.Get(r, UserKey).(User)
+	if user.ID != img.UserID {
 		return &appError{
 			Error:   errors.New("A user attempted to delete another user's photo."),
 			Message: "You are not authorized to delete another user's photo.",
@@ -911,6 +886,14 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	ids := action.IDs
+	u := context.Get(r, UserKey).(User)
+	if b := ImagesBelongToUser(ids, u.ID); !b {
+		return &appError{
+			Error:   errors.New("A user tried to perform actions on photo(s) that do not belong to them."),
+			Message: "You tried to perform actions on other users photos.",
+			Code:    http.StatusUnauthorized,
+		}
+	}
 	switch name {
 	case "publish":
 		UpdateImagesWithIDs(ids, "published", true)

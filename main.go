@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/auth0/go-jwt-middleware"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -18,13 +16,6 @@ import (
 
 // vars
 var signingKey = []byte("secret")
-
-var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
-	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-		return signingKey, nil
-	},
-	SigningMethod: jwt.SigningMethodHS256,
-})
 
 var store = sessions.NewCookieStore(signingKey)
 
@@ -101,22 +92,18 @@ func main() {
 	r.Handle("/", appHandler(ChronologyHandler)).Methods("GET")
 	r.Handle("/chronology/{year}/", appHandler(ChronologyYearHandler)).Methods("GET")
 	r.Handle("/chronology/{year}/{month}/", appHandler(ChronologyMonthHandler)).Methods("GET")
-	r.Handle("/tokens/new", appHandler(TokenNewHandler)).Methods("POST")
-	r.Handle("/tokens/verify", jwtMiddleware.Handler(TokenVerifyHandler)).Methods("GET")
-	r.Handle("/tokens/ping", jwtMiddleware.Handler(appHandler(TokenPingHandler))).Methods("GET")
 	r.Handle("/login/", appHandler(LoginHandler)).Methods("GET", "POST")
 	r.Handle("/register/", appHandler(RegisterHandler)).Methods("GET", "POST")
 	r.Handle("/account/", sessionMiddleware(AccountHandler)).Methods("GET", "POST")
-	r.Handle("/account/settings", appHandler(AccountSettingsHandler)).Methods("PUT")
-	r.Handle("/upload/", UploadHandler).Methods("GET")
-	r.Handle("/upload/image", jwtMiddleware.Handler(appHandler(ImageUploadHandler))).Methods("POST")
+	r.Handle("/upload/", sessionMiddleware(UploadHandler)).Methods("GET")
+	r.Handle("/upload/image", sessionMiddleware(appHandler(ImageUploadHandler))).Methods("POST")
 	r.Handle("/search/", appHandler(SearchHandler)).Methods("GET")
 	r.Handle("/edit/", EditHandler).Methods("GET")
 	r.Handle("/images/", ImagesHandler).Methods("GET")
 	r.Handle("/images/{name}", appHandler(ImageGetHandler)).Methods("GET")
-	r.Handle("/images/{name}", jwtMiddleware.Handler(appHandler(ImagePutHandler))).Methods("PUT")
-	r.Handle("/images/{name}", jwtMiddleware.Handler(appHandler(ImageDeleteHandler))).Methods("DELETE")
-	r.Handle("/actions/{name}", jwtMiddleware.Handler(appHandler(ActionHandler))).Methods("PUT")
+	r.Handle("/images/{name}", sessionMiddleware(appHandler(ImagePutHandler))).Methods("PUT")
+	r.Handle("/images/{name}", sessionMiddleware(appHandler(ImageDeleteHandler))).Methods("DELETE")
+	r.Handle("/actions/{name}", sessionMiddleware(appHandler(ActionHandler))).Methods("PUT")
 	r.Handle("/tags/", appHandler(TagsHandler)).Methods("GET")
 	r.Handle("/tags/suggestions", appHandler(TagsSuggestionHandler)).Methods("GET")
 	r.Handle("/tags/{name}", appHandler(TagHandler)).Methods("GET")

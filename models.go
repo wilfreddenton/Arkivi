@@ -219,6 +219,22 @@ func FindImageByName(name string) Image {
 	return i
 }
 
+func ImagesBelongToUser(ids []int, userID uint) bool {
+	rows, err := DB.Raw(`SELECT user_id FROM images WHERE id in (?)`, ids).Rows()
+	defer rows.Close()
+	if err != nil {
+		return false
+	}
+	for rows.Next() {
+		var id int
+		rows.Scan(&id)
+		if uint(id) != userID {
+			return false
+		}
+	}
+	return true
+}
+
 type ImageSearchParams struct {
 	Username string
 	UserOnly bool

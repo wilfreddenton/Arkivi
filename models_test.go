@@ -493,3 +493,39 @@ func TestBuildChronology(t *testing.T) {
 		}
 	}
 }
+
+func TestImagesBelongToUser(t *testing.T) {
+	images := []struct {
+		name   string
+		userID uint
+	}{
+		{"img1", 1},
+		{"img2", 1},
+		{"img3", 1},
+		{"img4", 2},
+		{"img5", 2},
+	}
+	var ids []int
+	for _, i := range images {
+		image := Image{Name: i.name, UserID: i.userID}
+		DB.Create(&image)
+		ids = append(ids, int(image.ID))
+		defer DB.Unscoped().Delete(&image)
+	}
+	tests := []struct {
+		userID   uint
+		imageIDs []int
+		out      bool
+	}{
+		{1, []int{}, true},
+		{1, ids[0:3], true},
+		{1, ids[1:], false},
+		{1, ids[3:], false},
+		{2, ids[3:], true},
+	}
+	for i, test := range tests {
+		if b := ImagesBelongToUser(test.imageIDs, test.userID); b != test.out {
+			t.Errorf("The test at index %v returned %v; want %v.", i, b, test.out)
+		}
+	}
+}
