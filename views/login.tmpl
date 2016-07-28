@@ -1,13 +1,9 @@
 {{ define "title" }}<title>Arkivi | login</title>{{ end }}
 {{ define "content" }}
-  <div id="login-error"><span></span></div>
-  <form id="login">
-    <label>Username:<br><input id="username" type="text" name="username"></label>
+  <div id="login-error"><span>{{ .message }}</span></div>
+  <form id="login" action="/login/" method="POST">
+    <label>Username:<br><input id="username" type="text" name="username" value="{{ .username | }}"></label>
     <label>Password:<br><input id="password" type="password" name="password"></label>
     <input class="float-right-submit" type="submit" value="Submit">
   </form>
-{{ end }}
-{{ define "scripts" }}
-  <script src="/static/js/utils.js"></script>
-  <script src="/static/js/login.js"></script>
 {{ end }}

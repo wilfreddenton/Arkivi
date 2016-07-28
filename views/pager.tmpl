@@ -9,7 +9,7 @@
                              {{- .Name }}={{ .Value -}}
                              {{- if not .IsLast }}&{{ end -}}
                            {{- end -}}
-                         {{- end }}" title="first">First</a></li>
+                         {{- end }}" title="first">1</a></li>
           {{- end -}}
           {{- if .Page.HasPrevious -}}
             <li><a href="{{ .baseUrl }}?page={{ .Page.Previous }}
@@ -55,7 +55,7 @@
                              {{- .Name }}={{ .Value -}}
                              {{- if not .IsLast }}&{{ end -}}
                            {{- end -}}
-                         {{- end }}" title="last">Last</a></li>
+                         {{- end }}" title="last">{{ .Page.TotalPages }}</a></li>
           {{- end -}}
       </ul></nav>
     {{ end }}

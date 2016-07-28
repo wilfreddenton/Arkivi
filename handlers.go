@@ -6,6 +6,7 @@ import (
 	"fmt"
 	// "github.com/dgrijalva/jwt-go"
 	"github.com/Unknwon/paginater"
+	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	// "math"
 	// "github.com/jinzhu/now"
@@ -153,12 +154,51 @@ func ChronologyMonthHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func LoginHandler(w http.ResponseWriter, r *http.Request) *appError {
+	if r.Method == "POST" {
+		un := r.FormValue("username")
+		p := r.FormValue("password")
+		u := FindUserByUsername(un)
+		if u == (User{}) {
+			renderTemplate(w, "login", "base", map[string]interface{}{
+				"title":          "Login",
+				"message":        "The username " + un + " was not found.",
+				"username":       un,
+				"containerClass": "form-page",
+			})
+			return nil
+		}
+		err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(p))
+		if err != nil {
+			renderTemplate(w, "login", "base", map[string]interface{}{
+				"title":          "Login",
+				"message":        "The password was incorrect.",
+				"username":       un,
+				"containerClass": "form-page",
+			})
+			return nil
+		}
+		session, err := store.Get(r, SessionName)
+		if err != nil {
+			renderTemplate(w, "login", "base", map[string]interface{}{
+				"title":          "Login",
+				"message":        "An authenticated session could not be created.",
+				"username":       un,
+				"containerClass": "form-page",
+			})
+			return nil
+		}
+		session.Values["userID"] = u.ID
+		session.Save(r, w)
+		http.Redirect(w, r, "/account/", http.StatusMovedPermanently)
+		return nil
+	}
 	renderTemplate(w, "login", "base", map[string]interface{}{
 		"title":          "Login",
 		"containerClass": "form-page",
 	})
-})
+	return nil
+}
 
 func RegisterGetHandler(w http.ResponseWriter) {
 	renderTemplate(w, "register", "base", map[string]interface{}{
@@ -205,7 +245,7 @@ func RegisterPostHandler(w http.ResponseWriter, r *http.Request) *appError {
 		return nil
 	}
 	CreateAndSaveUser(username, string(hash), admin)
-	http.Redirect(w, r, "/login", http.StatusMovedPermanently)
+	http.Redirect(w, r, "/login/", http.StatusMovedPermanently)
 	return nil
 }
 
@@ -229,11 +269,81 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-var AccountHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func AccountGetHandler(w http.ResponseWriter, r *http.Request) {
+	i := context.Get(r, UserKey)
+	u := i.(User)
+	u.GetSettings()
+	n := FindUserNumImages(u.ID)
 	renderTemplate(w, "account", "base", map[string]interface{}{
 		"title":          "Account",
+		"numImages":      n,
+		"user":           u,
+		"message":        "",
 		"containerClass": "form-page",
 	})
+}
+
+func AccountPostHandler(w http.ResponseWriter, r *http.Request) {
+	i := context.Get(r, UserKey)
+	u := i.(User)
+	u.GetSettings()
+	n := FindUserNumImages(u.ID)
+	shouldUpdate := true
+	var message string
+	ids := r.FormValue("id")
+	id, err := strconv.Atoi(ids)
+	if err != nil {
+		message = "The id provided was invalid. "
+		shouldUpdate = false
+	}
+	if u.Settings.ID != uint(id) {
+		message = "The incorrect settings id was provided."
+		shouldUpdate = false
+	}
+	c := r.FormValue("camera")
+	if len(c) > 255 {
+		message += "The camera name is too long. "
+		shouldUpdate = false
+	}
+	f := r.FormValue("film")
+	if len(f) > 255 {
+		message += "The film name is too long. "
+		shouldUpdate = false
+	}
+	ps := r.FormValue("public")
+	p := false
+	if ps == "on" {
+		p = true
+	}
+	rts := r.FormValue("registration")
+	rt := false
+	if rts == "on" {
+		rt = true
+	}
+	if shouldUpdate {
+		u.Settings.Camera = c
+		u.Settings.Film = f
+		u.Settings.Public = p
+		u.Settings.Registration = rt
+		u.Settings.Update()
+		message = "Your settings were updated successfully."
+	}
+	renderTemplate(w, "account", "base", map[string]interface{}{
+		"title":          "Account",
+		"numImages":      n,
+		"user":           u,
+		"message":        message,
+		"containerClass": "form-page",
+	})
+}
+
+var AccountHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		AccountPostHandler(w, r)
+	case "GET":
+		AccountGetHandler(w, r)
+	}
 })
 
 func AccountSettingsHandler(w http.ResponseWriter, r *http.Request) *appError {
@@ -619,12 +729,14 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Search Handler")
 	q := r.URL.Query()
 	// params start
+	ps := ImageSearchParams{}
 	// tags
 	tags := q.Get("tags")
 	var names []string
 	if tags != "" {
 		tags = strings.ToLower(tags)
 		names = strings.Split(tags, ",")
+		ps.TagNames = names
 	}
 	// operator
 	op := q.Get("operator")
@@ -636,12 +748,27 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	} else {
 		op = "and"
 	}
-	// title
-	// name
-	// camera
-	// film
+	ps.Operator = op
+	ps.Title = q.Get("title")
+	ps.Name = q.Get("name")
+	ps.Camera = q.Get("camera")
+	ps.Film = q.Get("film")
 	// taken
+	taken := q.Get("taken")
+	if len(taken) > 0 {
+		if takenAt, err := time.Parse("2006-01-02", taken); err == nil {
+			ps.Taken = &takenAt
+		}
+	}
 	// size
+	validSizes := map[string]int{"0": 1, "1024": 2, "2240": 3, "3264": 4}
+	size := q.Get("size")
+	if len(size) > 0 {
+		if _, ok := validSizes[size]; ok {
+			ps.Size = size
+		}
+	}
+	fmt.Println(ps)
 	// params done
 	pageCount := 12
 	ids := FindImageIDsByTagNames(names, op)

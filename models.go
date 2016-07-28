@@ -219,6 +219,24 @@ func FindImageByName(name string) Image {
 	return i
 }
 
+type ImageSearchParams struct {
+	Username string
+	UserOnly bool
+	Title    string
+	Name     string
+	Camera   string
+	Film     string
+	Taken    *time.Time
+	Size     string
+	Operator string
+	TagNames []string
+}
+
+func FindImageIDsByParams(ps ImageSearchParams) []int {
+	var ids []int
+	return ids
+}
+
 func FindImageIDsByTagNames(names []string, op string) []int {
 	var tms []TagMini
 	var ids []int

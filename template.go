@@ -40,6 +40,13 @@ func createTemplate(t Template) *template.Template {
 		"FormatDate": func(t time.Time) string {
 			return t.Format("01/02/2006")
 		},
+		"BoolToString": func(b bool) string {
+			if b {
+				return "true"
+			} else {
+				return "false"
+			}
+		},
 	}
 	if t.Layout != "" {
 		layout = t.Layout

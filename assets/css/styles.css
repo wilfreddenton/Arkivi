@@ -544,10 +544,6 @@ ul li {
   display: inline;
   margin-right: 15px;
 }
-
-.account-info {
-  font-size: 16px;
-}
 .account-info #message {
   display: block;
   margin-top: 20px;
@@ -634,12 +630,6 @@ ul li {
   }
   .editor {
     padding-left: 95px;
-  }
-  label {
-    font-size: 15px;
-  }
-  input {
-    font-size: 15px;
   }
   textarea {
     font-size: 12px;

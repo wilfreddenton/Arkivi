@@ -1,22 +1,19 @@
 {{ define "title" }}<title>Arkivi | account</title>{{ end }}
 {{ define "content" }}
-  <div class="account-info"><span>Username: </span><strong id="username"></strong></div>
-  <div class="account-info"><span>Created at: </span><strong id="created-at"></strong></div>
-  <div class="account-info"><span># Images: </span><strong id="num-images"></strong></div>
-  <div class="account-info"><span id="message"></span></div>
-  <form id="settings">
-    <label>Default Camera: <br><input id="camera" type="text" name="camera"></label>
-    <label>Default Film: <br><input id="film" type="text" name="film"></label>
-    <label>Publish uploaded photos automatically:<br><input id="public" type="checkbox" name="public"></label>
-    <div id="admin-settings">
-      <label>Allow account registration (recommended off):<br><input id="registration" type="checkbox" name="registration"></label>
-    </div>
+  <div class="account-info"><span>Username: </span><strong id="username">{{ .user.Username }}</strong></div>
+  <div class="account-info"><span>Created at: </span><strong id="created-at">{{ .user.CreatedAt | FormatDate }}</strong></div>
+  <div class="account-info"><span># Images: </span><strong id="num-images">{{ .numImages }}</strong></div>
+  <div class="account-info"><span id="message">{{ .message }}</span></div>
+  <form id="settings" action="/account/" method="POST">
+    <input type="hidden" name="id" value="{{ .user.Settings.ID }}">
+    <label>Default Camera: <br><input id="camera" type="text" name="camera" value="{{ .user.Settings.Camera }}"></label>
+    <label>Default Film: <br><input id="film" type="text" name="film" value="{{ .user.Settings.Film }}"></label>
+    <label>Publish uploaded photos automatically:<br><input id="public" type="checkbox" name="public" {{ if .user.Settings.Public }}checked="true"{{ end }}></label>
+    {{ if .user.Admin }}
+      <div id="admin-settings">
+        <label>Allow account registration (recommended off):<br><input id="registration" type="checkbox" name="registration" {{ if .user.Settings.Registration }}checked="true"{{ end }}></label>
+      </div>
+    {{ end }}
     <input class="float-right-submit" type="submit" value="submit">
   </form>
-{{ end }}
-{{ define "scripts" }}
-  <script src="/static/js/moment.min.js"></script>
-  <script src="/static/js/utils.js"></script>
-  <script src="/static/js/auth.js"></script>
-  <script src="/static/js/account.js"></script>
 {{ end }}

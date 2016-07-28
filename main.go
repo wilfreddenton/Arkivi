@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"github.com/auth0/go-jwt-middleware"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"log"
@@ -14,6 +16,7 @@ import (
 	// "strings"
 )
 
+// vars
 var signingKey = []byte("secret")
 
 var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
@@ -23,9 +26,43 @@ var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 	SigningMethod: jwt.SigningMethodHS256,
 })
 
+var store = sessions.NewCookieStore(signingKey)
+
 var DB *gorm.DB
 
 var StaticDir = "/static/"
+
+var SessionName = "arkivi-session"
+
+const UserKey string = "user"
+
+// funcs
+func sessionMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		session, err := store.Get(r, SessionName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		id := session.Values["userID"]
+		if id == nil {
+			http.Redirect(w, r, "/login/", http.StatusMovedPermanently)
+			return
+		}
+		uid, ok := id.(uint)
+		if !ok {
+			http.Redirect(w, r, "/login/", http.StatusMovedPermanently)
+			return
+		}
+		u := FindUserByID(uid)
+		if u == (User{}) {
+			http.Redirect(w, r, "/login/", http.StatusMovedPermanently)
+			return
+		}
+		context.Set(r, UserKey, u)
+		next.ServeHTTP(w, r)
+	})
+}
 
 func main() {
 	fmt.Println("Arkivi 💾")
@@ -56,7 +93,9 @@ func main() {
 	// DB.Create(tag3)
 	// DB.Create(tag4)
 	// DB.Create(tag5)
-	// initialize websocket
+	// configure session store
+	store.MaxAge(60 * 5)
+	// init router
 	r := mux.NewRouter().StrictSlash(true)
 	// handlers
 	r.Handle("/", appHandler(ChronologyHandler)).Methods("GET")
@@ -65,9 +104,9 @@ func main() {
 	r.Handle("/tokens/new", appHandler(TokenNewHandler)).Methods("POST")
 	r.Handle("/tokens/verify", jwtMiddleware.Handler(TokenVerifyHandler)).Methods("GET")
 	r.Handle("/tokens/ping", jwtMiddleware.Handler(appHandler(TokenPingHandler))).Methods("GET")
-	r.Handle("/login", LoginHandler).Methods("GET")
-	r.Handle("/register", appHandler(RegisterHandler)).Methods("GET", "POST")
-	r.Handle("/account", AccountHandler).Methods("GET")
+	r.Handle("/login/", appHandler(LoginHandler)).Methods("GET", "POST")
+	r.Handle("/register/", appHandler(RegisterHandler)).Methods("GET", "POST")
+	r.Handle("/account/", sessionMiddleware(AccountHandler)).Methods("GET", "POST")
 	r.Handle("/account/settings", appHandler(AccountSettingsHandler)).Methods("PUT")
 	r.Handle("/upload/", UploadHandler).Methods("GET")
 	r.Handle("/upload/image", jwtMiddleware.Handler(appHandler(ImageUploadHandler))).Methods("POST")
