@@ -2,9 +2,9 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"github.com/jinzhu/gorm"
 	// "math"
-	"log"
 	"os"
 	"regexp"
 	"sort"
@@ -261,20 +261,20 @@ func FindImageIDsByParams(ps ImageSearchParams) []int {
 		queryParams = append(queryParams, baseIDs)
 	}
 	if ps.Title != "" {
-		clauses = append(clauses, "title LIKE %?%")
-		queryParams = append(queryParams, ps.Title)
+		clauses = append(clauses, "title LIKE ?")
+		queryParams = append(queryParams, "%"+ps.Title+"%")
 	}
 	if ps.Name != "" {
-		clauses = append(clauses, "name LIKE %?%")
-		queryParams = append(queryParams, ps.Name)
+		clauses = append(clauses, "name LIKE ?")
+		queryParams = append(queryParams, "%"+ps.Name+"%")
 	}
 	if ps.Camera != "" {
-		clauses = append(clauses, "camera LIKE %?%")
-		queryParams = append(queryParams, ps.Camera)
+		clauses = append(clauses, "camera LIKE ?")
+		queryParams = append(queryParams, "%"+ps.Camera+"%")
 	}
 	if ps.Film != "" {
-		clauses = append(clauses, "film LIKE %?%")
-		queryParams = append(queryParams, ps.Film)
+		clauses = append(clauses, "film LIKE ?")
+		queryParams = append(queryParams, "%"+ps.Film+"%")
 	}
 	if ps.Taken != nil {
 		clauses = append(clauses, "taken_at = ?")
@@ -286,16 +286,15 @@ func FindImageIDsByParams(ps ImageSearchParams) []int {
 			queryParams = append(queryParams, s, s)
 		}
 	}
-	if ps.Sort != "" {
-		col, d := validateAlphaTimeSort(ps.Sort)
-		clauses = append(clauses, "ORDER BY "+col+" "+d)
-	}
 	if len(clauses) > 0 {
 		query += strings.Join(clauses, " AND ")
+		if ps.Sort != "" {
+			col, d := validateAlphaTimeSort(ps.Sort)
+			query += "ORDER BY " + col + " " + d
+		}
 		rows, err := DB.Raw(query, queryParams...).Rows()
 		defer rows.Close()
 		if err != nil {
-			log.Fatal(err.Error())
 			return ids
 		}
 		for rows.Next() {
@@ -311,7 +310,7 @@ func FindImageIDsByTagNames(names []string, op string) []int {
 	var tms []TagMini
 	var ids []int
 	n := len(names)
-	if n == 0 || op == "" {
+	if n == 0 {
 		return ids
 	}
 	if op == "or" {
@@ -361,6 +360,24 @@ func FindImagesByIDsAndSort(ids []int, sort string, pageCount, offset int) ([]Im
 func FindImagesByIDs(ids []int) []Image {
 	var is []Image
 	DB.Where("id IN (?)", ids).Find(&is)
+	return is
+}
+
+func FindImagesByIDsAndPage(ids []int, pageCount, offset int) []Image {
+	var is []Image
+	if len(ids) == 0 {
+		return is
+	}
+	query := "SELECT * FROM images WHERE id IN (?) ORDER BY "
+	n := len(ids)
+	for i, id := range ids {
+		query += "id = " + strconv.Itoa(id) + " DESC"
+		if i != n-1 {
+			query += ", "
+		}
+	}
+	query += fmt.Sprintf(" LIMIT %v OFFSET %v", pageCount, offset)
+	DB.Raw(query, ids).Scan(&is)
 	return is
 }
 
@@ -452,7 +469,7 @@ func validateAlphaCountSort(sort string) (string, string) {
 	if b, err := regexp.Match("(alpha|count)-(asc|desc)", []byte(sort)); b && err == nil {
 		a := strings.Split(sort, "-")
 		if a[0] == "alpha" {
-			col = "title"
+			col = "name"
 		}
 		d = strings.ToUpper(a[1])
 	}

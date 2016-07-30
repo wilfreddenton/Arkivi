@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 )
 
 func TestCreateAndSaveUser(t *testing.T) {
@@ -217,7 +218,7 @@ func TestFindTagsAndCounts(t *testing.T) {
 	tagNames := []string{"nature", "space", "ocean", "anime"}
 	tagCounts := map[string]int{"nature": 5, "space": 3, "ocean": 2, "anime": 1}
 	images := []struct {
-		name     string
+		title    string
 		tagNames []string
 	}{
 		{"img1", []string{"nature"}},
@@ -253,7 +254,7 @@ func TestFindTagsAndCounts(t *testing.T) {
 		defer DB.Unscoped().Delete(&tag)
 	}
 	for _, i := range images {
-		image := Image{Name: i.name}
+		image := Image{Title: i.title}
 		DB.Create(&image)
 		var tags []Tag
 		for _, n := range i.tagNames {
@@ -526,6 +527,101 @@ func TestImagesBelongToUser(t *testing.T) {
 	for i, test := range tests {
 		if b := ImagesBelongToUser(test.imageIDs, test.userID); b != test.out {
 			t.Errorf("The test at index %v returned %v; want %v.", i, b, test.out)
+		}
+	}
+}
+
+func TestImageIDsByParams(t *testing.T) {
+	tagNames := []string{"nature", "space", "ocean", "anime"}
+	date1, _ := time.Parse("2006-01-02", "2016-07-23")
+	date2, _ := time.Parse("2006-01-02", "2016-07-29")
+	images := []struct {
+		image    *Image
+		tagNames []string
+	}{
+		{&Image{Title: "img1", Name: "a123", Camera: "Canon 8D", Film: "Digital", Width: 1800, TakenAt: &date1}, []string{"nature", "space"}},
+		{&Image{Title: "img2", Name: "a456", Camera: "Hasselblad 500c", Film: "120", Width: 1280, TakenAt: &date1}, []string{"nature", "ocean"}},
+		{&Image{Title: "img3", Name: "a789", Camera: "Canon 8D", Film: "Digital", Width: 3200, TakenAt: &date1}, []string{"nature", "space"}},
+		{&Image{Title: "img4", Name: "b123", Camera: "Canon 8D", Film: "Digital", Width: 1800, TakenAt: &date2}, []string{"nature", "space"}},
+		{&Image{Title: "img5", Name: "b456", Camera: "Hasselblad 500c", Film: "120", Width: 724, Height: 1024, TakenAt: &date2}, []string{"nature", "ocean"}},
+		{&Image{Title: "img6", Name: "b789", Camera: "Canon 8D", Film: "Digital", Width: 3200, TakenAt: &date2}, []string{"nature", "space"}},
+	}
+	tests := []struct {
+		params ImageSearchParams
+		out    []string // img names
+	}{
+		{ImageSearchParams{}, []string{}},
+		{ImageSearchParams{TagNames: []string{"nature"}}, []string{"img1", "img2", "img3", "img4", "img5", "img6"}},
+		{ImageSearchParams{TagNames: []string{"nature", "space"}}, []string{"img1", "img3", "img4", "img6"}},
+		{ImageSearchParams{TagNames: []string{"nature", "ocean"}}, []string{"img2", "img5"}},
+		{ImageSearchParams{Title: "img"}, []string{"img1", "img2", "img3", "img4", "img5", "img6"}},
+		{ImageSearchParams{Title: "img3"}, []string{"img3"}},
+		{ImageSearchParams{Name: "a"}, []string{"img1", "img2", "img3"}},
+		{ImageSearchParams{Name: "b"}, []string{"img4", "img5", "img6"}},
+		{ImageSearchParams{Name: "123"}, []string{"img1", "img4"}},
+		{ImageSearchParams{Camera: "Hasselblad 500c"}, []string{"img2", "img5"}},
+		{ImageSearchParams{Film: "120"}, []string{"img2", "img5"}},
+		{ImageSearchParams{Size: "1600"}, []string{"img1", "img3", "img4", "img6"}},
+		{ImageSearchParams{Size: "2240"}, []string{"img3", "img6"}},
+		{ImageSearchParams{Taken: &date1}, []string{"img1", "img2", "img3"}},
+		{ImageSearchParams{Taken: &date2}, []string{"img4", "img5", "img6"}},
+		{ImageSearchParams{Title: "img", Name: "a"}, []string{"img1", "img2", "img3"}},
+		{ImageSearchParams{Title: "2", Name: "b"}, []string{}},
+		{ImageSearchParams{Title: "5", Name: "b"}, []string{"img5"}},
+		{ImageSearchParams{Title: "img", Name: "a", Camera: "Hasselblad 500c"}, []string{"img2"}},
+		{ImageSearchParams{Title: "img", Name: "a", Camera: "Hasselblad 500c", Film: "120"}, []string{"img2"}},
+		{ImageSearchParams{Title: "img", Name: "a", Camera: "Hasselblad 500c", Film: "Digital"}, []string{}},
+		{ImageSearchParams{Title: "img", Camera: "Canon 8D", Film: "Digital", Size: "1600"}, []string{"img1", "img3", "img4", "img6"}},
+		{ImageSearchParams{Title: "img", Camera: "Canon 8D", Film: "Digital", Size: "1600", Taken: &date1}, []string{"img1", "img3"}},
+		{ImageSearchParams{Title: "img", Size: "1024", Taken: &date2, TagNames: []string{"nature"}}, []string{"img4", "img5", "img6"}},
+		{ImageSearchParams{Title: "img", Camera: "Canon 8D", Film: "Digital", Size: "1024", Taken: &date1, TagNames: []string{"nature", "space"}}, []string{"img1", "img3"}},
+		{ImageSearchParams{Title: "img", Sort: "latest"}, []string{"img6", "img5", "img4", "img3", "img2", "img1"}},
+		{ImageSearchParams{Title: "img", Sort: "earliest"}, []string{"img1", "img2", "img3", "img4", "img5", "img6"}},
+		{ImageSearchParams{Title: "img", Sort: "alpha-desc"}, []string{"img6", "img5", "img4", "img3", "img2", "img1"}},
+		{ImageSearchParams{Title: "img", Sort: "alpha-asc"}, []string{"img1", "img2", "img3", "img4", "img5", "img6"}},
+		{ImageSearchParams{Title: "img", Camera: "Canon 8D", Film: "Digital", Size: "1600", Sort: "earliest"}, []string{"img1", "img3", "img4", "img6"}},
+	}
+	for _, name := range tagNames {
+		tag := Tag{Name: name}
+		DB.Create(&tag)
+		defer DB.Unscoped().Delete(&tag)
+	}
+	for _, i := range images {
+		DB.Create(i.image)
+		var tags []Tag
+		for _, n := range i.tagNames {
+			var tag Tag
+			DB.Where("name = ?", n).First(&tag)
+			tags = append(tags, tag)
+		}
+		DB.Model(i.image).Association("Tags").Replace(&tags)
+		defer DB.Unscoped().Delete(i.image)
+		defer DB.Model(i.image).Association("Tags").Clear()
+	}
+	for i, test := range tests {
+		ids := FindImageIDsByParams(test.params)
+		numIDs := len(ids)
+		numOutImgs := len(test.out)
+		if numIDs != numOutImgs {
+			t.Errorf("The test at %v returned %v ids; want %v", i, numIDs, numOutImgs)
+		}
+		imgs := FindImagesByIDsAndPage(ids, 10, 0)
+		imgTitles := make([]string, len(imgs))
+		for j, img := range imgs {
+			imgTitles[j] = img.Title
+		}
+		if test.params.Sort == "" {
+			for _, title := range test.out {
+				if b := stringInSlice(title, imgTitles); !b {
+					t.Errorf("The test at index %v did not contain the image with title %v", i, title)
+				}
+			}
+		} else {
+			for j, title := range test.out {
+				if title != imgTitles[j] {
+					t.Errorf("The test at index %v returned images out of order. Got %v; want %v.", i, imgTitles[j], title)
+				}
+			}
 		}
 	}
 }

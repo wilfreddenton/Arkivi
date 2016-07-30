@@ -2,7 +2,7 @@
   {{ if .Page }}
     {{ if gt .Page.TotalPages 1 }}
       <nav><ul class="pagination">{{if not .Page.IsFirst -}}
-            <li><a href="{{ .baseUrl }}?{{ .Params | JoinParams }}" title="first">1</a></li>
+            <li><a href="{{ .baseUrl }}?{{ if .Params }}{{ .Params | JoinParams }}{{ end }}" title="first">1</a></li>
           {{- end -}}
           {{- if .Page.HasPrevious -}}
             <li><a href="{{ .baseUrl }}?page={{ .Page.Previous }}

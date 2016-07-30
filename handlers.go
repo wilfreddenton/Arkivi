@@ -747,7 +747,7 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println(ps)
 	// params done
 	pageCount := 12
-	ids := FindImageIDsByTagNames(names, op)
+	ids := FindImageIDsByParams(ps)
 	c := len(ids)
 	page := q.Get("page")
 	pageNum := 1
@@ -755,8 +755,7 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if appErr != nil {
 		return appErr
 	}
-	sort := q.Get("sort")
-	images, sort := FindImagesByIDsAndSort(ids, sort, pageCount, offset)
+	images := FindImagesByIDsAndPage(ids, pageCount, offset)
 	p := paginater.New(c, pageCount, pageNum, 3)
 	var params []UrlParam
 	if ps.Title != "" {
@@ -784,8 +783,8 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if op != "" {
 		params = append(params, UrlParam{Name: "operator", Value: op})
 	}
-	if sort != "" {
-		params = append(params, UrlParam{Name: "sort", Value: sort})
+	if ps.Sort != "" {
+		params = append(params, UrlParam{Name: "sort", Value: ps.Sort})
 	}
 	renderTemplate(w, "search", "base", map[string]interface{}{
 		"title":          "Search",

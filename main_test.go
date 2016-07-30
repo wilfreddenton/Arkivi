@@ -16,6 +16,7 @@ func initTestDB() *gorm.DB {
 		log.Fatal(err)
 	}
 	DB.AutoMigrate(&User{}, &Settings{}, &Image{}, &Tag{}, &Month{})
+	// DB.LogMode(true)
 	return DB
 }
 
