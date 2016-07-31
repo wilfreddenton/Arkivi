@@ -28,7 +28,7 @@ var SessionName = "arkivi-session"
 const UserKey string = "user"
 
 // funcs
-func sessionMiddleware(next http.Handler) http.Handler {
+func authenticateMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, err := store.Get(r, SessionName)
 		if err != nil {
@@ -48,6 +48,32 @@ func sessionMiddleware(next http.Handler) http.Handler {
 		u := FindUserByID(uid)
 		if u == (User{}) {
 			http.Redirect(w, r, "/login/", http.StatusMovedPermanently)
+			return
+		}
+		context.Set(r, UserKey, u)
+		next.ServeHTTP(w, r)
+	})
+}
+func authorizeMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		session, err := store.Get(r, SessionName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		id := session.Values["userID"]
+		if id == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		uid, ok := id.(uint)
+		if !ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+		u := FindUserByID(uid)
+		if u == (User{}) {
+			next.ServeHTTP(w, r)
 			return
 		}
 		context.Set(r, UserKey, u)
@@ -91,23 +117,22 @@ func main() {
 	// handlers
 	r.Handle("/", appHandler(ChronologyHandler)).Methods("GET")
 	r.Handle("/chronology/{year}/", appHandler(ChronologyYearHandler)).Methods("GET")
-	r.Handle("/chronology/{year}/{month}/", appHandler(ChronologyMonthHandler)).Methods("GET")
+	r.Handle("/chronology/{year}/{month}/", authorizeMiddleware(appHandler(ChronologyMonthHandler))).Methods("GET")
 	r.Handle("/login/", appHandler(LoginHandler)).Methods("GET", "POST")
 	r.Handle("/register/", appHandler(RegisterHandler)).Methods("GET", "POST")
-	r.Handle("/account/", sessionMiddleware(AccountHandler)).Methods("GET", "POST")
-	r.Handle("/upload/", sessionMiddleware(UploadHandler)).Methods("GET")
-	r.Handle("/upload/image", sessionMiddleware(appHandler(ImageUploadHandler))).Methods("POST")
+	r.Handle("/account/", authenticateMiddleware(AccountHandler)).Methods("GET", "POST")
+	r.Handle("/upload/", authenticateMiddleware(UploadHandler)).Methods("GET")
+	r.Handle("/upload/image", authenticateMiddleware(appHandler(ImageUploadHandler))).Methods("POST")
 	r.Handle("/search/", appHandler(SearchHandler)).Methods("GET")
 	r.Handle("/edit/", EditHandler).Methods("GET")
 	r.Handle("/images/", ImagesHandler).Methods("GET")
 	r.Handle("/images/{name}", appHandler(ImageGetHandler)).Methods("GET")
-	r.Handle("/images/{name}", sessionMiddleware(appHandler(ImagePutHandler))).Methods("PUT")
-	r.Handle("/images/{name}", sessionMiddleware(appHandler(ImageDeleteHandler))).Methods("DELETE")
-	r.Handle("/actions/{name}", sessionMiddleware(appHandler(ActionHandler))).Methods("PUT")
+	r.Handle("/images/{name}", authenticateMiddleware(appHandler(ImagePutHandler))).Methods("PUT")
+	r.Handle("/images/{name}", authenticateMiddleware(appHandler(ImageDeleteHandler))).Methods("DELETE")
+	r.Handle("/actions/{name}", authenticateMiddleware(appHandler(ActionHandler))).Methods("PUT")
 	r.Handle("/tags/", appHandler(TagsHandler)).Methods("GET")
 	r.Handle("/tags/suggestions", appHandler(TagsSuggestionHandler)).Methods("GET")
 	r.Handle("/tags/{name}", appHandler(TagHandler)).Methods("GET")
-	r.Handle("/users/token", appHandler(UsersTokenHandler)).Methods("GET")
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("assets/"))))
 	http.ListenAndServe(":6969", handlers.LoggingHandler(os.Stdout, r))
 }

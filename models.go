@@ -371,7 +371,7 @@ func FindImagesByIDsAndPage(ids []int, pageCount, offset int) []Image {
 	query := "SELECT * FROM images WHERE id IN (?) ORDER BY "
 	n := len(ids)
 	for i, id := range ids {
-		query += "id = " + strconv.Itoa(id) + " DESC"
+		query += fmt.Sprintf("id = %v DESC", id)
 		if i != n-1 {
 			query += ", "
 		}
@@ -661,92 +661,6 @@ type Action struct {
 type ActionTags struct {
 	IDs   []int
 	Value []TagJson
-}
-
-// Month
-type Month struct {
-	gorm.Model
-	String    string
-	Int       int
-	Year      int
-	NumImages int
-}
-
-func (m *Month) Delete() {
-	DB.Delete(&m)
-}
-
-func (m *Month) IncNumImages() {
-	DB.Model(&m).Update("num_images", m.NumImages+1)
-}
-
-func (m *Month) DecNumImages() {
-	currentMonth := time.Now().Month().String()
-	if m.NumImages-1 < 1 {
-		if m.String == currentMonth {
-			DB.Model(&m).Update("num_images", 0)
-		} else {
-			m.Delete()
-		}
-	} else {
-		DB.Model(&m).Update("num_images", m.NumImages-1)
-	}
-}
-
-func (m *Month) FindImages(offset, pageCount int) []Image {
-	var is []Image
-	DB.Where("month_id = ?", m.ID).Offset(offset).Limit(pageCount).Find(&is)
-	return is
-}
-
-func FindMonthByID(id uint) Month {
-	var m Month
-	DB.Where("id = ?", id).First(&m)
-	return m
-}
-
-func FindMonth(year, i int) Month {
-	var m Month
-	DB.Where("year = ? AND int = ?", year, i).Find(&m)
-	return m
-}
-
-func NumMonths() int {
-	var c int
-	DB.Model(Month{}).Count(&c)
-	return c
-}
-
-// Year
-type Year struct {
-	Year   int
-	Months []Month
-}
-
-func (y *Year) GetMonths() {
-	DB.Where("year = ?", y.Year).Find(&y.Months)
-}
-
-func BuildChronology(pageCount, offset int) []*Year {
-	var months []Month
-	// DB.Order("id desc").Limit(pageCount).Offset(offset).Find(&months)
-	DB.Raw(`SELECT * FROM months
-					ORDER BY id DESC
-					LIMIT ?
-					OFFSET ?`, pageCount, offset).Scan(&months)
-	var years []*Year
-	if len(months) > 0 {
-		prevYear := &Year{}
-		for _, m := range months {
-			if m.Year != prevYear.Year {
-				prevYear = &Year{m.Year, []Month{m}}
-				years = append(years, prevYear)
-			} else {
-				prevYear.Months = append(prevYear.Months, m)
-			}
-		}
-	}
-	return years
 }
 
 // misc
