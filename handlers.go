@@ -455,14 +455,11 @@ func ImageUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 	month := FindMonth(y, mi)
 	if month == (Month{}) {
 		month = Month{
-			String:    ms,
-			Int:       mi,
-			Year:      y,
-			NumImages: 1,
+			String: ms,
+			Int:    mi,
+			Year:   y,
 		}
 		DB.Create(&month)
-	} else {
-		month.IncNumImages()
 	}
 	p.ImageModel.MonthID = month.ID
 	p.ImageModel.Save()
@@ -581,13 +578,16 @@ func ImageDeleteHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	m := FindMonthByID(img.MonthID)
-	m.DecNumImages()
 	if err := img.Delete(); err != nil {
 		return &appError{
 			Error:   err,
 			Message: "The server was unable to remove the associated files",
 			Code:    http.StatusInternalServerError,
 		}
+	}
+	m.GetNumImages(-1)
+	if m.NumImages == 0 {
+		m.Delete()
 	}
 	w.Write([]byte("success"))
 	return nil
@@ -839,9 +839,12 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *appError {
 		images := FindImagesByIDs(ids)
 		var err error
 		for _, i := range images {
-			err = i.Delete()
 			m := FindMonthByID(i.MonthID)
-			m.DecNumImages()
+			err = i.Delete()
+			m.GetNumImages(-1)
+			if m.NumImages == 0 {
+				m.Delete()
+			}
 		}
 		if err != nil {
 			return &appError{

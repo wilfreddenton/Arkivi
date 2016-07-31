@@ -470,7 +470,7 @@ func TestBuildChronology(t *testing.T) {
 		defer DB.Unscoped().Delete(&month)
 	}
 	for i, test := range tests {
-		years := BuildChronology(test.pageCount, test.offset)
+		years := BuildChronology(test.pageCount, test.offset, -1)
 		numYears := len(years)
 		numOut := len(test.out)
 		if numYears != numOut {

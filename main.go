@@ -115,8 +115,8 @@ func main() {
 	// init router
 	r := mux.NewRouter().StrictSlash(true)
 	// handlers
-	r.Handle("/", appHandler(ChronologyHandler)).Methods("GET")
-	r.Handle("/chronology/{year}/", appHandler(ChronologyYearHandler)).Methods("GET")
+	r.Handle("/", authorizeMiddleware(appHandler(ChronologyHandler))).Methods("GET")
+	r.Handle("/chronology/{year}/", authorizeMiddleware(appHandler(ChronologyYearHandler))).Methods("GET")
 	r.Handle("/chronology/{year}/{month}/", authorizeMiddleware(appHandler(ChronologyMonthHandler))).Methods("GET")
 	r.Handle("/login/", appHandler(LoginHandler)).Methods("GET", "POST")
 	r.Handle("/register/", appHandler(RegisterHandler)).Methods("GET", "POST")

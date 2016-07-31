@@ -2,7 +2,9 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"github.com/Unknwon/paginater"
+	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"net/http"
@@ -19,30 +21,25 @@ type Month struct {
 	NumImages int
 }
 
+var monthPublicAndPrivateImagesQuery = "month_id = ? AND (published = 1 OR (published = 0 AND user_id = ?))"
+
+func (m *Month) GetNumImages(userID int) {
+	var c int
+	if userID == -1 {
+		DB.Model(Image{}).Where("month_id = ? AND published = 1", m.ID).Count(&c)
+	} else {
+		DB.Model(Image{}).Where(monthPublicAndPrivateImagesQuery, m.ID, userID).Count(&c)
+	}
+	m.NumImages = c
+}
+
 func (m *Month) Delete() {
 	DB.Delete(&m)
 }
 
-func (m *Month) IncNumImages() {
-	DB.Model(&m).Update("num_images", m.NumImages+1)
-}
-
-func (m *Month) DecNumImages() {
-	currentMonth := time.Now().Month().String()
-	if m.NumImages-1 < 1 {
-		if m.String == currentMonth {
-			DB.Model(&m).Update("num_images", 0)
-		} else {
-			m.Delete()
-		}
-	} else {
-		DB.Model(&m).Update("num_images", m.NumImages-1)
-	}
-}
-
-func (m *Month) FindImages(offset, pageCount int) []Image {
+func (m *Month) FindImages(offset, pageCount, uID int) []Image {
 	var is []Image
-	DB.Where("month_id = ?", m.ID).Offset(offset).Limit(pageCount).Find(&is)
+	DB.Where(monthPublicAndPrivateImagesQuery, m.ID, uID).Offset(offset).Limit(pageCount).Find(&is)
 	return is
 }
 
@@ -70,11 +67,23 @@ type Year struct {
 	Months []Month
 }
 
-func (y *Year) GetMonths() {
+func (y *Year) GetMonths(uID int) {
 	DB.Where("year = ?", y.Year).Find(&y.Months)
+	for i, _ := range y.Months {
+		y.Months[i].GetNumImages(uID)
+	}
 }
 
-func BuildChronology(pageCount, offset int) []*Year {
+func getUserIDFromContext(r *http.Request) int {
+	uID := -1
+	if i, ok := context.GetOk(r, UserKey); ok {
+		u := i.(User)
+		uID = int(u.ID)
+	}
+	return uID
+}
+
+func BuildChronology(pageCount, offset, uID int) []*Year {
 	var months []Month
 	DB.Raw(`SELECT * FROM months
 					ORDER BY id DESC
@@ -84,6 +93,7 @@ func BuildChronology(pageCount, offset int) []*Year {
 	if len(months) > 0 {
 		prevYear := &Year{}
 		for _, m := range months {
+			m.GetNumImages(uID)
 			if m.Year != prevYear.Year {
 				prevYear = &Year{m.Year, []Month{m}}
 				years = append(years, prevYear)
@@ -96,6 +106,7 @@ func BuildChronology(pageCount, offset int) []*Year {
 }
 
 func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
+	uID := getUserIDFromContext(r)
 	c := NumMonths()
 	pageCount := 3
 	page := r.URL.Query().Get("page")
@@ -103,7 +114,7 @@ func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if appErr != nil {
 		return appErr
 	}
-	years := BuildChronology(pageCount, offset)
+	years := BuildChronology(pageCount, offset, uID)
 	p := paginater.New(c, pageCount, pageNum, 3)
 	renderTemplate(w, "chronology", "base", map[string]interface{}{
 		"years":          years,
@@ -116,6 +127,7 @@ func ChronologyHandler(w http.ResponseWriter, r *http.Request) *appError {
 }
 
 func ChronologyYearHandler(w http.ResponseWriter, r *http.Request) *appError {
+	uID := getUserIDFromContext(r)
 	vars := mux.Vars(r)
 	year := vars["year"]
 	yearNum, err := strconv.Atoi(year)
@@ -128,7 +140,8 @@ func ChronologyYearHandler(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	y := Year{Year: yearNum}
-	y.GetMonths()
+	y.GetMonths(uID)
+	fmt.Println(y.Months)
 	if len(y.Months) == 0 {
 		return &appError{
 			Error:   errors.New("A user tried to acccess a year with no images."),
@@ -146,6 +159,7 @@ func ChronologyYearHandler(w http.ResponseWriter, r *http.Request) *appError {
 }
 
 func ChronologyMonthHandler(w http.ResponseWriter, r *http.Request) *appError {
+	uID := getUserIDFromContext(r)
 	vars := mux.Vars(r)
 	yv := vars["year"]
 	y, err := strconv.Atoi(yv)
@@ -181,13 +195,14 @@ func ChronologyMonthHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if month == (Month{}) {
 		return noImgErr
 	}
+	month.GetNumImages(uID)
 	pageCount := 12
 	page := r.URL.Query().Get("page")
 	pageNum, offset, appErr := pagination(month.NumImages, pageCount, page)
 	if appErr != nil {
 		return appErr
 	}
-	images := month.FindImages(offset, pageCount)
+	images := month.FindImages(offset, pageCount, uID)
 	if len(images) == 0 {
 		return noImgErr
 	}
