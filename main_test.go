@@ -9,7 +9,9 @@ import (
 	"testing"
 )
 
-func initTestDB() *gorm.DB {
+var UID int
+
+func initTestDB() {
 	var err error
 	DB, err = gorm.Open("sqlite3", "testdata/test.db")
 	if err != nil {
@@ -17,11 +19,13 @@ func initTestDB() *gorm.DB {
 	}
 	DB.AutoMigrate(&User{}, &Settings{}, &Image{}, &Tag{}, &Month{})
 	// DB.LogMode(true)
-	return DB
 }
 
 func TestMain(m *testing.M) {
 	flag.Parse()
 	initTestDB()
+	u := User{Username: "tester"}
+	DB.Create(&u)
+	UID = int(u.ID)
 	os.Exit(m.Run())
 }

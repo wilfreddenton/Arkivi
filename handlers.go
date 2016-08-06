@@ -93,6 +93,22 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
+func LogoutHandler(w http.ResponseWriter, r *http.Request) *appError {
+	session, err := store.Get(r, SessionName)
+	if err != nil {
+		return &appError{
+			Error:   errors.New("There was a problem parsing the session."),
+			Message: "The server was unable to log you out due to an error.",
+			Code:    http.StatusInternalServerError,
+			Render:  true,
+		}
+	}
+	session.Options.MaxAge = -1
+	session.Save(r, w)
+	http.Redirect(w, r, "/login/", http.StatusMovedPermanently)
+	return nil
+}
+
 func RegisterGetHandler(w http.ResponseWriter) {
 	renderTemplate(w, "register", "base", map[string]interface{}{
 		"title":          "Register",
@@ -598,6 +614,7 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	q := r.URL.Query()
 	// params start
 	ps := ImageSearchParams{}
+	ps.UserID = getUserIDFromContext(r)
 	// tags
 	tags := q.Get("tags")
 	var names []string
@@ -637,7 +654,6 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 			ps.Size = size
 		}
 	}
-	fmt.Println(ps)
 	// params done
 	pageCount := 12
 	ids := FindImageIDsByParams(ps)
@@ -685,88 +701,6 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 		"containerClass": "image-list",
 		"Page":           p,
 		"Params":         params,
-	})
-	return nil
-}
-
-func TagsSuggestionHandler(w http.ResponseWriter, r *http.Request) *appError {
-	q := r.URL.Query()
-	query := q.Get("query")
-	tagNames := q.Get("currentTags")
-	if query == "" || tagNames == "" {
-		return &appError{
-			Error:   errors.New("The necessary parameters were not provided."),
-			Message: "You did not pass the necessary parameters.",
-			Code:    http.StatusBadRequest,
-		}
-	}
-	currentTags := strings.Split(tagNames, ",")
-	tags := FindSuggestedTags(query, currentTags)
-	w.Header().Set("Content-Type", "application/javascript")
-	json.NewEncoder(w).Encode(tags)
-	return nil
-}
-
-func TagHandler(w http.ResponseWriter, r *http.Request) *appError {
-	fmt.Println("Tag Handler")
-	vars := mux.Vars(r)
-	namesStr := vars["name"]
-	q := r.URL.Query()
-	sort := q.Get("sort")
-	query := q.Get("query")
-	names := strings.Split(namesStr, ",")
-	title := strings.Join(names, ", ")
-	numImgs := len(FindImageIDsByTagNames(names, "and"))
-	rts := FindRelatedTags(names, sort, query)
-	renderTemplate(w, "tag", "base", map[string]interface{}{
-		"title":          title,
-		"namesStr":       namesStr,
-		"numImgs":        numImgs,
-		"relTags":        rts,
-		"containerClass": "form-page",
-		"baseUrl":        "?",
-		"sort":           sort,
-		"query":          query,
-	})
-	return nil
-}
-
-func TagsHandler(w http.ResponseWriter, r *http.Request) *appError {
-	fmt.Println("Tags Handler")
-	q := r.URL.Query()
-	pageCount := 2
-	page := q.Get("page")
-	sort := q.Get("sort")
-	query := q.Get("query")
-	var c int
-	var tags []TagCountJson
-	if query == "" {
-		c = NumTags()
-	} else {
-		c = NumQueriedTags(query)
-	}
-	pageNum, offset, appErr := pagination(c, pageCount, page)
-	if appErr != nil {
-		return appErr
-	}
-	tags = FindTagsAndCounts(sort, query, pageCount, offset)
-	p := paginater.New(c, pageCount, pageNum, 3)
-	var params []UrlParam
-	if sort != "" {
-		params = append(params, UrlParam{Name: "sort", Value: sort})
-	}
-	if query != "" {
-		params = append(params, UrlParam{Name: "query", Value: query})
-	}
-	renderTemplate(w, "tags", "base", map[string]interface{}{
-		"title":          "Tags",
-		"containerClass": "form-page",
-		"tags":           tags,
-		"Page":           p,
-		"baseUrl":        "/tags/",
-		"Params":         params,
-		"sort":           sort,
-		"query":          query,
 	})
 	return nil
 }

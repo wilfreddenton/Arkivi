@@ -25,11 +25,7 @@ var monthPublicAndPrivateImagesQuery = "month_id = ? AND (published = 1 OR (publ
 
 func (m *Month) GetNumImages(userID int) {
 	var c int
-	if userID == -1 {
-		DB.Model(Image{}).Where("month_id = ? AND published = 1", m.ID).Count(&c)
-	} else {
-		DB.Model(Image{}).Where(monthPublicAndPrivateImagesQuery, m.ID, userID).Count(&c)
-	}
+	DB.Model(Image{}).Where(monthPublicAndPrivateImagesQuery, m.ID, userID).Count(&c)
 	m.NumImages = c
 }
 

@@ -88,29 +88,35 @@ func TestFindImageIDsByTagNames(t *testing.T) {
 	images := []struct {
 		name     string
 		tagNames []string
+		private  bool
 	}{
-		{"img1", []string{"nature"}},
-		{"img2", []string{"nature", "space"}},
-		{"img3", []string{"nature", "space"}},
-		{"img4", []string{"nature", "space", "ocean"}},
-		{"img5", []string{"nature", "ocean"}},
-		{"img6", []string{"anime"}},
+		{"img1", []string{"nature"}, false},
+		{"img2", []string{"nature", "space"}, false},
+		{"img3", []string{"nature", "space"}, false},
+		{"img4", []string{"nature", "space", "ocean"}, false},
+		{"img5", []string{"nature", "ocean"}, false},
+		{"img6", []string{"anime"}, false},
+		{"img7", []string{"nature", "ocean"}, true},
+		{"img8", []string{"anime"}, true},
 	}
 	tests := []struct {
 		names []string
 		op    string
 		out   []string // names of expected files
+		uID   int
 	}{
-		{[]string{}, "", []string{}},
-		{[]string{"empty-test"}, "", []string{}},
-		{[]string{}, "asdf", []string{}},
-		{[]string{"nature"}, "and", []string{"img1", "img2", "img3", "img4", "img5"}},
-		{[]string{"anime"}, "and", []string{"img6"}},
-		{[]string{"anime"}, "or", []string{"img6"}},
-		{[]string{"nature", "space"}, "and", []string{"img2", "img3", "img4"}},
-		{[]string{"nature", "anime"}, "or", []string{"img1", "img2", "img3", "img4", "img5", "img6"}},
-		{[]string{"ocean", "anime"}, "or", []string{"img4", "img5", "img6"}},
-		{[]string{"ocean", "anime"}, "and", []string{}},
+		{[]string{}, "", []string{}, -1},
+		{[]string{"empty-test"}, "", []string{}, -1},
+		{[]string{}, "asdf", []string{}, -1},
+		{[]string{"nature"}, "and", []string{"img1", "img2", "img3", "img4", "img5"}, -1},
+		{[]string{"anime"}, "and", []string{"img6"}, -1},
+		{[]string{"anime"}, "or", []string{"img6"}, -1},
+		{[]string{"nature", "space"}, "and", []string{"img2", "img3", "img4"}, -1},
+		{[]string{"nature", "anime"}, "or", []string{"img1", "img2", "img3", "img4", "img5", "img6"}, -1},
+		{[]string{"ocean", "anime"}, "or", []string{"img4", "img5", "img6"}, -1},
+		{[]string{"ocean", "anime"}, "and", []string{}, -1},
+		{[]string{"ocean", "nature"}, "and", []string{"img4", "img5", "img7"}, UID},
+		{[]string{"ocean", "anime"}, "or", []string{"img4", "img5", "img6", "img7", "img8"}, UID},
 	}
 	for _, name := range tagNames {
 		tag := Tag{Name: name}
@@ -118,7 +124,7 @@ func TestFindImageIDsByTagNames(t *testing.T) {
 		defer DB.Unscoped().Delete(&tag)
 	}
 	for _, i := range images {
-		image := Image{Name: i.name}
+		image := Image{Name: i.name, Published: !i.private, UserID: uint(UID)}
 		DB.Create(&image)
 		var tags []Tag
 		for _, n := range i.tagNames {
@@ -131,7 +137,7 @@ func TestFindImageIDsByTagNames(t *testing.T) {
 		defer DB.Model(&image).Association("Tags").Clear()
 	}
 	for i, test := range tests {
-		ids := FindImageIDsByTagNames(test.names, test.op)
+		ids := FindImageIDsByTagNames(test.names, test.op, test.uID)
 		is := FindImagesByIDs(ids)
 		if len(is) != len(test.out) {
 			t.Errorf("The test at index %v failed to return the right number of images. Got %v; want %v.", i, len(is), len(test.out))
@@ -217,16 +223,21 @@ func TestFindTagIDsByNames(t *testing.T) {
 func TestFindTagsAndCounts(t *testing.T) {
 	tagNames := []string{"nature", "space", "ocean", "anime"}
 	tagCounts := map[string]int{"nature": 5, "space": 3, "ocean": 2, "anime": 1}
+	privateTagCounts := map[string]int{"nature": 7, "space": 3, "ocean": 4, "anime": 2}
 	images := []struct {
 		title    string
 		tagNames []string
+		private  bool
 	}{
-		{"img1", []string{"nature"}},
-		{"img2", []string{"nature", "space"}},
-		{"img3", []string{"nature", "space"}},
-		{"img4", []string{"nature", "space", "ocean"}},
-		{"img5", []string{"nature", "ocean"}},
-		{"img6", []string{"anime"}},
+		{"img1", []string{"nature"}, false},
+		{"img2", []string{"nature", "space"}, false},
+		{"img3", []string{"nature", "space"}, false},
+		{"img4", []string{"nature", "space", "ocean"}, false},
+		{"img5", []string{"nature", "ocean"}, false},
+		{"img6", []string{"anime"}, false},
+		{"img7", []string{"nature", "ocean"}, true},
+		{"img8", []string{"nature", "ocean"}, true},
+		{"img9", []string{"anime"}, true},
 	}
 	tests := []struct {
 		sort      string
@@ -234,19 +245,23 @@ func TestFindTagsAndCounts(t *testing.T) {
 		pageCount int
 		offset    int
 		out       []string // expected tag names
+		uID       int
 	}{
-		{"", "", 0, 0, []string{}},
-		{"test", "", 0, 0, []string{}},
-		{"test", "", 3, 0, []string{"anime", "nature", "ocean"}},
-		{"alpha-asc", "", 3, 0, []string{"anime", "nature", "ocean"}},
-		{"alpha-desc", "", 3, 1, []string{"ocean", "nature", "anime"}},
-		{"count-asc", "", 10, 0, []string{"anime", "ocean", "space", "nature"}},
-		{"count-desc", "", 1, 0, []string{"nature"}},
-		{"", "a", 0, 0, []string{}},
-		{"test", "a", 3, 0, []string{"anime", "nature", "ocean"}},
-		{"alpha-asc", "n", 3, 0, []string{"anime", "nature", "ocean"}},
-		{"count-asc", "e", 10, 0, []string{"anime", "ocean", "space", "nature"}},
-		{"count-desc", "nature", 1, 0, []string{"nature"}},
+		{"", "", 0, 0, []string{}, -1},
+		{"test", "", 0, 0, []string{}, -1},
+		{"test", "", 3, 0, []string{"anime", "nature", "ocean"}, -1},
+		{"alpha-asc", "", 3, 0, []string{"anime", "nature", "ocean"}, -1},
+		{"alpha-desc", "", 3, 1, []string{"ocean", "nature", "anime"}, -1},
+		{"count-asc", "", 10, 0, []string{"anime", "ocean", "space", "nature"}, -1},
+		{"count-desc", "", 1, 0, []string{"nature"}, -1},
+		{"", "a", 0, 0, []string{}, -1},
+		{"test", "a", 3, 0, []string{"anime", "nature", "ocean"}, -1},
+		{"alpha-asc", "n", 3, 0, []string{"anime", "nature", "ocean"}, -1},
+		{"count-asc", "e", 10, 0, []string{"anime", "ocean", "space", "nature"}, -1},
+		{"count-desc", "nature", 1, 0, []string{"nature"}, -1},
+		{"count-desc", "", 10, 0, []string{"nature", "ocean", "space", "anime"}, UID},
+		{"alpha-asc", "", 10, 0, []string{"anime", "nature", "ocean", "space"}, UID},
+		{"count-desc", "a", 10, 0, []string{"nature", "ocean", "space", "anime"}, UID},
 	}
 	for _, name := range tagNames {
 		tag := Tag{Name: name}
@@ -254,7 +269,7 @@ func TestFindTagsAndCounts(t *testing.T) {
 		defer DB.Unscoped().Delete(&tag)
 	}
 	for _, i := range images {
-		image := Image{Title: i.title}
+		image := Image{Title: i.title, Published: !i.private, UserID: uint(UID)}
 		DB.Create(&image)
 		var tags []Tag
 		for _, n := range i.tagNames {
@@ -267,7 +282,7 @@ func TestFindTagsAndCounts(t *testing.T) {
 		defer DB.Model(&image).Association("Tags").Clear()
 	}
 	for i, test := range tests {
-		tcjs := FindTagsAndCounts(test.sort, test.query, test.pageCount, test.offset)
+		tcjs := FindTagsAndCounts(test.sort, test.query, test.pageCount, test.offset, test.uID)
 		numTags := len(tcjs)
 		numOut := len(test.out)
 		if numTags != numOut {
@@ -277,94 +292,14 @@ func TestFindTagsAndCounts(t *testing.T) {
 			if b := stringInSlice(tcj.Name, tagNames); !b {
 				t.Errorf("The test at index %v did not include tag: %v", i, tcj.Name)
 			}
-			c := tagCounts[tcj.Name]
+			var c int
+			if test.uID == -1 {
+				c = tagCounts[tcj.Name]
+			} else {
+				c = privateTagCounts[tcj.Name]
+			}
 			if tcj.Count != c {
 				t.Errorf("The test at index %v said that tag: %v has a count of %v; want %v.", i, tcj.Name, tcj.Count, c)
-			}
-		}
-	}
-}
-
-func TestFindTagCombinations(t *testing.T) {
-	tagNames := []string{"nature", "space", "ocean", "anime"}
-	combos := map[string]TagCombination{
-		"nature":             TagCombination{Names: []string{"nature"}, Count: 1},
-		"nature-space":       TagCombination{Names: []string{"nature", "space"}, Count: 2},
-		"nature-ocean":       TagCombination{Names: []string{"nature", "ocean"}, Count: 1},
-		"nature-ocean-space": TagCombination{Names: []string{"nature", "ocean", "space"}, Count: 1},
-	}
-	images := []struct {
-		name     string
-		tagNames []string
-	}{
-		{"img1", []string{"nature"}},
-		{"img2", []string{"nature", "space"}},
-		{"img3", []string{"nature", "space"}},
-		{"img4", []string{"nature", "ocean", "space"}},
-		{"img5", []string{"nature", "ocean"}},
-	}
-	tests := []struct {
-		name string
-		sort bool
-		out  map[string]TagCombination
-	}{
-		{"nature", true, combos},
-		{"nature", false, combos},
-	}
-	for _, name := range tagNames {
-		tag := Tag{Name: name}
-		DB.Create(&tag)
-		defer DB.Unscoped().Delete(&tag)
-	}
-	for _, i := range images {
-		image := Image{Name: i.name}
-		DB.Create(&image)
-		var tags []Tag
-		for _, n := range i.tagNames {
-			var tag Tag
-			DB.Where("name = ?", n).First(&tag)
-			tags = append(tags, tag)
-		}
-		DB.Model(&image).Association("Tags").Replace(&tags)
-		defer DB.Unscoped().Delete(&image)
-		defer DB.Model(&image).Association("Tags").Clear()
-	}
-	for i, test := range tests {
-		var tag Tag
-		DB.Where("name = ?", test.name).First(&tag)
-		tcs := tag.FindTagCombinations(test.sort)
-		numTags := len(tcs)
-		numOut := len(test.out)
-		if numTags != numOut {
-			t.Errorf("The test at index %v did not return the correct amount of tags. Got %v; want %v.", i, numTags, numOut)
-		}
-		prev := tcs[0].Count
-		for _, tc := range tcs {
-			if test.sort {
-				if tc.Count < prev {
-					t.Errorf("The test at index %v is not in the proper order", i)
-				}
-			} else {
-				if tc.Count > prev {
-					t.Errorf("The test at index %v is not in the proper order", i)
-				}
-			}
-			var id string
-			n := len(tc.Names)
-			for k, name := range tc.Names {
-				id += name
-				if k != n-1 {
-					id += "-"
-				}
-			}
-			if tcOut, ok := combos[id]; !ok {
-				t.Errorf("The test at index %v did not return the combination %v", i, id)
-			} else {
-				numTcNames := len(tc.Names)
-				numTcOutNames := len(tcOut.Names)
-				if numTcOutNames != numTcNames {
-					t.Errorf("The test at index %v did not return the correct number of names. Got %v; want %v.", i, numTcNames, numTcOutNames)
-				}
 			}
 		}
 	}
@@ -375,27 +310,36 @@ func TestFindRelatedTags(t *testing.T) {
 	images := []struct {
 		name     string
 		tagNames []string
+		private  bool
 	}{
-		{"img1", []string{"nature"}},
-		{"img2", []string{"nature", "space"}},
-		{"img3", []string{"nature", "space"}},
-		{"img4", []string{"nature", "ocean", "space"}},
-		{"img5", []string{"nature", "ocean"}},
+		{"img1", []string{"nature"}, false},
+		{"img2", []string{"nature", "space"}, false},
+		{"img3", []string{"nature", "space"}, false},
+		{"img4", []string{"nature", "ocean", "space"}, false},
+		{"img5", []string{"nature", "ocean"}, false},
+		{"img6", []string{"nature", "space"}, true},
+		{"img7", []string{"nature", "ocean"}, true},
 	}
 	tests := []struct {
-		name  string
+		names []string
 		sort  string
 		query string
 		out   []RelatedTag
+		uID   int
 	}{
-		{"", "", "", []RelatedTag{}},
-		{"test", "", "", []RelatedTag{}},
-		{"nature", "alpha-asc", "", []RelatedTag{RelatedTag{"ocean", 2}, RelatedTag{"space", 3}}},
-		{"nature", "alpha-desc", "", []RelatedTag{RelatedTag{"space", 3}, RelatedTag{"ocean", 2}}},
-		{"nature", "count-asc", "", []RelatedTag{RelatedTag{"ocean", 2}, RelatedTag{"space", 3}}},
-		{"nature", "count-desc", "", []RelatedTag{RelatedTag{"space", 3}, RelatedTag{"ocean", 2}}},
-		{"nature", "count-desc", "p", []RelatedTag{RelatedTag{"space", 3}}},
-		{"nature", "alpha-asc", " ocEAn ", []RelatedTag{RelatedTag{"ocean", 2}}},
+		{[]string{}, "", "", []RelatedTag{}, -1},
+		{[]string{""}, "", "", []RelatedTag{}, -1},
+		{[]string{"test"}, "", "", []RelatedTag{}, -1},
+		{[]string{"nature"}, "alpha-asc", "", []RelatedTag{RelatedTag{"ocean", 2}, RelatedTag{"space", 3}}, -1},
+		{[]string{"nature"}, "alpha-desc", "", []RelatedTag{RelatedTag{"space", 3}, RelatedTag{"ocean", 2}}, -1},
+		{[]string{"nature"}, "count-asc", "", []RelatedTag{RelatedTag{"ocean", 2}, RelatedTag{"space", 3}}, -1},
+		{[]string{"nature"}, "count-desc", "", []RelatedTag{RelatedTag{"space", 3}, RelatedTag{"ocean", 2}}, -1},
+		{[]string{"nature"}, "count-desc", "p", []RelatedTag{RelatedTag{"space", 3}}, -1},
+		{[]string{"nature"}, "alpha-asc", " ocEAn ", []RelatedTag{RelatedTag{"ocean", 2}}, -1},
+		{[]string{"nature", "space"}, "alpha-asc", "", []RelatedTag{RelatedTag{"ocean", 1}}, -1},
+		{[]string{"nature", "ocean"}, "alpha-asc", "", []RelatedTag{RelatedTag{"space", 1}}, -1},
+		{[]string{"nature"}, "count-desc", "", []RelatedTag{RelatedTag{"space", 4}, RelatedTag{"ocean", 3}}, UID},
+		{[]string{"ocean"}, "alpha-desc", "", []RelatedTag{RelatedTag{"space", 1}, RelatedTag{"nature", 3}}, UID},
 	}
 	for _, name := range tagNames {
 		tag := Tag{Name: name}
@@ -403,7 +347,7 @@ func TestFindRelatedTags(t *testing.T) {
 		defer DB.Unscoped().Delete(&tag)
 	}
 	for _, i := range images {
-		image := Image{Name: i.name}
+		image := Image{Name: i.name, Published: !i.private, UserID: uint(UID)}
 		DB.Create(&image)
 		var tags []Tag
 		for _, n := range i.tagNames {
@@ -416,7 +360,7 @@ func TestFindRelatedTags(t *testing.T) {
 		defer DB.Model(&image).Association("Tags").Clear()
 	}
 	for i, test := range tests {
-		rts := FindRelatedTags([]string{test.name}, test.sort, test.query)
+		rts := FindRelatedTags(test.names, test.sort, test.query, test.uID)
 		numRts := len(rts)
 		numOutsRts := len(test.out)
 		if numRts != numOutsRts {
@@ -531,7 +475,7 @@ func TestImagesBelongToUser(t *testing.T) {
 	}
 }
 
-func TestImageIDsByParams(t *testing.T) {
+func TestFindImageIDsByParams(t *testing.T) {
 	tagNames := []string{"nature", "space", "ocean", "anime"}
 	date1, _ := time.Parse("2006-01-02", "2016-07-23")
 	date2, _ := time.Parse("2006-01-02", "2016-07-29")
@@ -539,12 +483,12 @@ func TestImageIDsByParams(t *testing.T) {
 		image    *Image
 		tagNames []string
 	}{
-		{&Image{Title: "img1", Name: "a123", Camera: "Canon 8D", Film: "Digital", Width: 1800, TakenAt: &date1}, []string{"nature", "space"}},
-		{&Image{Title: "img2", Name: "a456", Camera: "Hasselblad 500c", Film: "120", Width: 1280, TakenAt: &date1}, []string{"nature", "ocean"}},
-		{&Image{Title: "img3", Name: "a789", Camera: "Canon 8D", Film: "Digital", Width: 3200, TakenAt: &date1}, []string{"nature", "space"}},
-		{&Image{Title: "img4", Name: "b123", Camera: "Canon 8D", Film: "Digital", Width: 1800, TakenAt: &date2}, []string{"nature", "space"}},
-		{&Image{Title: "img5", Name: "b456", Camera: "Hasselblad 500c", Film: "120", Width: 724, Height: 1024, TakenAt: &date2}, []string{"nature", "ocean"}},
-		{&Image{Title: "img6", Name: "b789", Camera: "Canon 8D", Film: "Digital", Width: 3200, TakenAt: &date2}, []string{"nature", "space"}},
+		{&Image{Published: true, Title: "img1", Name: "a123", Camera: "Canon 8D", Film: "Digital", Width: 1800, TakenAt: &date1}, []string{"nature", "space"}},
+		{&Image{Published: true, Title: "img2", Name: "a456", Camera: "Hasselblad 500c", Film: "120", Width: 1280, TakenAt: &date1}, []string{"nature", "ocean"}},
+		{&Image{Published: true, Title: "img3", Name: "a789", Camera: "Canon 8D", Film: "Digital", Width: 3200, TakenAt: &date1}, []string{"nature", "space"}},
+		{&Image{Published: true, Title: "img4", Name: "b123", Camera: "Canon 8D", Film: "Digital", Width: 1800, TakenAt: &date2}, []string{"nature", "space"}},
+		{&Image{Published: true, Title: "img5", Name: "b456", Camera: "Hasselblad 500c", Film: "120", Width: 724, Height: 1024, TakenAt: &date2}, []string{"nature", "ocean"}},
+		{&Image{Published: true, Title: "img6", Name: "b789", Camera: "Canon 8D", Film: "Digital", Width: 3200, TakenAt: &date2}, []string{"nature", "space"}},
 	}
 	tests := []struct {
 		params ImageSearchParams

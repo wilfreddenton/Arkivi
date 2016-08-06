@@ -1,5 +1,10 @@
 {{ define "image_thumb" }}
   <li class="image-thumb thumbnail" style="background-image: url({{ .ThumbUrl }})">
+    {{ if not .Published }}
+      <div class="image-thumb-private image-thumb-indicator">
+        <span>P</span>
+      </div>
+    {{ end }}
     <a href="/images/{{ .Name }}" title="{{ .Title }}"></a>
   </li>
 {{ end }}

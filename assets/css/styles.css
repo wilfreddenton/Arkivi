@@ -443,7 +443,7 @@ ul li {
   text-align: right;
   padding: 0;
   font-size: 18px;
-  color: #D23B66;
+  color: #C56A78;
   cursor: pointer;
   text-decoration: underline;
 }
@@ -510,6 +510,19 @@ ul li {
   margin: 15px;
   float: left;
 }
+.image-thumb .image-thumb-indicator {
+  background-color: rgba(0,0,0,0.75);
+  height: 20px;
+  text-align: center;
+}
+.image-thumb .image-thumb-gif {
+  width: 30px;
+  color: white;
+}
+.image-thumb .image-thumb-private {
+  width: 20px;
+  color: #C56A78;
+} 
 .image-thumb a {
   height: 100%;
   width: 100%;

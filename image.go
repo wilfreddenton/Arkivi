@@ -10,6 +10,9 @@ import (
 	"image/jpeg"
 	"image/png"
 	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -47,6 +50,10 @@ func (p *ImageProcessor) SaveOriginal(wg *sync.WaitGroup) {
 		gif.EncodeAll(out, p.GifImage)
 	}
 	p.ImageModel.Url = StaticDir + url
+	if p.ImageModel.Ext == "gif" && p.ImageModel.Height > sizes[3] && p.ImageModel.Width > sizes[3] {
+		wg.Add(1)
+		go p.MagickResize(wg)
+	}
 }
 
 func (p *ImageProcessor) Resize(size int, suffix string, wg *sync.WaitGroup) {
@@ -134,6 +141,36 @@ func (p *ImageProcessor) ResizeGif(wg *sync.WaitGroup) {
 	p.ImageModel.ThumbUrl = StaticDir + url
 }
 
+func (p *ImageProcessor) MagickResize(wg *sync.WaitGroup) {
+	defer wg.Done()
+	outUrl := "arkivi/" + p.ImageModel.Name + sizeNames[3] + "." + p.ImageModel.Ext
+	inUrl := strings.Replace(p.ImageModel.Url, StaticDir, "assets/", -1)
+	var outSize string
+	if p.ImageModel.Width > p.ImageModel.Height {
+		outSize = "_x" + strconv.Itoa(sizes[3])
+	} else {
+		outSize = strconv.Itoa(sizes[3]) + "x_"
+	}
+	o, err := exec.Command("gifsicle", "--resize", outSize, inUrl).Output()
+	if err != nil {
+		p.Error = err
+		return
+	}
+	of, err := os.Create("assets/" + outUrl)
+	defer of.Close()
+	if err != nil {
+		p.Error = err
+		return
+	}
+	_, err = of.Write(o)
+	if err != nil {
+		os.Remove("assets/" + outUrl)
+		p.Error = err
+		return
+	}
+	p.ImageModel.ThumbUrl = StaticDir + outUrl
+}
+
 func (p *ImageProcessor) CreateResizes() {
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -151,11 +188,6 @@ func (p *ImageProcessor) CreateResizes() {
 				wg.Add(1)
 				go p.Resize(s, sizeNames[i], &wg)
 			}
-		}
-	case "gif":
-		if p.ImageModel.Height > sizes[3] && p.ImageModel.Width > sizes[3] {
-			wg.Add(1)
-			go p.ResizeGif(&wg)
 		}
 	}
 	wg.Wait()
