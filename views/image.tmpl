@@ -49,7 +49,7 @@
       <h2>Tags</h2>
       <ul id="image-tags">
         {{ range $i, $tag := .image.Tags }}
-          <li class="image-tag">+<a href="/tags/?filter={{ $tag.Name }}" title="{{ $tag.Name }}">{{ $tag.Name }}</a></li>
+          <li class="image-tag"><span>+</span><a href="/tags/?filter={{ $tag.Name }}" title="{{ $tag.Name }}">{{ $tag.Name }}</a></li>
         {{ end }}
       </ul>
     </div>

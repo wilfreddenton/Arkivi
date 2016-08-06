@@ -13,7 +13,7 @@ body.drag {
   transition: background-color 300ms;
 }
 body.dragover {
-  background-color: #ccc;
+  background-color: #C4C8D7;
 }
 nav .container {
   max-width: 800px;
@@ -35,11 +35,11 @@ nav {
 }
 nav.topbar {
   margin-bottom: 40px;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid #C4C8D7;
 }
 nav.bottombar {
   margin-top: 40px;
-  border-top: 1px solid #ccc;
+  border-top: 1px solid #C4C8D7;
 }
 h3 {
   font-size: 14px;
@@ -64,13 +64,16 @@ nav .pagination li.active {
   border: 1px solid #2B3046;
 }
 a {
-  color: #007CFF;
+  /* color: #007CFF; */
+  color: #577CD4;
 }
 a:visited {
-  color: #007CFF;
+  color: #577CD4;
+  /* color: #007CFF; */
 }
 a:hover {
-  color: #007CFF;
+  color: #577CD4;
+  /* color: #007CFF; */
 }
 select {
   -webkit-appearance: menulist-button;
@@ -107,7 +110,7 @@ input[type="checkbox"] {
   max-width: 100%;
   border-right: 0;
   border-top: 0;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid #C4C8D7;
 }
 input[type="submit"] {
   border: none;
@@ -115,7 +118,7 @@ input[type="submit"] {
 textarea {
   outline: none;
   width: 100%;
-  border: 1px solid #ccc;
+  border: 1px solid #C4C8D7;
   max-width: 100%;
   padding: 5px 7px;
   font-size: 14px;
@@ -214,7 +217,7 @@ ul li {
 }
 .suggestions ul li {
   padding: 5px 10px;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid #C4C8D7;
   cursor: pointer;
   margin: 0;
 }
@@ -336,7 +339,8 @@ ul li {
   margin: 0;
 }
 #action-bar .action-bar-submit {
-  color: #007CFF;
+  /* color: #007CFF; */
+  color: #577CD4;
   padding-right: 0;
 }
 #action-bar .action-bar-primary {
@@ -542,6 +546,8 @@ ul li {
   max-height: 100vh;
 }
 #image-dates {
+  color: #C19B82;
+  font-weight: 300;
   margin-top: -15px;
   margin-bottom: 20px;
 }
@@ -556,6 +562,9 @@ ul li {
 #image-tags .image-tag {
   display: inline;
   margin-right: 15px;
+}
+#image-tags .image-tag span {
+  color: #C56A78;
 }
 .account-info #message {
   display: block;
