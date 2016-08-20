@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/Unknwon/paginater"
@@ -64,7 +65,7 @@ type Year struct {
 }
 
 func (y *Year) GetMonths(uID int) {
-	DB.Where("year = ?", y.Year).Find(&y.Months)
+	DB.Where("year = ?", y.Year).Order("created_at ASC").Find(&y.Months)
 	for i, _ := range y.Months {
 		y.Months[i].GetNumImages(uID)
 	}
@@ -82,7 +83,7 @@ func getUserIDFromContext(r *http.Request) int {
 func BuildChronology(pageCount, offset, uID int) []*Year {
 	var months []Month
 	DB.Raw(`SELECT * FROM months
-					ORDER BY id DESC
+					ORDER BY created_at DESC
 					LIMIT ?
 					OFFSET ?`, pageCount, offset).Scan(&months)
 	var years []*Year
@@ -210,5 +211,12 @@ func ChronologyMonthHandler(w http.ResponseWriter, r *http.Request) *appError {
 		"baseUrl":        "/chronology/" + yv + "/" + mv,
 		"containerClass": "image-list",
 	})
+	return nil
+}
+
+func MonthsHandler(w http.ResponseWriter, r *http.Request) *appError {
+	var months []Month
+	DB.Order("created_at DESC").Find(&months)
+	json.NewEncoder(w).Encode(months)
 	return nil
 }

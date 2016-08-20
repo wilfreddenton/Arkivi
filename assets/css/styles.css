@@ -201,7 +201,7 @@ ul li {
 }
 .suggestions {
   position: absolute;
-  bottom: 25px;
+  bottom: 15px;
   width: 100%;
   z-index: 9001;
 }
@@ -580,6 +580,9 @@ ul li {
   margin-top: 30px;
 }
 .months .month span {
+}
+.years .months .month a {
+  color: #C56A78;
 }
 .months .month .month-num-images {
   text-align: right;

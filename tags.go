@@ -177,7 +177,7 @@ type TagMini struct {
 func TagsSuggestionHandler(w http.ResponseWriter, r *http.Request) *appError {
 	q := r.URL.Query()
 	query := q.Get("query")
-	tagNames := q.Get("currentTags")
+	tagNames := q.Get("items")
 	if query == "" || tagNames == "" {
 		return &appError{
 			Error:   errors.New("The necessary parameters were not provided."),

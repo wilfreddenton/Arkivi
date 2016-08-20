@@ -43,6 +43,21 @@ func FindUserByUsername(username string) User {
 	return u
 }
 
+func FindIDsFromUsernames(usernames []string) []int {
+	var ids []int
+	rows, err := DB.Table("users").Select("id").Where("username IN (?)", usernames).Rows()
+	defer rows.Close()
+	if err != nil {
+		return ids
+	}
+	for rows.Next() {
+		var id int
+		rows.Scan(&id)
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 func FindAdminUser() User {
 	var a User
 	DB.Where("admin = 1").First(&a)
@@ -81,9 +96,19 @@ func FindUserNumImages(id uint) int {
 	return len(is)
 }
 
+func FindSuggestedUsers(query string, usernames []string) []UserSuggestion {
+	var us []UserSuggestion
+	DB.Table("users").Where("username LIKE ?", query+"%").Not("username", usernames).Find(&us)
+	return us
+}
+
 type UserJson struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+type UserSuggestion struct {
+	Username string `json:"Name"`
 }
 
 type UserSendJson struct {
@@ -236,16 +261,18 @@ func ImagesBelongToUser(ids []int, userID uint) bool {
 }
 
 type ImageSearchParams struct {
-	UserID   int
-	Title    string
-	Name     string
-	Camera   string
-	Film     string
-	Taken    *time.Time
-	Size     string
-	Operator string
-	TagNames []string
-	Sort     string
+	UserID    int
+	Title     string
+	Name      string
+	Camera    string
+	Film      string
+	Taken     *time.Time
+	MonthID   int
+	Size      string
+	Operator  string
+	Usernames []string
+	TagNames  []string
+	Sort      string
 }
 
 func FindImageIDsByParams(ps ImageSearchParams) []int {
@@ -257,6 +284,12 @@ func FindImageIDsByParams(ps ImageSearchParams) []int {
 		baseIDs := FindImageIDsByTagNames(ps.TagNames, ps.Operator, ps.UserID)
 		clauses = append(clauses, "id IN (?)")
 		queryParams = append(queryParams, baseIDs)
+	}
+	if len(ps.Usernames) > 0 {
+		userIDs := FindIDsFromUsernames(ps.Usernames)
+		fmt.Println(userIDs)
+		clauses = append(clauses, "user_id in (?)")
+		queryParams = append(queryParams, userIDs)
 	}
 	if ps.Title != "" {
 		clauses = append(clauses, "title LIKE ?")
@@ -277,6 +310,10 @@ func FindImageIDsByParams(ps ImageSearchParams) []int {
 	if ps.Taken != nil {
 		clauses = append(clauses, "taken_at = ?")
 		queryParams = append(queryParams, ps.Taken)
+	}
+	if ps.MonthID != 0 {
+		clauses = append(clauses, "month_id = ?")
+		queryParams = append(queryParams, ps.MonthID)
 	}
 	if ps.Size != "" {
 		if s, err := strconv.Atoi(ps.Size); err == nil {

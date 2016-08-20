@@ -1,4 +1,44 @@
 (function (window) {
+  var MonthSelect = React.createClass({
+    propTypes: {
+      value: React.PropTypes.number,
+      selectHandler: React.PropTypes.func
+    },
+    getInitialState: function () {
+      return { months: [] };
+    },
+    selectHandler: function (e) {
+      this.props.selectHandler(e);
+    },
+    componentDidMount: function () {
+      UTILS.request({
+        method: 'GET',
+        path: '/months/',
+        json: true,
+        success: function (xhr) {
+          months = JSON.parse(xhr.responseText);
+          this.setState({ months: months });
+        }.bind(this)
+      });
+    },
+    render: function () {
+      var options = this.state.months.map(function (month, i) {
+        return React.DOM.option({
+          key: i,
+          value: month.ID
+        }, month.String + ' - ' + month.Year);
+      });
+      options.unshift(React.DOM.option({ key: -1, value: 0 }, 'all'));
+      return (
+        React.DOM.label(null, 'Month',
+          React.DOM.select({
+            name: 'month',
+            value: this.props.value,
+            onChange: this.selectHandler
+          }, options))
+      );
+    }
+  });
   var SearchForm = React.createClass({
     getInitialState: function () {
       return {
@@ -9,6 +49,7 @@
         taken: '',
         size: '0',
         tags: [],
+        users: [],
         operator: 'and',
         sort: 'latest',
         moreOptions: false,
@@ -24,7 +65,8 @@
           { name: 'Earliest', value: 'earliest' },
           { name: 'A - Z', value: 'alpha-asc' },
           { name: 'Z - A', value: 'alpha-desc' }
-        ]
+        ],
+        month: 0
       };
     },
     getUrlParams: function (name) {
@@ -32,7 +74,9 @@
       return window.decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(window.location.search) || [null, ''])[1].replace(/\+/g, '%20')) || null;
     },
     editHandler: function (data) {
-      this.setState({ tags: data.value });
+      var obj = {};
+      obj[data.name.toLowerCase()] = data.value;
+      this.setState(obj);
     },
     selectHandler: function (e) {
       this.setState({ sort: e.target.value });
@@ -51,7 +95,7 @@
     submitHandler: function (e) {
       e.preventDefault();
       // str inputs
-      var names = ['title', 'name', 'camera', 'film', 'taken', 'operator'];
+      var names = ['title', 'name', 'camera', 'film', 'taken', 'month', 'operator'];
       var query = ''
       names.forEach(function (name, i) {
         var value = this.state[name];
@@ -74,6 +118,20 @@
         }
         query += 'tags=' + tags;
       }
+      // users
+      if (this.state.users.length > 0) {
+        var users = this.state.users.filter(function (user) {
+          return user.Name !== "" && !/^\s+$/.test(user.Name)
+        }).map(function (user) {
+          return user.Name;
+        }).join(',');
+        if (query.length === 0) {
+          query += '?';
+        } else {
+          query += '&';
+        }
+        query += 'users=' + users;
+      }
       // size
       if (this.state.size != '0') {
         query = this.querySep(query);
@@ -91,7 +149,6 @@
       var value = e.target.value;
       var obj = {};
       obj[name] = value;
-      console.log(obj)
       this.setState(obj);
     },
     moreOptionsHandler: function (e) {
@@ -99,7 +156,7 @@
     },
     componentDidMount: function () {
       // title, name, camera, film
-      var strParams = ['title', 'name', 'camera', 'film'];
+      var strParams = ['title', 'name', 'camera', 'film', 'month'];
       var obj = {}
       var moreOptions = false;
       strParams.forEach(function (name) {
@@ -132,6 +189,15 @@
           return { Name: name };
         });
         obj.tags = tags;
+      }
+      // users
+      var users = this.getUrlParams('users');
+      if (users !== null) {
+        users = users.split(',').map(function (name) {
+          return { Name: name };
+        });
+        obj.users = users;
+        moreOptions = true;
       }
       // op
       var op = this.getUrlParams('operator');
@@ -223,12 +289,21 @@
                                                                      onChange: this.inputHandler
                                                                    }))),
                                      React.DOM.div({ className: 'col-xs-6'},
+                                                   React.createElement(MonthSelect, { selectHandler: this.inputHandler, value: this.state.month }))),
+                       React.DOM.div({ className: 'row' },
+                                     React.DOM.div({ className: 'col-xs-6' },
                                                    React.DOM.label(null, 'Size',
                                                                    React.DOM.select({
                                                                      name: 'size',
                                                                      value: this.state.size,
                                                                      onChange: this.inputHandler
-                                                                   }, sizeOptions))))),
+                                                                   }, sizeOptions))),
+                                     React.DOM.div({ className: 'col-xs-6'},
+                                                   React.DOM.label(null, 'Users'),
+                                                                  React.createElement(COMPONENTS.UsersInput, {
+                                                                    users: this.state.users,
+                                                                    editHandler: this.editHandler
+                                                                  })))),
                        React.DOM.div({ className: 'row' },
                                      React.DOM.div({ className: 'col-xs-12' }, 'Tags:'),
                                      React.DOM.div({ className: 'col-xs-8 search-form-container' },

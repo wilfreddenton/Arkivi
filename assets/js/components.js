@@ -42,14 +42,112 @@
       );
     }
   });
-  var TagsInput = React.createClass({
+  var SuggestionsInput = React.createClass({
     propTypes: {
+      type: React.PropTypes.string,
+      value: React.PropTypes.string,
+      suggestions: React.PropTypes.array,
+      highlight: React.PropTypes.func,
+      highlighted: React.PropTypes.number,
       bottom: React.PropTypes.bool,
-      tags: React.PropTypes.array,
+      changeHandler: React.PropTypes.func,
+      selectSuggestion: React.PropTypes.func
+    },
+    clickHandler: function (e) {
+      if (e.target.nodeName === 'LI')
+        this.props.selectSuggestion(e);
+    },
+    hoverHandler: function (e) {
+      if (e.target.nodeName === 'LI') {
+        var i = parseInt(e.target.dataset.index);
+        this.setState({ highlighted: i });
+      }
+    },
+    keydownHandler: function (e) {
+      var highlighted = 0;
+      switch (e.keyCode) {
+      case 9: // tab
+        this.props.selectSuggestion(e);
+        break
+      case 13: // enter
+        this.props.selectSuggestion(e);
+        break
+      case 38: // up
+        e.preventDefault();
+        highlighted = (this.props.highlighted - 1) % this.props.suggestions.length;
+        if (highlighted < 0) highlighted = this.props.suggestions.length - 1;
+        this.props.highlight(highlighted)
+        break
+      case 40: // down
+        e.preventDefault();
+        highlighted = (this.props.highlighted + 1) % this.props.suggestions.length;
+        this.props.highlight(highlighted)
+        break
+      }
+    },
+    deactivateListeners: function () {
+      this.refs.input.removeEventListener('keydown', this.keydownHandler)
+    },
+    activateListeners: function () {
+      this.refs.input.addEventListener('keydown', this.keydownHandler)
+    },
+    componentDidUpdate: function (prevProps, prevState) {
+      if (this.props.suggestions.length !== prevProps.suggestions.length) {
+        var highlighted = this.props.suggestions.length - 1;
+        if (this.props.bottom) {
+          highlighted = 0;
+        }
+        this.props.highlight(highlighted);
+      }
+    },
+    componentWillUnmount: function () {
+      this.deactivateListeners();
+    },
+    componentDidMount: function () {
+      // initialize prevalue
+      this.activateListeners();
+    },
+    render: function () {
+      var klass, name, placeholder;
+      if (this.props.type === 'users') {
+        klass = 'editor-users';
+        name = 'Users';
+        placeholder = 'username1, username2, username3'
+      } else {
+        klass = 'editor-tags';
+        name = 'Tags';
+        placeholder = 'tag1, tag2, tag3'
+      }
+      return (
+        React.DOM.span({ onClick: this.clickHandler, onMouseOver: this.hoverHandler },
+                      React.createElement(Suggestions, {
+                        bottom: this.props.bottom,
+                        suggestions: this.props.suggestions,
+                        highlighted: this.props.highlighted
+                      }),
+                      React.DOM.input({
+                        ref: 'input',
+                        className: klass,
+                        type: 'text',
+                        name: name,
+                        onChange: this.props.changeHandler,
+                        placeholder: placeholder,
+                        autoComplete: 'off',
+                        value: this.props.value
+                      }))
+      );
+    }
+  });
+  var MultiInput = React.createClass({
+    propTypes: {
+      type: React.PropTypes.string,
+      bottom: React.PropTypes.bool,
+      items: React.PropTypes.array,
       editHandler: React.PropTypes.func
     },
     getInitialState: function () {
       return {
+        value: '',
         delim: ', ',
         suggestions: [],
         highlighted: 0
@@ -59,40 +157,45 @@
       e.preventDefault();
       if (this.state.suggestions.length > 0) {
         var i = parseInt(e.target.dataset.index ? e.target.dataset.index : this.state.highlighted);
-        var tags = this.refs.input.value.split(this.state.delim);
-        tags[tags.length - 1] = this.state.suggestions[i].Name;
-        tags.push('');
-        this.refs.input.dataset.value = tags.join(', ');
-        tags = tags.map(function (name) {
+        var items = this.state.value.split(this.state.delim);
+        items[items.length - 1] = this.state.suggestions[i].Name;
+        items.push('');
+        this.setState({ value: items.join(this.state.delim) });
+        items = items.map(function (name) {
           return { Name: name };
         });
-        this.props.editHandler({ name: 'Tags', value: tags });
+        var name = this.props.type == 'users' ? 'Users' : 'Tags';
+        this.props.editHandler({ name: name, value: items });
         this.getSuggestions('');
       }
+    },
+    highlight: function (index) {
+      this.setState({ highlighted: index });
     },
     getSuggestions: function (query) {
       if (query !== '' && !/^\s+$/.test(query)) {
         var success = function (xhr) {
           var suggestions = JSON.parse(xhr.responseText);
           suggestions.sort(function (a, b) {
-            if (a.Name < b.Name) {
-              return 1;
-            } else if (a.Name < b.Name) {
-              return -1;
-            } else {
-              return 0;
-            }
+              if (a.Name < b.Name) {
+                return 1;
+              } else if (a.Name < b.Name) {
+                return -1;
+              } else {
+                return 0;
+              }
           });
           if (this.props.bottom)
             suggestions.reverse();
           this.setState({ suggestions: suggestions });
         }.bind(this);
-        var currentTags = this.props.tags.map(function (tag) {
-          return tag.Name;
+        var currentItems = this.props.items.map(function (item) {
+          return item.Name;
         }).join(',');
+        var resourceName = this.props.type === 'users' ? 'users' : 'tags';
         UTILS.request({
           method: 'GET',
-          path: '/tags/suggestions?query=' + query + '&currentTags=' + currentTags,
+          path: '/' + resourceName + '/suggestions?query=' + query + '&items=' + currentItems,
           success: success
         });
       } else {
@@ -101,7 +204,7 @@
     },
     changeHandler: function (e) {
       var value = e.target.value;
-      var prevValue = e.target.dataset.value;
+      var prevValue = this.state.value;
       if (value.slice(-1) === ',') {
         if (prevValue.length < value.length) {
           value = value.slice(0, -1).trim() + this.state.delim;
@@ -115,103 +218,77 @@
           value = value.slice(0, -2);
         }
       }
-      e.target.dataset.value = value;
+      this.setState({ value: value });
+      // e.target.dataset.value = value;
       var tags = value.split(this.state.delim).map(function (name) {
         return { Name: name.toLowerCase() };
       });
       this.getSuggestionsDebounced(tags[tags.length - 1].Name);
-      this.props.editHandler({ name: 'Tags', value: tags });
-    },
-    clickHandler: function (e) {
-      if (e.target.nodeName === 'LI')
-        this.selectSuggestion(e);
-    },
-    hoverHandler: function (e) {
-      if (e.target.nodeName === 'LI') {
-        var i = parseInt(e.target.dataset.index);
-        this.setState({ highlighted: i });
-      }
-    },
-    keydownHandler: function (e) {
-      var highlighted = 0;
-      switch (e.keyCode) {
-      case 9: // tab
-        this.selectSuggestion(e);
-        break
-      case 13: // enter
-        this.selectSuggestion(e);
-        break
-      case 38: // up
-        e.preventDefault();
-        highlighted = (this.state.highlighted - 1) % this.state.suggestions.length;
-        if (highlighted < 0) highlighted = this.state.suggestions.length - 1;
-        this.setState({ highlighted: highlighted });
-        break
-      case 40: // down
-        e.preventDefault();
-        highlighted = (this.state.highlighted + 1) % this.state.suggestions.length;
-        this.setState({ highlighted: highlighted });
-        break
-      }
-    },
-    deactivateListeners: function () {
-      this.refs.input.removeEventListener('keydown', this.keydownHandler)
-    },
-    activateListeners: function () {
-      this.refs.input.addEventListener('keydown', this.keydownHandler)
-    },
-    componentDidUpdate: function (prevProps, prevState) {
-      if (this.state.suggestions.length !== prevState.suggestions.length) {
-        var highlighted = this.state.suggestions.length - 1;
-        if (this.props.bottom) {
-          highlighted = 0;
-        }
-        this.setState({ highlighted: highlighted });
-      }
-    },
-    componentWillUnmount: function () {
-      this.deactivateListeners();
+      var resourceName = this.props.type === 'users' ? 'Users' : 'Tags';
+      this.props.editHandler({ name: resourceName, value: tags });
     },
     componentDidMount: function () {
-      // initialize prevalue
-      this.refs.input.dataset.value = this.refs.input.value;
       this.getSuggestionsDebounced = UTILS.debounce(this.getSuggestions, 100);
-      this.activateListeners();
     },
     render: function () {
-      var suggestions = this.state.suggestions.map(function (suggestion, i) {
-        return React.DOM.li({ key: i }, suggestion.Name);
-      });
-      var tags = this.props.tags.map(function (tag) {
-        return tag.Name;
+      var items = this.props.items.map(function (item) {
+        return item.Name;
       }).join(this.state.delim);
+      var klass = this.props.type === 'users' ? 'users-input' : 'tags-input';
       return (
         React.DOM.span({
-          className: 'tags-input',
+          className: klass,
           onClick: this.clickHandler,
           onMouseOver: this.hoverHandler
         },
-                       React.createElement(Suggestions, {
+                       React.createElement(SuggestionsInput, {
+                         type: this.props.type,
                          bottom: this.props.bottom,
+                         selectSuggestion: this.selectSuggestion,
+                         highlight: this.highlight,
+                         highlighted: this.state.highlighted,
                          suggestions: this.state.suggestions,
-                         highlighted: this.state.highlighted
-                       }),
-                       React.DOM.input({
-                         ref: 'input',
-                         className: 'editor-tags',
-                         type: 'text',
-                         name: 'Tags',
-                         onChange: this.changeHandler,
-                         placeholder: 'tag1, tag2, tag3',
-                         autoComplete: 'off',
-                         value: tags
-                      }))
+                         changeHandler: this.changeHandler,
+                         value: items
+                       }))
       );
+    }
+  });
+  var TagsInput = React.createClass({
+    propTypes: {
+      bottom: React.PropTypes.bool,
+      tags: React.PropTypes.array,
+      editHandler: React.PropTypes.func
+    },
+    render: function () {
+      return React.createElement(MultiInput, {
+        type: 'tags',
+        bottom: this.props.bottom,
+        items: this.props.tags,
+        editHandler: this.props.editHandler
+      });
+    }
+  });
+  var UsersInput = React.createClass({
+    propTypes: {
+      bottom: React.PropTypes.bool,
+      users: React.PropTypes.array,
+      editHandler: React.PropTypes.func
+    },
+    render: function () {
+      return React.createElement(MultiInput, {
+        type: 'users',
+        bottom: this.props.bottom,
+        items: this.props.users,
+        editHandler: this.props.editHandler
+      });
     }
   });
   window.COMPONENTS = {
     Suggestion: Suggestion,
     Suggestion: Suggestions,
-    TagsInput: TagsInput
+    SuggestionsInput: SuggestionsInput,
+    TagsInput: TagsInput,
+    UsersInput: UsersInput
   }
 })(window);

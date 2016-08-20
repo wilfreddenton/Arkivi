@@ -372,6 +372,24 @@ func UsersTokenHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
+func UsersSuggestionHandler(w http.ResponseWriter, r *http.Request) *appError {
+	q := r.URL.Query()
+	query := q.Get("query")
+	usernames := q.Get("items")
+	if query == "" || usernames == "" {
+		return &appError{
+			Error:   errors.New("The necessary parameters were not provided."),
+			Message: "You did not pass the necessary parameters.",
+			Code:    http.StatusBadRequest,
+		}
+	}
+	currentUsernames := strings.Split(usernames, ",")
+	us := FindSuggestedUsers(query, currentUsernames)
+	w.Header().Set("Content-Type", "application/javascript")
+	json.NewEncoder(w).Encode(us)
+	return nil
+}
+
 func ImageUploadHandler(w http.ResponseWriter, r *http.Request) *appError {
 	// index := r.FormValue("index")
 	s := strings.Split(r.FormValue("filename"), ".")
@@ -617,11 +635,19 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	ps.UserID = getUserIDFromContext(r)
 	// tags
 	tags := q.Get("tags")
-	var names []string
+	var tagNames []string
 	if tags != "" {
 		tags = strings.ToLower(tags)
-		names = strings.Split(tags, ",")
-		ps.TagNames = names
+		tagNames = strings.Split(tags, ",")
+		ps.TagNames = tagNames
+	}
+	// users
+	users := q.Get("users")
+	var usernames []string
+	if users != "" {
+		users = strings.ToLower(users)
+		usernames = strings.Split(users, ",")
+		ps.Usernames = usernames
 	}
 	// operator
 	op := q.Get("operator")
@@ -639,6 +665,10 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	ps.Camera = q.Get("camera")
 	ps.Film = q.Get("film")
 	ps.Sort = q.Get("sort")
+	// month
+	if m, err := strconv.Atoi(q.Get("month")); err == nil {
+		ps.MonthID = m
+	}
 	// taken
 	taken := q.Get("taken")
 	if len(taken) > 0 {
@@ -685,6 +715,12 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if ps.Taken != nil {
 		takenStr := ps.Taken.Format("2006-01-02")
 		params = append(params, UrlParam{Name: "taken", Value: takenStr})
+	}
+	if ps.MonthID != 0 {
+		params = append(params, UrlParam{Name: "month", Value: strconv.Itoa(ps.MonthID)})
+	}
+	if users != "" {
+		params = append(params, UrlParam{Name: "users", Value: users})
 	}
 	if tags != "" {
 		params = append(params, UrlParam{Name: "tags", Value: tags})

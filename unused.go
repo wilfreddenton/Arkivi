@@ -162,3 +162,39 @@ package main
 // 		}
 // 	}
 // }
+
+// func (p *ImageProcessor) ResizeFrame(frame image.Image) image.Image {
+// 	width := 0
+// 	height := 0
+// 	if p.ImageModel.Width > p.ImageModel.Height {
+// 		height = sizes[3]
+// 	} else {
+// 		width = sizes[3]
+// 	}
+// 	return resize.Resize(uint(width), uint(height), frame, resize.Bilinear)
+// }
+
+// func (p *ImageProcessor) ResizeGif(wg *sync.WaitGroup) {
+// 	fmt.Println("resize gif")
+// 	defer wg.Done()
+// 	resizedGif := &gif.GIF{
+// 		Delay: p.GifImage.Delay,
+// 	}
+// 	b := p.GifImage.Image[0].Bounds()
+// 	r := image.Rect(0, 0, b.Dx(), b.Dy())
+// 	frameHolder := image.NewRGBA(r)
+// 	for _, frame := range p.GifImage.Image {
+// 		bounds := frame.Bounds()
+// 		draw.Draw(frameHolder, bounds, frame, bounds.Min, draw.Over)
+// 		resizedGif.Image = append(resizedGif.Image, ImageToPaletted(p.ResizeFrame(frameHolder)))
+// 	}
+// 	url := "arkivi/" + p.ImageModel.Name + sizeNames[3] + "." + p.ImageModel.Ext
+// 	out, err := os.Create("assets/" + url)
+// 	defer out.Close()
+// 	if err != nil {
+// 		p.Error = err
+// 		return
+// 	}
+// 	gif.EncodeAll(out, resizedGif)
+// 	p.ImageModel.ThumbUrl = StaticDir + url
+// }

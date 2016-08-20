@@ -116,6 +116,7 @@ func main() {
 	r := mux.NewRouter().StrictSlash(true)
 	// handlers
 	r.Handle("/", authorizeMiddleware(appHandler(ChronologyHandler))).Methods("GET")
+	r.Handle("/months/", appHandler(MonthsHandler)).Methods("GET")
 	r.Handle("/chronology/{year}/", authorizeMiddleware(appHandler(ChronologyYearHandler))).Methods("GET")
 	r.Handle("/chronology/{year}/{month}/", authorizeMiddleware(appHandler(ChronologyMonthHandler))).Methods("GET")
 	r.Handle("/login/", appHandler(LoginHandler)).Methods("GET", "POST")
@@ -134,6 +135,7 @@ func main() {
 	r.Handle("/tags/", authorizeMiddleware(appHandler(TagsHandler))).Methods("GET")
 	r.Handle("/tags/suggestions", appHandler(TagsSuggestionHandler)).Methods("GET")
 	r.Handle("/tags/{name}", authorizeMiddleware(appHandler(TagHandler))).Methods("GET")
+	r.Handle("/users/suggestions", appHandler(UsersSuggestionHandler)).Methods("GET")
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("assets/"))))
 	http.ListenAndServe(":6969", handlers.LoggingHandler(os.Stdout, r))
 }
