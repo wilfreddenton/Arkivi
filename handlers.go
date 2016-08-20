@@ -516,12 +516,13 @@ var ImagesHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 	renderTemplate(w, "images", "base", m)
 })
 
-var EditHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func EditHandler(w http.ResponseWriter, r *http.Request) *appError {
 	renderTemplate(w, "edit", "base", map[string]interface{}{
-		"title":          "Upload",
+		"title":          "Edit",
 		"containerClass": "bound",
 	})
-})
+	return nil
+}
 
 func ImageGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 	fmt.Println("Image Handler: GET")
