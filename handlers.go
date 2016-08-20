@@ -545,6 +545,15 @@ func ImageGetHandler(w http.ResponseWriter, r *http.Request) *appError {
 			Render:  !sendJson,
 		}
 	}
+	userID := getUserIDFromContext(r)
+	if !image.Published && userID != int(image.UserID) {
+		return &appError{
+			Error:   errors.New("A user tried to access another user's private photo."),
+			Message: "The uploader has made the image private.",
+			Code:    http.StatusUnauthorized,
+			Render:  !sendJson,
+		}
+	}
 	image.GetTags()
 	if sendJson {
 		w.Header().Set("Content-Type", "application/javascript")
