@@ -39,6 +39,17 @@
         xhr.send();
       }
     },
+    getSizeAndUnit: function (size) {
+      var unit = '';
+      if (size >= Math.pow(10, 6)) {
+        size = (size / Math.pow(10, 6)).toFixed(2);
+        unit = 'Mbs';
+      } else {
+        size = (size / Math.pow(10, 3)).toFixed(2);
+        unit = 'Kbs';
+      }
+      return { size: size, unit: unit };
+    },
     debounce: function (func, wait, immediate) {
       var timeout;
       return function() {

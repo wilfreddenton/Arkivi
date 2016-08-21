@@ -519,7 +519,7 @@ var ImagesHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 func EditHandler(w http.ResponseWriter, r *http.Request) *appError {
 	renderTemplate(w, "edit", "base", map[string]interface{}{
 		"title":          "Edit",
-		"containerClass": "bound",
+		"containerClass": "image-list",
 	})
 	return nil
 }

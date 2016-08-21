@@ -31,109 +31,6 @@
     return this.items.length;
   };
   var queue = new UploadQueue(5);
-  // stores
-  var ErrorStore = {
-    error: {
-      status: 0,
-      statusText: '',
-      responseText: ''
-    },
-    updateError: function (error) {
-      this.error = error;
-      this.onChange();
-    },
-    onChange: function () {}
-  };
-  var ImageStore = {
-    images: Immutable.List(),
-    addImage: function (image) {
-      this.images = this.images.push(image);
-      this.onChange();
-    },
-    addImages: function (images) {
-      this.images = this.images.concat(images);
-      this.onChange();
-    },
-    removeImage: function (index) {
-      this.images = this.images.delete(index);
-      this.onChange();
-    },
-    failImage: function (index) {
-      console.log('image failed to upload', index);
-      this.removeImage(index)
-    },
-    updateModel: function (index, model) {
-      this.images = this.images.update(index, function (image) {
-        return image.set('model', model);
-      });
-      this.onChange();
-    },
-    updateProgress: function (index, progress) {
-      this.images = this.images.update(index, function (image) {
-        return image.set('progress', progress);
-      });
-      this.onChange();
-    },
-    updateAll: function (name, indices, value) {
-      if (name === 'delete') {
-        this.images = this.images.filter(function (image, i) {
-          return indices.indexOf(i) < 0;
-        });
-      } else {
-        indices.forEach(function (i) {
-          this.images = this.images.update(i, function (image) {
-            var model = image.get('model');
-            var newModel;
-            switch (name) {
-            case 'publish':
-              newModel = model.set('Published', true);
-              break
-            case 'unpublish':
-              newModel = model.set('Published', false);
-              break
-            default:
-              newModel = model.set(name, value);
-            }
-            return image.set('model', newModel);
-          });
-        }.bind(this));
-      }
-      this.onChange();
-    },
-    select: function (index) {
-      this.images = this.images.update(index, function (image) {
-        return image.set('selected', true);
-      });
-      this.onChange();
-    },
-    unselect: function (index) {
-      this.images = this.images.update(index, function (image) {
-        return image.set('selected', false);
-      });
-      this.onChange();
-    },
-    selectAll: function () {
-      this.images = this.images.map(function (image) {
-        if (image.get('model').size > 0) {
-          return image.set('selected', true);
-        } else {
-          return image;
-        }
-      });
-      this.onChange();
-    },
-    unselectAll: function () {
-      this.images = this.images.map(function (image) {
-        if (image.get('model').size > 0) {
-          return image.set('selected', false);
-        } else {
-          return image
-        }
-      });
-      this.onChange();
-    },
-    onChange: function () {}
-  }
   // util functions
   var clearFileInput = function (f){
     if (f.value){
@@ -149,17 +46,7 @@
       }
     }
   };
-  var getSizeAndUnit = function (size) {
-    var unit = '';
-    if (size >= Math.pow(10, 6)) {
-      size = (size / Math.pow(10, 6)).toFixed(2);
-      unit = 'Mbs';
-    } else {
-      size = (size / Math.pow(10, 3)).toFixed(2);
-      unit = 'Kbs';
-    }
-    return { size: size, unit: unit };
-  }
+  
   var imagesFromFiles = function (files) {
     var images = Immutable.List();
     Array.prototype.forEach.call(files, function (file) {
@@ -221,7 +108,7 @@
       this.props.images.forEach(function (image) {
         imagesSize += image.get('file').size;
       });
-      var data = getSizeAndUnit(imagesSize);
+      var data = UTILS.getSizeAndUnit(imagesSize);
       var progress = '0%'
       if (this.props.images.size != 0) {
         var uploaded = this.props.images.filter(function (image) {
@@ -263,201 +150,6 @@
       );
     }
   });
-  var ActionBar = React.createClass({
-    propTypes: {
-      token: React.PropTypes.string,
-      hidden: React.PropTypes.bool,
-      actions: React.PropTypes.array,
-      images: React.PropTypes.object
-    },
-    getInitialState: function () {
-      return {
-        actionIndex: 0,
-        allSelected: false,
-        Tags: [],
-        TakenAt: '',
-        Camera: '',
-        Film: ''
-      }
-    },
-    getDefaultProps: function () {
-      return {
-        actions: [
-          { label: '- actions -', name: 'placeholder' },
-          { label: 'publish', name: 'publish' },
-          { label: 'unpublish', name: 'unpublish' },
-          { label: 'date taken', name: 'takenat', secondary: {
-            type: 'date',
-            name: 'TakenAt'
-          }},
-          { label: 'tags', name: 'tags', secondary: {
-            type: 'tags',
-            name: 'Tags'
-          }},
-          { label: 'camera model', name: 'camera', secondary: {
-            type: 'text',
-            name: 'Camera'
-          }},
-          { label: 'film type', name: 'film', secondary: {
-            type: 'text',
-            name: 'Film'
-          }},
-          { label: 'delete', name: 'delete' }
-        ]
-      }
-    },
-    submitHandler: function (e) {
-      e.preventDefault();
-      var action = this.props.actions[this.state.actionIndex];
-      var ids = [];
-      var indices = [];
-      this.props.images.forEach(function (image, i) {
-        if (image.get('selected')) {
-          ids.push(image.get('model').get('ID'));
-          indices.push(i);
-        }
-      });
-      if (this.state.actionIndex === 0 || ids.length === 0) return false;
-      var value = null;
-      var name = action.name;
-      if (name === 'delete') {
-        var c = confirm('Are you sure you want to delete ' + ids.length + ' photo(s)?');
-        if (!c) return false;
-      }
-      if (action.secondary !== undefined) {
-        name = action.secondary.name;
-        value = this.state[name];
-      }
-      var success = function () {
-        ImageStore.updateAll(name, indices, value);
-      }
-      var failure = function (xhr) {
-        ErrorStore.updateError({
-          status: xhr.status,
-          statusText: xhr.statusText,
-          responseText: xhr.responseText
-        });
-      }
-      var actionObj = JSON.stringify({ ids: ids, value: value });
-      UTILS.request({
-        method: 'PUT',
-        path: '/actions/' + action.name,
-        success: success,
-        failure: failure,
-        token: this.props.token,
-        json: true,
-        payload: actionObj
-      });
-    },
-    selectAllHandler: function (e) {
-      var value = !this.state.allSelected;
-      this.setState({ allSelected: value });
-      if (value) {
-        ImageStore.selectAll();
-      } else {
-        ImageStore.unselectAll();
-      }
-    },
-    editHandler: function (data) {
-      var newState = {};
-      newState[data.name] = data.value;
-      this.setState(newState);
-    },
-    changeHandler: function (e) {
-      var name = e.target.name;
-      var value = e.target.value;
-      this.editHandler({ name: name, value: value });
-    },
-    primarySelectHandler: function (e) {
-      this.setState({ actionIndex: e.target.selectedIndex });
-    },
-    componentDidUpdate: function (prevProps, prevState) {
-      if (prevState.allSelected) {
-        var selected = this.props.images.filter(function (image) {
-          return image.get('selected');
-        });
-        if (selected.size !== this.props.images.size) {
-          this.setState({ allSelected: false });
-        }
-      }
-      if (this.state.actionIndex !== prevState.actionIndex) {
-        var ele = ReactDOM.findDOMNode(this).querySelector('.action-bar-secondary input');
-        if (ele) ele.focus();
-      }
-    },
-    renderSecondary: function (secondaryAction) {
-      var type = secondaryAction.type;
-      var name = secondaryAction.name;
-      switch (type) {
-      case 'text':
-      case 'date':
-        return React.DOM.input({
-          type: type,
-          name: name,
-          value: this.state[name],
-          onChange: this.changeHandler
-        })
-      case 'tags':
-        return React.createElement(COMPONENTS.TagsInput, {
-          tags: this.state.Tags,
-          editHandler: this.editHandler
-        });
-      default:
-        return null;
-      }
-    },
-    render: function () {
-      var numSelected = this.props.images.filter(function (i) { return i.selected; }).size;
-      var display = this.props.display ? 'block' : 'none';
-      var primaryOptions = []
-      var secondaryOptions = [];
-      var primary = React.DOM.select({
-        onChange: this.primarySelectHandler,
-        value: this.props.actions[this.state.actionIndex].value
-      }, this.props.actions.map(function (action, i) {
-        return React.DOM.option({
-          key: i,
-          value: action.name
-        }, action.label);
-      }));
-      var secondary = null;
-      var secondaryAction = this.props.actions[this.state.actionIndex].secondary;
-      if (secondaryAction)
-        secondary = this.renderSecondary(secondaryAction);
-      return (
-        React.DOM.div({ id: 'action-bar', style: { display: display } },
-                      React.DOM.form({ onSubmit: this.submitHandler },
-                                     React.DOM.div({ className: 'row' },
-                                                   React.DOM.div({ className: 'col-xs-4'},
-                                                                 React.DOM.div({ className: 'row' },
-                                                                               React.DOM.div({ className: 'col-xs-3 left action-bar-checkbox-container'},
-                                                                                            React.DOM.input({
-                                                                                              className: 'action-bar-checkbox',
-                                                                                              type: 'checkbox',
-                                                                                              name: 'all',
-                                                                                              onChange: this.selectAllHandler,
-                                                                                              checked: this.state.allSelected
-                                                                                            })),
-                                                                               React.DOM.div({ className: 'col-xs-9 right' },
-                                                                                             React.DOM.span({
-                                                                                               className: 'action-bar-selected'
-                                                                                             }, '# selected: ',
-                                                                                                            React.DOM.span({}, numSelected.toString()))))),
-                                                   React.DOM.div({ className: 'col-xs-7 '},
-                                                                 React.DOM.div({ className: 'row' },
-                                                                               React.DOM.div({ className: 'col-xs-5 left action-bar-primary' },
-                                                                                             primary),
-                                                                               React.DOM.div({ className: 'col-xs-7 right action-bar-secondary' },
-                                                                                             secondary))),
-                                                   React.DOM.div({ className: 'col-xs-1 right' },
-                                                                 React.DOM.input({
-                                                                   className: 'action-bar-submit float-right-submit',
-                                                                   type: 'submit',
-                                                                   value: 'do'
-                                                                 })))))
-      );
-    }
-  });
   var Editor = React.createClass({
     propTypes: {
       token: React.PropTypes.string,
@@ -471,7 +163,7 @@
     },
     editHandler: function (data) {
       var model = this.props.model.set(data.name, data.value);
-      ImageStore.updateModel(this.props.index, model);
+      STORES.Image.updateModel(this.props.index, model);
     },
     changeHandler: function (e) {
       var name = e.target.name;
@@ -499,7 +191,7 @@
         }.bind(this), 1000);
       }.bind(this);
       var failure = function (xhr) {
-        ErrorStore.updateError({
+        STORES.Error.updateError({
           status: xhr.status,
           statusText: xhr.statusText,
           responseText: xhr.responseText
@@ -595,196 +287,6 @@
       );
     }
   });
-  var Preview = React.createClass({
-    mixins: [React.addons.PureRenderMixin],
-    propTypes: {
-      index: React.PropTypes.number,
-      image: React.PropTypes.object,
-      token: React.PropTypes.string,
-      onloadHandler: React.PropTypes.func,
-      deleteHandler: React.PropTypes.func
-    },
-    getInitialState: function () {
-      return {
-        editing: false
-      };
-    },
-    toggleEditor: function (e) {
-      this.setState({ editing: !this.state.editing });
-    },
-    selectHandler: function () {
-      if (this.props.image.get('selected')) {
-        ImageStore.unselect(this.props.index);
-      } else {
-        ImageStore.select(this.props.index);
-      }
-    },
-    deleteHandler: function () {
-      this.props.deleteHandler(this.props.index);
-    },
-    render: function () {
-      var image = this.props.image.get('file');
-      var progress = this.props.image.get('progress');
-      var model = this.props.image.get('model');
-      var name, ext, dim, thumbnailStyle, thumbnailOptions, progressDisplay, editDisplay, deleteButton;
-      if (model.size !== 0) {
-        var modelName = model.get('Name'),
-            modelTitle = model.get('Title'),
-            modelExt = model.get('Ext'),
-            modelWidth = model.get('Width'),
-            modelHeight = model.get('Height'),
-            modelThumbUrl = model.get('ThumbUrl'),
-            modelUrl = model.get('Url');
-        name = React.DOM.a({
-          href: '/images/' + modelName,
-          target: '_blank'
-        }, modelTitle);
-        ext = modelExt
-        dim = modelWidth.toString() + 'x' + modelHeight.toString();
-        progressDisplay = 'none';
-        editDisplay = 'block';
-        var url = '';
-        if (modelThumbUrl != '') {
-          url = modelThumbUrl;
-        } else {
-          url = modelUrl;
-        }
-        thumbnailStyle = { backgroundImage: 'url(' + url + ')' }
-        deleteButton = React.DOM.span({ onClick: this.deleteHandler }, 'X');
-      } else {
-        name = React.DOM.span(null, image.name.substring(0, image.name.lastIndexOf(".")));
-        ext = image.name.substring(image.name.lastIndexOf(".")).toLowerCase().slice(1);
-        dim = '';
-        progressDisplay = 'block';
-        editDisplay = 'none';
-        thumbnailStyle = { border: '1px solid #ccc '};
-        deleteButton = null;
-      }
-      var data = getSizeAndUnit(image.size);
-      var size = data.size.slice(0, 4);
-      if (size[size.length - 1] === '.') {
-        size = size.slice(0, 3);
-      }
-      var editToggle = this.state.editing ? 'close' : 'edit';
-      var editor = this.state.editing ? React.createElement(Editor, {
-        token: this.props.token,
-        index: this.props.index,
-        model: model
-      }) : null;
-      var thumbClassName = 'preview-img thumbnail';
-      if (this.props.image.get('selected'))
-        thumbClassName += ' selected';
-      return (
-        React.DOM.li({ className: 'preview' },
-                     React.DOM.div({
-                       ref: 'thumbnail',
-                       className: thumbClassName,
-                       style: thumbnailStyle,
-                       onClick: this.selectHandler
-                     }),
-                     React.DOM.div({ className: 'preview-description' },
-                                   React.DOM.div({ className: 'row' },
-                                                 React.DOM.div({ className: 'preview-name col-xs-10'},
-                                                               name),
-                                                 React.DOM.div({ className: 'preview-delete col-xs-2'},
-                                                               deleteButton)),
-                                   React.DOM.div({ className: 'preview-details row' },
-                                                 React.DOM.div({ className: 'col-xx-5 col-xs-4' },
-                                                               React.DOM.span({ className: 'preview-size' }, size),
-                                                               React.DOM.span({ className: 'preview-size-unit' }, data.unit)),
-                                                 React.DOM.div({ className: 'col-xs-2' },
-                                                               React.DOM.span({ className: 'preview-ext' }, ext)),
-                                                 React.DOM.div({ className: 'col-xx-2 col-xs-3' },
-                                                               React.DOM.span({ className: 'preview-dim'}, dim)),
-                                                 React.DOM.div({ className: 'col-xs-3' },
-                                                               React.DOM.span({
-                                                                 className: 'preview-upload-progress',
-                                                                 style: { display: progressDisplay }
-                                                               }, progress.toString() + '%'),
-                                                               React.DOM.button({
-                                                                 ref: 'editButton',
-                                                                 className: 'preview-edit',
-                                                                 onClick: this.toggleEditor,
-                                                                 style: { display: editDisplay } }, editToggle)))),
-                     editor)
-      );
-    }
-  });
-  var PreviewThumb = React.createClass({
-    mixins: [React.addons.PureRenderMixin],
-    propTypes: {
-      index: React.PropTypes.number,
-      image: React.PropTypes.object,
-      token: React.PropTypes.string,
-      onloadHandler: React.PropTypes.func,
-      deleteHandler: React.PropTypes.func
-    },
-    selectHandler: function () {
-      if (this.props.image.get('selected')) {
-        ImageStore.unselect(this.props.index);
-      } else {
-        ImageStore.select(this.props.index);
-      }
-    },
-    render: function () {
-      var thumbnailStyle, name
-      var model = this.props.image.model;
-      if (model.size !== 0) {
-        name = model.get('Name');
-        thumbnailStyle = { backgroundImage: 'url(' + model.get('ThumbUrl') + ')' };
-      } else {
-        name = this.props.image.get('file').name;
-        thumbnailStyle = { border: '1px solid #ccc '};
-      }
-      var selectedStyle = this.props.image.get('selected') ? "selected" : "";
-      return (
-        React.DOM.li({
-          className: "image-thumb thumbnail " + selectedStyle,
-          onClick: this.selectHandler,
-          style: thumbnailStyle
-        })
-      );
-    }
-  });
-  var Previews = React.createClass({
-    propTypes: {
-      token: React.PropTypes.string,
-      currentPage: React.PropTypes.number,
-      pageCount: React.PropTypes.number,
-      pageCountThumb: React.PropTypes.number,
-      onloadHandler: React.PropTypes.func,
-      deleteHandler: React.PropTypes.func,
-      view: React.PropTypes.string
-    },
-    render: function () {
-      var previews = [];
-      var numImages = this.props.images.size;
-      var count = this.props.view === "details" ? this.props.pageCount : this.props.pageCountThumb;
-      var start =  this.props.currentPage * count;
-      var limit = Math.min(numImages, start + count);
-      for (var i = start; i < limit; i += 1) {
-        var image = this.props.images.get(i);
-        var component = this.props.view === "details" ? Preview : PreviewThumb;
-        previews.push(React.createElement(component, {
-          key: image.get('file').name + i.toString(),
-          index: i,
-          token: this.props.token,
-          image: image,
-          onloadHandler: this.props.onloadHandler,
-          deleteHandler: this.props.deleteHandler
-        }));
-      }
-      var params = {};
-      if (this.props.view === "details") {
-        params = { id: 'previews' };
-      } else {
-        params = { id: 'images', className: 'image-list clearfix' };
-      }
-      return (
-        React.DOM.ul(params, previews)
-      );
-    }
-  });
   var Dropzone = React.createClass({
     propTypes: {
       fileHandler: React.PropTypes.func
@@ -828,8 +330,8 @@
         this.errorHandler();
     },
     componentDidMount: function () {
-      ErrorStore.onChange = function () {
-        this.setState({ error: ErrorStore.error });
+      STORES.Error.onChange = function () {
+        this.setState({ error: STORES.Error.error });
       }.bind(this);
     },
     render: function () {
@@ -845,7 +347,7 @@
         pageCountThumb: 30,
         token: '',
         view: "details",
-        images: ImageStore.images
+        images: STORES.Image.images
       };
     },
     upload: function (index, image) {
@@ -854,15 +356,15 @@
       formData.append('img', file);
       formData.append('filename', file.name);
       var success = function (xhr) {
-        ImageStore.updateModel(index, Immutable.fromJS(JSON.parse(xhr.responseText)));
+        STORES.Image.updateModel(index, Immutable.fromJS(JSON.parse(xhr.responseText)));
       }
       var failure = function (xhr) {
-        ErrorStore.updateError({
+        STORES.Error.updateError({
           status: xhr.status,
           statusText: xhr.statusText,
           responseText: xhr.responseText
         });
-        ImageStore.failImage(index);
+        STORES.Image.failImage(index);
       }
       var callback = function () {
         queue.uploadFinished();
@@ -873,7 +375,7 @@
           var progress = parseInt(e.loaded / e.total * 100);
           if (progress >= 100)
             progress = 99;
-          ImageStore.updateProgress(index, progress);
+          STORES.Image.updateProgress(index, progress);
         }
       };
       queue.uploadStarted();
@@ -901,7 +403,7 @@
         indices.push(this.state.images.size + i);
       }
       queue.pushItems(indices);
-      ImageStore.addImages(images);
+      STORES.Image.addImages(images);
     },
     deleteHandler: function (index) {
       var image = this.state.images.get(index);
@@ -910,10 +412,10 @@
       var a = confirm('Are you sure you want to delete ' + model.get('Title') + '?');
       if (!a) return;
       var success = function () {
-        ImageStore.removeImage(index);
+        STORES.Image.removeImage(index);
       }
       var failure = function (xhr) {
-        ErrorStore.updateError({
+        STORES.Error.updateError({
           status: xhr.status,
           statusText: xhr.statusText,
           responseText: xhr.responseText
@@ -934,8 +436,8 @@
       this.setState({ view: view });
     },
     componentWillMount: function () {
-      ImageStore.onChange = function () {
-        this.setState({ images: ImageStore.images });
+      STORES.Image.onChange = function () {
+        this.setState({ images: STORES.Image.images });
       }.bind(this);
     },
     componentDidUpdate: function (prevProps, prevState) {
@@ -974,12 +476,12 @@
                         images: this.state.images,
                         fileHandler: this.fileHandler
                       }),
-                      React.createElement(ActionBar, {
+                      React.createElement(COMPONENTS.ActionBar, {
                         token: this.state.token,
                         display: this.state.images.size > 0,
                         images: this.state.images
                       }),
-                      React.createElement(Previews, {
+                      React.createElement(COMPONENTS.Previews, {
                         view: this.state.view,
                         currentPage: this.state.currentPage,
                         pageCount: this.state.pageCount,
