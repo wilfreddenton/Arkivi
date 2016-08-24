@@ -302,13 +302,6 @@
         }
       }
     },
-    componentDidMount: function () {
-      var token = window.localStorage.getItem('arkivi-jwt');
-      if (token === null) {
-        window.location.href = '/login';
-      }
-      this.setState({ token: token });
-    },
     render: function () {
       var count = this.state.view === "details" ? this.state.pageCount : this.state.pageCountThumb;
       var numPages = Math.ceil(this.state.images.size / count);
