@@ -1,12 +1,5 @@
 (function (window) {
   // models
-  var Image = Immutable.Record({
-    model: Immutable.Map(),
-    file: {},
-    selected: false,
-    failed: false,
-    progress: 0
-  });
   function UploadQueue (maxUploads) {
     this.items = [];
     this.maxUploads = maxUploads;
@@ -46,13 +39,12 @@
       }
     }
   };
-  
   var imagesFromFiles = function (files) {
     var images = Immutable.List();
     Array.prototype.forEach.call(files, function (file) {
       var validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
       if (validTypes.indexOf(file.type) > -1)
-        images = images.push(new Image({ file: file }));
+        images = images.push(new MODELS.Image({ file: file }));
     });
     return images;
   }
@@ -147,143 +139,6 @@
                                       view: this.props.view,
                                       selectHandler: this.props.selectHandler
                                     })))
-      );
-    }
-  });
-  var Editor = React.createClass({
-    propTypes: {
-      token: React.PropTypes.string,
-      index: React.PropTypes.number,
-      model: React.PropTypes.object
-    },
-    getInitialState: function () {
-      return {
-        submitStatus: 'submit'
-      }
-    },
-    editHandler: function (data) {
-      var model = this.props.model.set(data.name, data.value);
-      STORES.Image.updateModel(this.props.index, model);
-    },
-    changeHandler: function (e) {
-      var name = e.target.name;
-      var value = e.target.value;
-      if (name === 'Published')
-        value = e.target.checked;
-      this.editHandler({ name: name, value: value });
-    },
-    submitHandler: function (e) {
-      e.preventDefault();
-      if (this.state.submitStatus !== 'submit')
-        return;
-      this.setState({ submitStatus: 'sending...' });
-      var model = this.props.model.toJS();
-      var tags = model.Tags;
-      if (tags !== null && tags.length > 0) {
-        if (tags[tags.length - 1].Name === '')
-          model.Tags = tags.slice(0, -1);
-      }
-      model.TakenAt = model.TakenAt !== '' ? moment(model.TakenAt).format('YYYY-MM-DD') : '';
-      var success = function () {
-        this.setState({ submitStatus: 'success' });
-        setTimeout(function () {
-          this.setState({ submitStatus: 'submit' });
-        }.bind(this), 1000);
-      }.bind(this);
-      var failure = function (xhr) {
-        STORES.Error.updateError({
-          status: xhr.status,
-          statusText: xhr.statusText,
-          responseText: xhr.responseText
-        });
-      }
-      UTILS.request({
-        method: 'PUT',
-        path: '/images/' + model.Name,
-        success: success,
-        failure: failure,
-        token: this.props.token,
-        json: true,
-        payload: JSON.stringify(model)
-      });
-    },
-    render: function () {
-      var model = this.props.model;
-      var takenAt = model.get('TakenAt') ? moment(model.get('TakenAt')).format('YYYY-MM-DD') : '';
-      var tags = model.get('Tags');
-      if (Immutable.List.isList(tags))
-        tags = tags.toJS();
-      if (tags === null)
-        tags = [];
-      return (
-        React.DOM.div({ className: 'editor' },
-                      React.DOM.form({ className: 'row', onSubmit: this.submitHandler },
-                                     React.DOM.div({ className: 'col-xs-6' },
-                                                   React.DOM.label(null, 'Title',
-                                                                   React.DOM.br(null),
-                                                                   React.DOM.input({
-                                                                     className: 'editor-title',
-                                                                     type: 'text',
-                                                                     name: 'Title',
-                                                                     onChange: this.changeHandler,
-                                                                     value: model.get('Title')
-                                                                   })),
-                                                   React.DOM.label(null, 'Date Taken',
-                                                                   React.DOM.br(null),
-                                                                   React.DOM.input({
-                                                                     className: 'editor-takenat',
-                                                                     type: 'date',
-                                                                     name: 'TakenAt',
-                                                                     onChange: this.changeHandler,
-                                                                     value: takenAt
-                                                                   })),
-                                                   React.DOM.label(null, 'Description',
-                                                                   React.DOM.br(null),
-                                                                   React.DOM.textarea({
-                                                                     className: 'editor-description',
-                                                                     name: 'Description',
-                                                                     onChange: this.changeHandler,
-                                                                     value: model.get('Description')
-                                                                   }))),
-                                     React.DOM.div({ className: 'col-xs-6'},
-                                                   React.DOM.label(null, 'Camera Model',
-                                                                   React.DOM.br(null),
-                                                                   React.DOM.input({
-                                                                     className: 'editor-camera',
-                                                                     type: 'text',
-                                                                     name: 'Camera',
-                                                                     onChange: this.changeHandler,
-                                                                     value: model.get('Camera')
-                                                                   })),
-                                                   React.DOM.label(null, 'Film Type',
-                                                                   React.DOM.br(null),
-                                                                   React.DOM.input({
-                                                                     className: 'editor-film',
-                                                                     type: 'text',
-                                                                     name: 'Film',
-                                                                     onChange: this.changeHandler,
-                                                                     value: model.get('Film')
-                                                                   })),
-                                                   React.DOM.label(null, 'Tags',
-                                                                   React.DOM.br(null),
-                                                                   React.createElement(COMPONENTS.TagsInput, {
-                                                                     tags: tags,
-                                                                     editHandler: this.editHandler
-                                                                   })),
-                                                   React.DOM.label(null, 'Published',
-                                                                   React.DOM.br(null),
-                                                                   React.DOM.input({
-                                                                     className: 'editor-published',
-                                                                     type: 'checkbox',
-                                                                     name: 'Published',
-                                                                     onChange: this.changeHandler,
-                                                                     checked: model.get('Published')
-                                                                   })),
-                                                   React.DOM.input({
-                                                     className: 'editor-submit float-right-submit',
-                                                     type: 'submit',
-                                                     value: this.state.submitStatus
-                                                   }))))
       );
     }
   });
@@ -488,7 +343,8 @@
                         pageCountThumb: this.state.pageCountThumb,
                         images: this.state.images,
                         token: this.state.token,
-                        deleteHandler: this.deleteHandler
+                        deleteHandler: this.deleteHandler,
+                        upload: true
                       }),
                       pager,
                       React.DOM.form({

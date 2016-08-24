@@ -705,6 +705,11 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) *appError {
 		return appErr
 	}
 	images := FindImagesByIDsAndPage(ids, pageCount, offset)
+	j := q.Get("json")
+	if j == "true" {
+		json.NewEncoder(w).Encode(images)
+		return nil
+	}
 	p := paginater.New(c, pageCount, pageNum, 3)
 	var params []UrlParam
 	if ps.Title != "" {

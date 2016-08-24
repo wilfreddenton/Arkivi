@@ -1120,13 +1120,12 @@
     }),
     Previews: React.createClass({
       propTypes: {
-        token: React.PropTypes.string,
         currentPage: React.PropTypes.number,
         pageCount: React.PropTypes.number,
         pageCountThumb: React.PropTypes.number,
-        onloadHandler: React.PropTypes.func,
         deleteHandler: React.PropTypes.func,
-        view: React.PropTypes.string
+        view: React.PropTypes.string,
+        upload: React.PropTypes.bool
       },
       render: function () {
         var previews = [];
@@ -1137,6 +1136,12 @@
         for (var i = start; i < limit; i += 1) {
           var image = this.props.images.get(i);
           var component = this.props.view === "details" ? COMPONENTS.Preview : COMPONENTS.PreviewThumb;
+          var key;
+          if (this.props.upload) {
+            key = image.get('file').name + i.toString();
+          } else {
+            key = image.get('model').Name;
+          }
           previews.push(React.createElement(component, {
             key: image.get('file').name + i.toString(),
             index: i,

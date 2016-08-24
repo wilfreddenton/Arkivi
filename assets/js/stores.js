@@ -21,6 +21,10 @@
       this.images = this.images.concat(images);
       this.onChange();
     },
+    replaceImages: function (images) {
+      this.images = images;
+      this.onChange();
+    },
     removeImage: function (index) {
       this.images = this.images.delete(index);
       this.onChange();
