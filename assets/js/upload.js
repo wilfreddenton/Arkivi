@@ -46,7 +46,6 @@
       }
     }
   };
-  
   var imagesFromFiles = function (files) {
     var images = Immutable.List();
     Array.prototype.forEach.call(files, function (file) {
@@ -446,13 +445,6 @@
           this.uploadHandler();
         }
       }
-    },
-    componentDidMount: function () {
-      var token = window.localStorage.getItem('arkivi-jwt');
-      if (token === null) {
-        window.location.href = '/login';
-      }
-      this.setState({ token: token });
     },
     render: function () {
       var count = this.state.view === "details" ? this.state.pageCount : this.state.pageCountThumb;

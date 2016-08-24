@@ -140,7 +140,6 @@ func RegisterPostHandler(w http.ResponseWriter, r *http.Request) *appError {
 	if user := FindAdminUser(); user == (User{}) {
 		admin = true
 	}
-
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		errorMessage = "The password you entered contains invalid characters."
